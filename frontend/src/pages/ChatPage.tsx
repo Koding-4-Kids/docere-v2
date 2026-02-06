@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { Sidebar } from '../components/Sidebar'
 import { CourseSelector } from '../components/CourseSelector'
-import { ChatInput } from '../components/ChatInput'
+import { ClaudeChatInput, Icons } from '../components/ClaudeChatInput'
 import { MessageBubble } from '../components/MessageBubble'
 import { useTheme } from '../hooks/useTheme'
+import { Pencil, BookOpen, Code, Lightbulb } from 'lucide-react'
 
 interface Message {
   id: string
@@ -25,6 +26,13 @@ const MOCK_COURSES = [
   { id: '1', name: 'Calculus I', courseCode: 'MATH 121' },
   { id: '2', name: 'Intro to Computer Science', courseCode: 'CS 101' },
   { id: '3', name: 'Organic Chemistry', courseCode: 'CHEM 251' },
+]
+
+const QUICK_ACTIONS = [
+  { label: 'Write', icon: Pencil, prompt: 'Help me write ' },
+  { label: 'Learn', icon: BookOpen, prompt: 'Explain the concept of ' },
+  { label: 'Code', icon: Code, prompt: 'Help me code ' },
+  { label: 'Study', icon: Lightbulb, prompt: 'Help me study for ' },
 ]
 
 export function ChatPage() {
@@ -51,7 +59,7 @@ export function ChatPage() {
     setSelectedCourseId(courseId)
   }
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, _files?: File[]) => {
     if (!selectedCourseId && !activeConv) return
 
     const courseId = activeConv?.courseId || selectedCourseId!
@@ -153,13 +161,30 @@ export function ChatPage() {
           <div className="flex-1 flex flex-col">
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center animate-fade-in">
-                <p className="text-xl text-text-200 mb-1">
+                <Icons.Logo className="w-12 h-12 mx-auto mb-4" />
+                <p className="text-xl font-serif text-text-200 mb-1">
                   {MOCK_COURSES.find(c => c.id === selectedCourseId)?.name}
                 </p>
                 <p className="text-sm text-text-400">Ask me anything about this course</p>
+
+                {/* Quick Action Buttons */}
+                <div className="flex flex-wrap justify-center gap-2 mt-6">
+                  {QUICK_ACTIONS.map(action => (
+                    <button
+                      key={action.label}
+                      onClick={() => handleSendMessage(action.prompt)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-bg-300 bg-bg-0 hover:bg-bg-200 hover:border-accent/40 transition-all text-sm text-text-300 hover:text-text-200 group"
+                    >
+                      <action.icon className="w-4 h-4 text-text-400 group-hover:text-accent transition-colors" />
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-            <ChatInput onSend={handleSendMessage} disabled={isLoading} />
+            <div className="pb-4">
+              <ClaudeChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
+            </div>
           </div>
         )}
 
@@ -176,25 +201,32 @@ export function ChatPage() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
-              {activeConv.messages.map(msg => (
-                <MessageBubble key={msg.id} role={msg.role} content={msg.content} />
-              ))}
-              {isLoading && (
-                <div className="flex justify-start mb-4">
-                  <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-bg-200 text-text-400 text-sm">
-                    <span className="inline-flex gap-1">
-                      <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
-                      <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
-                      <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
-                    </span>
+              <div className="max-w-2xl mx-auto">
+                {activeConv.messages.map(msg => (
+                  <MessageBubble key={msg.id} role={msg.role} content={msg.content} />
+                ))}
+                {isLoading && (
+                  <div className="flex justify-start gap-2 mb-4">
+                    <div className="w-6 h-6 shrink-0 mt-1">
+                      <Icons.Logo className="w-6 h-6" />
+                    </div>
+                    <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-bg-200 text-text-400 text-sm">
+                      <span className="inline-flex gap-1">
+                        <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
+                        <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
+                        <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
+                )}
+                <div ref={messagesEndRef} />
+              </div>
             </div>
 
             {/* Input */}
-            <ChatInput onSend={handleSendMessage} disabled={isLoading} />
+            <div className="pb-4">
+              <ClaudeChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
+            </div>
           </div>
         )}
       </div>

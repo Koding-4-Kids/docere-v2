@@ -1,4 +1,4 @@
-import { BookOpen } from 'lucide-react'
+import { Icons } from './ClaudeChatInput'
 
 interface Course {
   id: string
@@ -21,12 +21,12 @@ export function CourseSelector({ courses, userName, onSelect }: CourseSelectorPr
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 animate-fade-in">
       {/* Logo */}
-      <div className="w-16 h-16 mb-6 rounded-2xl bg-accent/10 flex items-center justify-center">
-        <BookOpen className="w-8 h-8 text-accent" />
+      <div className="mb-6">
+        <Icons.Logo className="w-16 h-16" />
       </div>
 
       {/* Greeting */}
-      <h1 className="text-3xl font-light text-text-200 mb-2 tracking-tight">
+      <h1 className="text-3xl font-serif font-normal text-text-200 mb-2 tracking-tight">
         {greeting},{' '}
         <span className="relative inline-block">
           {userName}

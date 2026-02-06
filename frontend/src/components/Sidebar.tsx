@@ -1,5 +1,6 @@
 import { Plus, MessageSquare } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
+import { Icons } from './ClaudeChatInput'
 
 interface Conversation {
   id: string
@@ -32,7 +33,10 @@ export function Sidebar({ conversations, activeId, onSelect, onNew, dark, toggle
     <div className="w-64 h-screen flex flex-col bg-bg-100 border-r border-bg-300">
       {/* Header */}
       <div className="p-4 flex items-center justify-between">
-        <span className="text-lg font-semibold text-text-100 tracking-tight">Docere</span>
+        <div className="flex items-center gap-2">
+          <Icons.Logo className="w-7 h-7" />
+          <span className="text-lg font-serif font-medium text-text-100 tracking-tight">Docere</span>
+        </div>
         <div className="flex items-center gap-1">
           <ThemeToggle dark={dark} toggle={toggleTheme} />
           <button
