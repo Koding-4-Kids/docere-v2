@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-bg-0: #ffffff;
+  --color-bg-100: #f9f9f7;
+  --color-bg-200: #f0f0ed;
+  --color-bg-300: #e5e5e0;
+  --color-text-100: #1a1a1a;
+  --color-text-200: #333333;
+  --color-text-300: #666666;
+  --color-text-400: #999999;
+  --color-text-500: #b3b3b3;
+  --color-accent: #D97757;
+  --color-accent-hover: #c4643f;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.dark {
+  --color-bg-0: #1a1a18;
+  --color-bg-100: #202020;
+  --color-bg-200: #2a2a28;
+  --color-bg-300: #3a3a38;
+  --color-text-100: #ececec;
+  --color-text-200: #d4d4d4;
+  --color-text-300: #a0a0a0;
+  --color-text-400: #707070;
+  --color-text-500: #505050;
+}
+
+/* Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-bg-300);
+  border-radius: 2px;
+}
+
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
