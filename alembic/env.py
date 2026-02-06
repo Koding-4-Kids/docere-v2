@@ -15,9 +15,9 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import all models so Alembic can detect them
-# from docere.models.base import Base
-# target_metadata = Base.metadata
-target_metadata = None  # TODO: Set to Base.metadata after models are created
+from docere.models import Base  # noqa: F401 - triggers all model imports
+
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
