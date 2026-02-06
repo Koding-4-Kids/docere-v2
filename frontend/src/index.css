@@ -32,7 +32,7 @@ body {
 
 /* Dark mode - match your component's dark values */
 .dark {
-  --color-bg-0: #202123;
+  --color-bg-0: #1a1a18;
   --color-bg-100: #1a1a18;
   --color-bg-200: #30302E;
   --color-bg-300: #454540;
