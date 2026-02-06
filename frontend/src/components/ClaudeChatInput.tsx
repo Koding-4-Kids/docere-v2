@@ -8,7 +8,7 @@ export const Icons = {
             <defs>
                 <ellipse id="petal-pair" cx="100" cy="100" rx="90" ry="22" />
             </defs>
-            <g fill="#D46B4F" fillRule="evenodd">
+            <g fill="#F15524" fillRule="evenodd">
                 <use href="#petal-pair" transform="rotate(0 100 100)" />
                 <use href="#petal-pair" transform="rotate(45 100 100)" />
                 <use href="#petal-pair" transform="rotate(90 100 100)" />
