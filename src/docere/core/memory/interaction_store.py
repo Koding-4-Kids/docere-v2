@@ -75,13 +75,18 @@ class InteractionStore:
         collection = _collection_name(course_id)
 
         # Fetch more than needed so we can filter for diversity
-        raw_results = await self.qdrant.search(
-            collection_name=collection,
-            query_vector=query_embedding,
-            top_k=top_k * 3,
-            score_threshold=0.55,
-            filter_conditions={"student_id": student_id},
-        )
+        try:
+            raw_results = await self.qdrant.search(
+                collection_name=collection,
+                query_vector=query_embedding,
+                top_k=top_k * 3,
+                score_threshold=0.55,
+                filter_conditions={"student_id": student_id},
+            )
+        except Exception:
+            # Collection may not exist yet (no interactions stored for this course)
+            logger.debug("Interaction collection not found, returning empty", collection=collection)
+            return []
 
         if not raw_results:
             return []

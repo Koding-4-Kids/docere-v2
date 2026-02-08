@@ -1,11 +1,12 @@
 """Main tutoring agent orchestrator.
 
 For each student message:
-1. Retrieves memory context (teacher + student + interaction history)
-2. Selects an intervention strategy (UCB1 bandit or default)
-3. Builds a system prompt incorporating all context
-4. Calls Claude API
-5. Triggers async post-processing (memory capture, scoring)
+1. Score the PREVIOUS interaction (now that we have a followup)
+2. Retrieve memory context (teacher + student + interaction history)
+3. Select an intervention strategy (UCB1 bandit or default)
+4. Build a system prompt incorporating all context
+5. Call LLM
+6. Persist messages + trigger async post-processing (memory capture)
 """
 
 from dataclasses import dataclass
@@ -17,6 +18,7 @@ import structlog
 
 from docere.core.improvement.strategy_archive import StrategyArchive
 from docere.core.memory.memory_layer import MemoryContext, MemoryLayer
+from docere.core.verification.process_verifier import ProcessVerifier
 from docere.integrations.llm.client import ClaudeClient
 from docere.integrations.vector_db.qdrant import QdrantStore
 from docere.models.conversation import Conversation, Message
@@ -59,6 +61,7 @@ class TutoringAgent:
         self.claude = claude
         self.memory = MemoryLayer(db, qdrant, claude)
         self.strategies = StrategyArchive(db)
+        self.verifier = ProcessVerifier(db, claude)
 
     async def handle_message(
         self,
@@ -80,15 +83,31 @@ class TutoringAgent:
         Returns:
             AgentResponse with the AI tutoring response
         """
+        # Step 0: Score the PREVIOUS assistant message now that we have
+        # the student's followup. This completes the verification loop.
+        if study_group != "control":
+            try:
+                await self._score_previous_interaction(
+                    conversation_id=conversation_id,
+                    student_id=student_id,
+                    student_followup=student_message,
+                )
+            except Exception as e:
+                logger.warning("Process verification failed", error=str(e))
+
         # Step 1: Retrieve memory context (gated by study_group)
         if study_group == "control":
             memory_ctx = MemoryContext.empty()
         else:
-            memory_ctx = await self.memory.retrieve_context(
-                student_id=student_id,
-                course_id=course_id,
-                current_query=student_message,
-            )
+            try:
+                memory_ctx = await self.memory.retrieve_context(
+                    student_id=student_id,
+                    course_id=course_id,
+                    current_query=student_message,
+                )
+            except RuntimeError as e:
+                logger.warning("Memory retrieval failed, using empty context", error=str(e))
+                memory_ctx = MemoryContext.empty()
 
         # Step 2: Select teaching strategy (gated by study_group)
         strategy = await self.strategies.select_strategy(study_group)
@@ -97,7 +116,7 @@ class TutoringAgent:
         # Step 3: Build system prompt
         system_prompt = self._build_system_prompt(memory_ctx, strategy)
 
-        # Step 4: Build message history + new message, call Claude
+        # Step 4: Build message history + new message, call LLM
         conversation_messages = await self._get_conversation_history(conversation_id)
         conversation_messages.append({"role": "user", "content": student_message})
 
@@ -146,14 +165,23 @@ class TutoringAgent:
 
         await self.db.flush()
 
-        # Step 6: Async post-processing (memory capture)
-        # Run in background - don't block the response
-        await self.memory.capture_interaction(
-            student_id=student_id,
-            course_id=course_id,
-            student_message=student_message,
-            agent_response=response_text,
-        )
+        # Step 6: Post-processing (concept extraction + memory capture)
+        try:
+            concepts, confusion, sentiment = await self.memory.extract_concepts(
+                student_message=student_message,
+                agent_response=response_text,
+            )
+            await self.memory.capture_interaction(
+                student_id=student_id,
+                course_id=course_id,
+                student_message=student_message,
+                agent_response=response_text,
+                concepts=concepts,
+                confusion_score=confusion,
+                sentiment=sentiment,
+            )
+        except RuntimeError as e:
+            logger.warning("Memory capture failed, skipping", error=str(e))
 
         await self.db.commit()
 
@@ -170,6 +198,79 @@ class TutoringAgent:
             token_count=len(response_text) // 4,
             strategy_used=strategy_name,
             memory_context_size=memory_ctx.total_tokens,
+        )
+
+    async def _score_previous_interaction(
+        self,
+        conversation_id: str,
+        student_id: str,
+        student_followup: str,
+    ) -> None:
+        """Score the previous assistant message using process verification.
+
+        Called when a new student message arrives — the new message serves as
+        the 'followup' signal for scoring the previous response.
+        """
+        # Find the most recent assistant message that hasn't been scored yet
+        result = await self.db.execute(
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.role == "assistant",
+            )
+            .order_by(Message.created_at.desc())
+            .limit(1)
+        )
+        prev_assistant = result.scalar_one_or_none()
+        if not prev_assistant:
+            return
+
+        # Find the student message that preceded it
+        result = await self.db.execute(
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.role == "user",
+                Message.created_at <= prev_assistant.created_at,
+            )
+            .order_by(Message.created_at.desc())
+            .limit(1)
+        )
+        prev_student = result.scalar_one_or_none()
+        if not prev_student:
+            return
+
+        # Calculate time between assistant response and student followup
+        now = datetime.now(timezone.utc)
+        time_delta = int((now - prev_assistant.created_at).total_seconds())
+
+        # Score the interaction
+        verification = await self.verifier.score_interaction(
+            message_id=str(prev_assistant.id),
+            conversation_id=conversation_id,
+            student_id=student_id,
+            student_message=prev_student.content,
+            assistant_message=prev_assistant.content,
+            student_followup=student_followup,
+            time_to_followup=time_delta,
+        )
+
+        # If a strategy was used, record the outcome for the bandit
+        metadata = prev_assistant.metadata_ or {}
+        strategy_id = metadata.get("strategy_id")
+        if strategy_id:
+            await self.strategies.record_outcome(
+                strategy_id=strategy_id,
+                conversation_id=conversation_id,
+                score=verification.composite_score,
+            )
+
+        logger.info(
+            "Previous interaction scored",
+            message_id=str(prev_assistant.id),
+            composite=f"{verification.composite_score:.2f}",
+            method=verification.scoring_method,
+            followup_type=verification.student_followup_type,
         )
 
     def _build_system_prompt(

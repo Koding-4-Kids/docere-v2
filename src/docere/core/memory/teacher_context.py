@@ -138,12 +138,16 @@ class TeacherContextManager:
         collection = f"{COLLECTION_PREFIX}_{course_id}"
         query_embedding = await generate_embedding(query)
 
-        results = await self.qdrant.search(
-            collection_name=collection,
-            query_vector=query_embedding,
-            top_k=max_chunks,
-            score_threshold=0.55,
-        )
+        try:
+            results = await self.qdrant.search(
+                collection_name=collection,
+                query_vector=query_embedding,
+                top_k=max_chunks,
+                score_threshold=0.55,
+            )
+        except Exception:
+            # Collection may not exist yet (no materials ingested for this course)
+            return ""
 
         if not results:
             return ""

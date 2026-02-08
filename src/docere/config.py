@@ -15,15 +15,21 @@ class Settings(BaseSettings):
     # Qdrant
     qdrant_url: str = "http://localhost:6333"
 
+    # LLM Provider
+    llm_provider: str = "openai"  # "openai" or "anthropic"
+
     # Anthropic
     anthropic_api_key: str = ""
     default_model: str = "claude-sonnet-4-20250514"
+
+    # OpenAI
+    openai_default_model: str = "gpt-4o-mini"
 
     # Embeddings
     voyage_api_key: str = ""
     openai_api_key: str = ""
     embedding_model: str = "voyage-3"
-    embedding_dimensions: int = 1024
+    embedding_dimensions: int = 1536  # 1536 for OpenAI text-embedding-3-small, 1024 for Voyage
 
     # JWT
     jwt_secret: str = "change-this-in-production"

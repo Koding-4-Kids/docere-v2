@@ -26,6 +26,20 @@ from docere.models.memory import ConceptMastery, MemoryRecord
 
 logger = structlog.get_logger()
 
+EXTRACT_CONCEPTS_PROMPT = """Analyze this tutoring exchange and extract:
+
+Student: {student_message}
+Tutor: {agent_response}
+
+Respond with ONLY a JSON object:
+{{"concepts": ["concept1", "concept2"], "confusion_score": 0.0, "sentiment": "neutral"}}
+
+Rules:
+- concepts: 1-4 specific academic concepts discussed (e.g. "derivatives", "photosynthesis"). Use lowercase.
+- confusion_score: 0.0 (student clearly understands) to 1.0 (student is very confused)
+- sentiment: one of "positive", "neutral", "frustrated", "confused"
+"""
+
 
 @dataclass
 class MemoryContext:
@@ -111,22 +125,18 @@ class MemoryLayer:
         """
         query_embedding = await generate_embedding(current_query)
 
-        # Parallel fetch from all sources
-        (
-            teacher_context,
-            raw_interactions,
-            profile,
-            weak_concepts,
-            recent_grades,
-        ) = await asyncio.gather(
+        # Fetch from all sources
+        # Note: DB queries must be sequential (asyncpg doesn't allow concurrent
+        # queries on the same connection). Qdrant calls can run in parallel.
+        teacher_context, raw_interactions = await asyncio.gather(
             self.teacher_ctx.retrieve_relevant_context(course_id, current_query, max_chunks=3),
             self.interaction_store.retrieve_relevant(
                 student_id, course_id, query_embedding, top_k=5
             ),
-            self.profile_builder.get_profile(student_id, course_id),
-            self.profile_builder.get_weak_concepts(student_id, course_id),
-            self._get_recent_grades(student_id, course_id),
         )
+        profile = await self.profile_builder.get_profile(student_id, course_id)
+        weak_concepts = await self.profile_builder.get_weak_concepts(student_id, course_id)
+        recent_grades = await self._get_recent_grades(student_id, course_id)
 
         # Build profile string
         profile_str = ""
@@ -206,6 +216,41 @@ class MemoryLayer:
             memories=len(context.relevant_memories),
         )
         return context
+
+    async def extract_concepts(
+        self,
+        student_message: str,
+        agent_response: str,
+    ) -> tuple[list[str], float, str]:
+        """Extract concepts, confusion score, and sentiment from an exchange.
+
+        Returns:
+            (concepts, confusion_score, sentiment)
+        """
+        import json
+
+        prompt = EXTRACT_CONCEPTS_PROMPT.format(
+            student_message=student_message[:500],
+            agent_response=agent_response[:500],
+        )
+
+        try:
+            result = await self.claude.chat(
+                system_prompt="You are an educational content analyzer. Respond with only JSON.",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=100,
+                temperature=0.1,
+            )
+            data = json.loads(result.strip())
+            concepts = [c.lower().strip() for c in data.get("concepts", []) if c.strip()][:4]
+            confusion = max(0.0, min(1.0, float(data.get("confusion_score", 0.0))))
+            sentiment = data.get("sentiment", "neutral")
+            if sentiment not in ("positive", "neutral", "frustrated", "confused"):
+                sentiment = "neutral"
+            return concepts, confusion, sentiment
+        except (json.JSONDecodeError, KeyError, ValueError):
+            logger.warning("Concept extraction failed, using defaults")
+            return [], 0.0, "neutral"
 
     async def capture_interaction(
         self,

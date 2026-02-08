@@ -120,7 +120,9 @@ class StrategyArchive:
         For control/treatment_a groups, returns None (no strategy augmentation).
         For treatment_full, uses UCB1 to balance exploration vs exploitation.
         """
-        if study_group != "treatment_full":
+        # Strategies are used for treatment_full group and in dev (study_group=None)
+        # Control and treatment_a groups get no strategy augmentation
+        if study_group in ("control", "treatment_a"):
             return None
 
         # Fetch all active strategies

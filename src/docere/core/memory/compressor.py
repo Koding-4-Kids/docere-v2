@@ -153,6 +153,27 @@ class MemoryCompressor:
         )
         return summary
 
+    async def compress_all(self, threshold: int = 50) -> int:
+        """Compress memories across all courses/students. Called by weekly background task."""
+        # Find all (student, course) pairs with enough uncompressed memories
+        result = await self.db.execute(
+            select(MemoryRecord.student_id, MemoryRecord.course_id)
+            .where(MemoryRecord.is_compressed.is_(False))
+            .group_by(MemoryRecord.student_id, MemoryRecord.course_id)
+            .having(func.count(MemoryRecord.id) >= threshold)
+        )
+        pairs = result.all()
+
+        total_compressed = 0
+        for student_id, course_id in pairs:
+            compressed = await self.compress_student_memories(
+                str(student_id), str(course_id), threshold
+            )
+            total_compressed += compressed
+
+        logger.info("Global compression complete", pairs=len(pairs), total_compressed=total_compressed)
+        return total_compressed
+
     async def compress_all_students(self, course_id: str, threshold: int = 50) -> dict[str, int]:
         """Run compression for all students in a course. Called by weekly background task."""
         result = await self.db.execute(

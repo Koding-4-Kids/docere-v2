@@ -11,6 +11,7 @@ Ongoing: sync every 2 hours + webhook triggers.
 """
 
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -22,6 +23,19 @@ from docere.models.course import Assignment, Course, CourseMaterial, Enrollment,
 from docere.models.user import User
 
 logger = structlog.get_logger()
+
+
+@dataclass
+class GradeChange:
+    """Detected grade change from LMS sync."""
+
+    student_id: uuid.UUID
+    course_id: uuid.UUID
+    assignment_id: uuid.UUID
+    assignment_title: str
+    score: float
+    max_score: float
+    previous_score: float | None
 
 
 class LMSSyncService:
@@ -67,10 +81,15 @@ class LMSSyncService:
         )
         return course
 
-    async def incremental_sync(self, course_id: uuid.UUID) -> dict[str, int]:
+    async def incremental_sync(
+        self, course_id: uuid.UUID
+    ) -> tuple[dict[str, int], list[GradeChange]]:
         """Incremental sync: pull latest grades, submissions, new assignments.
 
         Called every 2 hours by background task or on webhook trigger.
+
+        Returns:
+            (summary_dict, list_of_grade_changes)
         """
         course = await self.db.get(Course, course_id)
         if not course or not course.external_lms_id:
@@ -89,12 +108,15 @@ class LMSSyncService:
         )
 
         new_assignments = await self._sync_assignments(course, sync_data)
-        new_submissions = await self._sync_submissions(course, sync_data)
+        new_submissions, grade_changes = await self._sync_submissions(course, sync_data)
 
         course.last_synced_at = datetime.now(timezone.utc)
         await self.db.commit()
 
-        return {"new_assignments": new_assignments, "updated_submissions": new_submissions}
+        return (
+            {"new_assignments": new_assignments, "updated_submissions": new_submissions},
+            grade_changes,
+        )
 
     async def _upsert_course(self, sync_data: LMSFullSync, lms_platform: str) -> Course:
         """Create or update a course from LMS data."""
@@ -204,20 +226,30 @@ class LMSSyncService:
         await self.db.flush()
         return count
 
-    async def _sync_submissions(self, course: Course, sync_data: LMSFullSync) -> int:
-        """Sync student submissions/grades from LMS."""
+    async def _sync_submissions(
+        self, course: Course, sync_data: LMSFullSync
+    ) -> tuple[int, list[GradeChange]]:
+        """Sync student submissions/grades from LMS.
+
+        Returns:
+            (count_updated, list_of_grade_changes)
+        """
         count = 0
+        grade_changes: list[GradeChange] = []
 
         # Build lookup maps for assignments and users
         assignment_map: dict[str, uuid.UUID] = {}
+        assignment_titles: dict[str, str] = {}
+        assignment_points: dict[str, float] = {}
         result = await self.db.execute(
-            select(Assignment.external_lms_id, Assignment.id).where(
-                Assignment.course_id == course.id
-            )
+            select(Assignment.external_lms_id, Assignment.id, Assignment.title, Assignment.points_possible)
+            .where(Assignment.course_id == course.id)
         )
-        for ext_id, db_id in result.all():
+        for ext_id, db_id, title, points in result.all():
             if ext_id:
                 assignment_map[ext_id] = db_id
+                assignment_titles[ext_id] = title
+                assignment_points[ext_id] = points or 0
 
         user_map: dict[str, uuid.UUID] = {}
         result = await self.db.execute(
@@ -245,10 +277,23 @@ class LMSSyncService:
             submission = result.scalar_one_or_none()
 
             if submission:
+                previous_score = submission.score
                 submission.score = lms_sub.score
                 submission.grade = lms_sub.grade
                 submission.workflow_state = lms_sub.workflow_state
                 submission.synced_at = datetime.now(timezone.utc)
+
+                # Detect grade change
+                if lms_sub.score is not None and lms_sub.score != previous_score:
+                    grade_changes.append(GradeChange(
+                        student_id=student_id,
+                        course_id=course.id,
+                        assignment_id=assignment_id,
+                        assignment_title=assignment_titles.get(lms_sub.assignment_id, ""),
+                        score=lms_sub.score,
+                        max_score=assignment_points.get(lms_sub.assignment_id, 0),
+                        previous_score=previous_score,
+                    ))
             else:
                 self.db.add(
                     Submission(
@@ -260,10 +305,21 @@ class LMSSyncService:
                         workflow_state=lms_sub.workflow_state,
                     )
                 )
+                # New submission with a grade is also a "change"
+                if lms_sub.score is not None:
+                    grade_changes.append(GradeChange(
+                        student_id=student_id,
+                        course_id=course.id,
+                        assignment_id=assignment_id,
+                        assignment_title=assignment_titles.get(lms_sub.assignment_id, ""),
+                        score=lms_sub.score,
+                        max_score=assignment_points.get(lms_sub.assignment_id, 0),
+                        previous_score=None,
+                    ))
             count += 1
 
         await self.db.flush()
-        return count
+        return count, grade_changes
 
     async def _sync_materials(self, course: Course, sync_data: LMSFullSync) -> int:
         """Sync course materials (files, modules, pages) from LMS."""
