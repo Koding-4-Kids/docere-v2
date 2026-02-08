@@ -36,42 +36,45 @@ const QUICK_ACTIONS = [
   { label: 'Study', icon: Lightbulb, prompt: 'Help me study for ' },
 ]
 
-// Temporary mock courses until the courses API is wired up
-const FALLBACK_COURSES: Course[] = [
-  { id: '1', name: 'Calculus I', courseCode: 'MATH 121' },
-  { id: '2', name: 'Intro to Computer Science', courseCode: 'CS 101' },
-  { id: '3', name: 'Organic Chemistry', courseCode: 'CHEM 251' },
-]
-
 export function ChatPage() {
   const { dark, toggle } = useTheme()
   const { user, logout } = useAuth()
   const [conversations, setConversations] = useState<LocalConversation[]>([])
   const [activeConvId, setActiveConvId] = useState<string | null>(null)
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null)
-  const [courses] = useState<Course[]>(FALLBACK_COURSES)
+  const [courses, setCourses] = useState<Course[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const activeConv = conversations.find(c => c.id === activeConvId)
 
-  // Load existing conversations on mount
+  // Load courses and conversations on mount
   useEffect(() => {
-    api.listConversations().then(serverConvs => {
-      const mapped: LocalConversation[] = serverConvs.map(c => ({
+    api.listCourses().then(serverCourses => {
+      const mapped = serverCourses.map(c => ({
         id: c.id,
-        title: c.title || 'New conversation',
-        courseId: c.course_id,
-        courseName: courses.find(cr => cr.id === c.course_id)?.name || 'Course',
-        lastMessageAt: c.last_message_at,
-        messages: [],
+        name: c.name,
+        courseCode: c.course_code || '',
       }))
-      setConversations(mapped)
+      setCourses(mapped)
+      return mapped
+    }).then(loadedCourses => {
+      return api.listConversations().then(serverConvs => {
+        const mapped: LocalConversation[] = serverConvs.map(c => ({
+          id: c.id,
+          title: c.title || 'New conversation',
+          courseId: c.course_id,
+          courseName: loadedCourses.find(cr => cr.id === c.course_id)?.name || 'Course',
+          lastMessageAt: c.last_message_at,
+          messages: [],
+        }))
+        setConversations(mapped)
+      })
     }).catch(() => {
       // Backend might not be running — that's OK for dev
     })
-  }, [courses])
+  }, [])
 
   // Load messages when selecting a conversation that has none loaded
   useEffect(() => {

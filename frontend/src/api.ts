@@ -127,6 +127,12 @@ export async function getMe(): Promise<User> {
   return apiFetch<User>('/api/v1/auth/me')
 }
 
+// ── Courses ──
+
+export async function listCourses(): Promise<Course[]> {
+  return apiFetch<Course[]>('/api/v1/courses/')
+}
+
 // ── Conversations ──
 
 export async function createConversation(courseId: string, title?: string): Promise<ConversationSummary> {
