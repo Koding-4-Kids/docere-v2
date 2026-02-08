@@ -4,29 +4,30 @@ import { CourseSelector } from '../components/CourseSelector'
 import { ClaudeChatInput, Icons } from '../components/ClaudeChatInput'
 import { MessageBubble } from '../components/MessageBubble'
 import { useTheme } from '../hooks/useTheme'
+import { useAuth } from '../AuthContext'
 import { Pencil, BookOpen, Code, Lightbulb } from 'lucide-react'
+import * as api from '../api'
 
-interface Message {
+interface LocalMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
 }
 
-interface Conversation {
+interface LocalConversation {
   id: string
   title: string
   courseId: string
   courseName: string
   lastMessageAt: string
-  messages: Message[]
+  messages: LocalMessage[]
 }
 
-// Mock data - replace with API calls
-const MOCK_COURSES = [
-  { id: '1', name: 'Calculus I', courseCode: 'MATH 121' },
-  { id: '2', name: 'Intro to Computer Science', courseCode: 'CS 101' },
-  { id: '3', name: 'Organic Chemistry', courseCode: 'CHEM 251' },
-]
+interface Course {
+  id: string
+  name: string
+  courseCode: string
+}
 
 const QUICK_ACTIONS = [
   { label: 'Write', icon: Pencil, prompt: 'Help me write ' },
@@ -35,15 +36,66 @@ const QUICK_ACTIONS = [
   { label: 'Study', icon: Lightbulb, prompt: 'Help me study for ' },
 ]
 
+// Temporary mock courses until the courses API is wired up
+const FALLBACK_COURSES: Course[] = [
+  { id: '1', name: 'Calculus I', courseCode: 'MATH 121' },
+  { id: '2', name: 'Intro to Computer Science', courseCode: 'CS 101' },
+  { id: '3', name: 'Organic Chemistry', courseCode: 'CHEM 251' },
+]
+
 export function ChatPage() {
   const { dark, toggle } = useTheme()
-  const [conversations, setConversations] = useState<Conversation[]>([])
+  const { user, logout } = useAuth()
+  const [conversations, setConversations] = useState<LocalConversation[]>([])
   const [activeConvId, setActiveConvId] = useState<string | null>(null)
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null)
+  const [courses] = useState<Course[]>(FALLBACK_COURSES)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const activeConv = conversations.find(c => c.id === activeConvId)
+
+  // Load existing conversations on mount
+  useEffect(() => {
+    api.listConversations().then(serverConvs => {
+      const mapped: LocalConversation[] = serverConvs.map(c => ({
+        id: c.id,
+        title: c.title || 'New conversation',
+        courseId: c.course_id,
+        courseName: courses.find(cr => cr.id === c.course_id)?.name || 'Course',
+        lastMessageAt: c.last_message_at,
+        messages: [],
+      }))
+      setConversations(mapped)
+    }).catch(() => {
+      // Backend might not be running — that's OK for dev
+    })
+  }, [courses])
+
+  // Load messages when selecting a conversation that has none loaded
+  useEffect(() => {
+    if (!activeConvId) return
+    const conv = conversations.find(c => c.id === activeConvId)
+    if (conv && conv.messages.length === 0) {
+      api.getConversation(activeConvId).then(detail => {
+        setConversations(prev =>
+          prev.map(c =>
+            c.id === activeConvId
+              ? {
+                  ...c,
+                  messages: detail.messages.map(m => ({
+                    id: m.id,
+                    role: m.role as 'user' | 'assistant',
+                    content: m.content,
+                  })),
+                }
+              : c
+          )
+        )
+      }).catch(() => {})
+    }
+  }, [activeConvId, conversations])
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -53,6 +105,7 @@ export function ChatPage() {
   const handleNewConversation = () => {
     setActiveConvId(null)
     setSelectedCourseId(null)
+    setError(null)
   }
 
   const handleSelectCourse = (courseId: string) => {
@@ -61,66 +114,80 @@ export function ChatPage() {
 
   const handleSendMessage = async (content: string, _files?: File[]) => {
     if (!selectedCourseId && !activeConv) return
+    setError(null)
 
     const courseId = activeConv?.courseId || selectedCourseId!
-    const course = MOCK_COURSES.find(c => c.id === courseId)
+    const course = courses.find(c => c.id === courseId)
 
-    // If no active conversation, create one
-    if (!activeConvId) {
-      const newConv: Conversation = {
-        id: crypto.randomUUID(),
-        title: content.slice(0, 50),
-        courseId,
-        courseName: course?.name || 'Unknown',
-        lastMessageAt: new Date().toISOString(),
-        messages: [],
+    try {
+      // If no active conversation, create one via API
+      if (!activeConvId) {
+        const serverConv = await api.createConversation(courseId, content.slice(0, 50))
+
+        const newConv: LocalConversation = {
+          id: serverConv.id,
+          title: content.slice(0, 50),
+          courseId,
+          courseName: course?.name || 'Course',
+          lastMessageAt: new Date().toISOString(),
+          messages: [{ id: crypto.randomUUID(), role: 'user', content }],
+        }
+        setConversations(prev => [newConv, ...prev])
+        setActiveConvId(serverConv.id)
+
+        // Send message to the new conversation
+        setIsLoading(true)
+        const response = await api.sendMessage(serverConv.id, content)
+
+        setConversations(prev =>
+          prev.map(c =>
+            c.id === serverConv.id
+              ? {
+                  ...c,
+                  messages: [
+                    ...c.messages,
+                    { id: response.message.id, role: 'assistant', content: response.message.content },
+                  ],
+                }
+              : c
+          )
+        )
+        setIsLoading(false)
+        return
       }
-      setConversations(prev => [newConv, ...prev])
-      setActiveConvId(newConv.id)
 
-      // Add user message
-      const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content }
-      newConv.messages.push(userMsg)
-      setConversations(prev => prev.map(c => c.id === newConv.id ? { ...newConv } : c))
-
-      // Simulate AI response
-      await simulateResponse(newConv.id, content)
-      return
-    }
-
-    // Add to existing conversation
-    const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content }
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === activeConvId
-          ? { ...c, messages: [...c.messages, userMsg], lastMessageAt: new Date().toISOString() }
-          : c
+      // Add user message to existing conversation immediately (optimistic)
+      const tempUserMsg: LocalMessage = { id: crypto.randomUUID(), role: 'user', content }
+      setConversations(prev =>
+        prev.map(c =>
+          c.id === activeConvId
+            ? { ...c, messages: [...c.messages, tempUserMsg], lastMessageAt: new Date().toISOString() }
+            : c
+        )
       )
-    )
 
-    await simulateResponse(activeConvId, content)
-  }
+      // Send to API and get AI response
+      setIsLoading(true)
+      const response = await api.sendMessage(activeConvId, content)
 
-  const simulateResponse = async (convId: string, _userMessage: string) => {
-    setIsLoading(true)
-
-    // TODO: Replace with actual API call to POST /api/v1/chat/conversations/{id}/messages
-    await new Promise(resolve => setTimeout(resolve, 1200))
-
-    const assistantMsg: Message = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: "I'm Docere, your AI tutor. I can see your course materials and remember our past conversations. What would you like help with?",
-    }
-
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === convId
-          ? { ...c, messages: [...c.messages, assistantMsg] }
-          : c
+      setConversations(prev =>
+        prev.map(c =>
+          c.id === activeConvId
+            ? {
+                ...c,
+                messages: [
+                  ...c.messages,
+                  { id: response.message.id, role: 'assistant', content: response.message.content },
+                ],
+              }
+            : c
+        )
       )
-    )
-    setIsLoading(false)
+      setIsLoading(false)
+    } catch (err) {
+      setIsLoading(false)
+      setError(err instanceof Error ? err.message : 'Failed to send message')
+    }
   }
 
   // Determine what to show in the main area
@@ -141,17 +208,29 @@ export function ChatPage() {
         activeId={activeConvId}
         onSelect={setActiveConvId}
         onNew={handleNewConversation}
+        onLogout={logout}
+        userEmail={user?.email || ''}
         dark={dark}
         toggleTheme={toggle}
       />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Error banner */}
+        {error && (
+          <div className="px-6 py-2 bg-red-500/10 border-b border-red-500/20 text-red-600 text-sm flex items-center justify-between">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 ml-4">
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Course selector (new conversation, no course picked) */}
         {showCourseSelector && (
           <CourseSelector
-            courses={MOCK_COURSES}
-            userName="Youdahe"
+            courses={courses}
+            userName={user?.name || 'Student'}
             onSelect={handleSelectCourse}
           />
         )}
@@ -163,7 +242,7 @@ export function ChatPage() {
               <div className="text-center animate-fade-in">
                 <Icons.Logo className="w-12 h-12 mx-auto mb-4" />
                 <p className="text-xl font-serif text-text-200 mb-1">
-                  {MOCK_COURSES.find(c => c.id === selectedCourseId)?.name}
+                  {courses.find(c => c.id === selectedCourseId)?.name}
                 </p>
                 <p className="text-sm text-text-400">Ask me anything about this course</p>
 

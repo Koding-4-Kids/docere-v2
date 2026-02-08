@@ -13,6 +13,8 @@ interface SidebarProps {
   activeId: string | null
   onSelect: (id: string) => void
   onNew: () => void
+  onLogout: () => void
+  userEmail: string
   dark: boolean
   toggleTheme: () => void
 }
@@ -72,7 +74,7 @@ function Menu({ children, items }: { children: React.ReactNode; items: { name: s
   )
 }
 
-export function Sidebar({ conversations, activeId, onSelect, onNew, dark, toggleTheme }: SidebarProps) {
+export function Sidebar({ conversations, activeId, onSelect, onNew, onLogout, userEmail, dark, toggleTheme }: SidebarProps) {
   const profileRef = useRef<HTMLButtonElement | null>(null)
   const [isProfileActive, setIsProfileActive] = useState(false)
 
@@ -124,7 +126,7 @@ export function Sidebar({ conversations, activeId, onSelect, onNew, dark, toggle
                   className="absolute z-10 top-12 right-0 w-64 rounded-lg bg-bg-0 shadow-md border border-bg-300 text-sm text-text-300"
                 >
                   <div className="p-2 text-left">
-                    <span className="block text-text-400 p-2">student@college.edu</span>
+                    <span className="block text-text-400 p-2">{userEmail}</span>
                     <button
                       onClick={toggleTheme}
                       className="flex items-center gap-2 w-full p-2 text-left rounded-md hover:bg-bg-200 active:bg-bg-300 duration-150"
@@ -134,6 +136,7 @@ export function Sidebar({ conversations, activeId, onSelect, onNew, dark, toggle
                       {dark ? 'Light mode' : 'Dark mode'}
                     </button>
                     <button
+                      onClick={onLogout}
                       className="flex items-center gap-2 w-full p-2 text-left rounded-md hover:bg-bg-200 active:bg-bg-300 duration-150"
                       role="menuitem"
                     >
