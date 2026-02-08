@@ -9,6 +9,7 @@ import structlog
 
 from docere.config import settings
 from docere.api import auth, chat, courses, students, instructor, memory, analytics, lms
+from docere.dependencies import engine, init_clients, get_qdrant
 
 logger = structlog.get_logger()
 
@@ -17,12 +18,21 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Application startup and shutdown events."""
     logger.info("Starting Docere v2", environment=settings.environment)
-    # TODO: Initialize database connection pool
-    # TODO: Initialize Qdrant client
-    # TODO: Initialize Redis connection
+
+    # Initialize shared clients (Claude, Qdrant)
+    init_clients()
+
+    # Ensure Qdrant collections exist
+    qdrant = get_qdrant()
+    await qdrant.ensure_collection("interactions_default")
+    await qdrant.ensure_collection("materials_default")
+
+    logger.info("All services initialized")
     yield
+
+    # Shutdown: close database connection pool
+    await engine.dispose()
     logger.info("Shutting down Docere v2")
-    # TODO: Close connections
 
 
 app = FastAPI(
