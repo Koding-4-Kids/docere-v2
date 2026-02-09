@@ -7,9 +7,14 @@ Key functions:
 - mod_assign_get_assignments - assignments
 - core_enrol_get_enrolled_users - student roster
 - gradereport_user_get_grades_table - grades
+- mod_page_get_pages_by_courses - page HTML content
 """
 
+import hashlib
+import io
+
 import httpx
+import structlog
 
 from docere.config import settings
 from docere.integrations.lms.base import (
@@ -20,6 +25,10 @@ from docere.integrations.lms.base import (
     LMSEnrollment,
     LMSSubmission,
 )
+
+logger = structlog.get_logger()
+
+MAX_PDF_SIZE = 20 * 1024 * 1024  # 20 MB
 
 
 class MoodleAdapter(LMSAdapter):
@@ -127,25 +136,162 @@ class MoodleAdapter(LMSAdapter):
         ]
 
     async def get_course_materials(self, course_id: str) -> list[LMSCourseMaterial]:
-        """Get all course materials via core_course_get_contents."""
+        """Get all course materials via core_course_get_contents + page content.
+
+        Reads the contents[] array from each module to find file download URLs,
+        downloads and extracts PDF text, fetches page HTML content, and computes
+        content_hash for change detection.
+        """
         data = await self._call(
             "core_course_get_contents",
             {"courseid": course_id},
         )
         assert isinstance(data, list)
+
+        # Fetch page content in bulk
+        page_content_map = await self._get_page_contents(course_id)
+
         materials = []
         for section in data:
             if not isinstance(section, dict):
                 continue
             for module in section.get("modules", []):
-                if isinstance(module, dict):
-                    materials.append(
-                        LMSCourseMaterial(
-                            external_id=str(module.get("id", "")),
-                            title=module.get("name", ""),
-                            material_type=module.get("modname", "resource"),
-                            content=module.get("description"),
-                            url=module.get("url"),
-                        )
+                if not isinstance(module, dict):
+                    continue
+
+                module_id = str(module.get("id", ""))
+                modname = module.get("modname", "resource")
+                title = module.get("name", "")
+
+                # Extract file download URLs from contents array
+                file_urls: list[str] = []
+                for content_item in module.get("contents", []):
+                    if isinstance(content_item, dict):
+                        file_url = content_item.get("fileurl")
+                        if file_url:
+                            file_urls.append(file_url)
+
+                # Determine content: page HTML, PDF text, or module description
+                content = module.get("description")
+
+                if modname == "page" and module_id in page_content_map:
+                    content = page_content_map[module_id]
+                elif file_urls:
+                    pdf_text = await self._extract_pdf_text(file_urls)
+                    if pdf_text:
+                        content = pdf_text
+
+                # Compute content hash for change detection
+                content_hash = None
+                if content:
+                    content_hash = hashlib.sha256(content.encode()).hexdigest()
+
+                materials.append(
+                    LMSCourseMaterial(
+                        external_id=module_id,
+                        title=title,
+                        material_type=modname,
+                        content=content,
+                        url=module.get("url"),
+                        file_urls=file_urls,
+                        content_hash=content_hash,
                     )
+                )
         return materials
+
+    async def _get_page_contents(self, course_id: str) -> dict[str, str]:
+        """Fetch HTML content for all page modules in a course.
+
+        Returns mapping of module_id -> HTML content.
+        """
+        try:
+            data = await self._call(
+                "mod_page_get_pages_by_courses",
+                {"courseids[0]": course_id},
+            )
+        except Exception:
+            logger.warning("Failed to fetch page contents", course_id=course_id)
+            return {}
+
+        if not isinstance(data, dict):
+            return {}
+
+        pages: dict[str, str] = {}
+        for page in data.get("pages", []):
+            if isinstance(page, dict):
+                cm_id = str(page.get("coursemodule", ""))
+                html_content = page.get("content", "")
+                if cm_id and html_content:
+                    pages[cm_id] = html_content
+        return pages
+
+    async def _extract_pdf_text(self, file_urls: list[str]) -> str | None:
+        """Download PDF files from Moodle and extract text.
+
+        Appends ?token=WSTOKEN for Moodle file auth. Streams with size limit.
+        Returns concatenated text from all PDFs, or None if no PDFs found.
+        """
+        all_text_parts: list[str] = []
+
+        for url in file_urls:
+            # Only attempt PDF extraction for URLs that look like PDFs
+            url_lower = url.lower()
+            if not url_lower.endswith(".pdf") and "pdf" not in url_lower:
+                continue
+
+            try:
+                text = await self._download_and_extract_pdf(url)
+                if text:
+                    all_text_parts.append(text)
+            except Exception:
+                logger.warning("Failed to extract PDF", url=url)
+
+        return "\n\n".join(all_text_parts) if all_text_parts else None
+
+    async def _download_and_extract_pdf(self, url: str) -> str | None:
+        """Download a single PDF from Moodle and extract its text.
+
+        Appends ?token=WSTOKEN for Moodle file authentication.
+        Enforces a 20MB size limit via streaming.
+        """
+        from pypdf import PdfReader
+
+        # Append Moodle auth token
+        separator = "&" if "?" in url else "?"
+        auth_url = f"{url}{separator}token={self.api_token}"
+
+        async with httpx.AsyncClient() as client:
+            async with client.stream("GET", auth_url, follow_redirects=True) as response:
+                response.raise_for_status()
+
+                # Check content length if available
+                content_length = response.headers.get("content-length")
+                if content_length and int(content_length) > MAX_PDF_SIZE:
+                    logger.warning("PDF too large, skipping", url=url, size=content_length)
+                    return None
+
+                # Stream the PDF with size limit
+                chunks: list[bytes] = []
+                total_size = 0
+                async for chunk in response.aiter_bytes(chunk_size=8192):
+                    total_size += len(chunk)
+                    if total_size > MAX_PDF_SIZE:
+                        logger.warning("PDF exceeded size limit during download", url=url)
+                        return None
+                    chunks.append(chunk)
+
+        pdf_bytes = b"".join(chunks)
+        if not pdf_bytes:
+            return None
+
+        try:
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            text_parts: list[str] = []
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_parts.append(page_text)
+            return "\n".join(text_parts) if text_parts else None
+        except Exception:
+            logger.warning("Failed to parse PDF", url=url)
+            return None

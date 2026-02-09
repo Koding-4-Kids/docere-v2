@@ -115,9 +115,11 @@ class CourseMaterial(Base, UUIDMixin):
     course_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("courses.id", ondelete="CASCADE"), nullable=False
     )
+    external_lms_id: Mapped[str | None] = mapped_column(String(255))
     material_type: Mapped[str] = mapped_column(String(50), nullable=False)
     title: Mapped[str | None] = mapped_column(String(500))
     content: Mapped[str | None] = mapped_column(Text)
+    content_hash: Mapped[str | None] = mapped_column(String(64))
     source_url: Mapped[str | None] = mapped_column(Text)
     embedding_id: Mapped[str | None] = mapped_column(String(255))
     uploaded_at: Mapped[datetime] = mapped_column(

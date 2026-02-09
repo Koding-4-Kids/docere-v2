@@ -84,7 +84,7 @@ class LMSSyncService:
     async def incremental_sync(
         self, course_id: uuid.UUID
     ) -> tuple[dict[str, int], list[GradeChange]]:
-        """Incremental sync: pull latest grades, submissions, new assignments.
+        """Incremental sync: pull latest grades, submissions, new assignments, and materials.
 
         Called every 2 hours by background task or on webhook trigger.
 
@@ -98,23 +98,30 @@ class LMSSyncService:
         # Pull latest data
         assignments = await self.lms.get_assignments(course.external_lms_id)
         submissions = await self.lms.get_submissions(course.external_lms_id)
+        materials = await self.lms.get_course_materials(course.external_lms_id)
 
         sync_data = LMSFullSync(
             course=await self.lms.get_course(course.external_lms_id),
             assignments=assignments,
             submissions=submissions,
             enrollments=[],
-            materials=[],
+            materials=materials,
         )
 
         new_assignments = await self._sync_assignments(course, sync_data)
         new_submissions, grade_changes = await self._sync_submissions(course, sync_data)
+        new_materials, updated_materials = await self._sync_materials(course, sync_data)
 
         course.last_synced_at = datetime.now(timezone.utc)
         await self.db.commit()
 
         return (
-            {"new_assignments": new_assignments, "updated_submissions": new_submissions},
+            {
+                "new_assignments": new_assignments,
+                "updated_submissions": new_submissions,
+                "new_materials": new_materials,
+                "updated_materials": updated_materials,
+            },
             grade_changes,
         )
 
@@ -321,28 +328,58 @@ class LMSSyncService:
         await self.db.flush()
         return count, grade_changes
 
-    async def _sync_materials(self, course: Course, sync_data: LMSFullSync) -> int:
-        """Sync course materials (files, modules, pages) from LMS."""
-        count = 0
+    async def _sync_materials(
+        self, course: Course, sync_data: LMSFullSync
+    ) -> tuple[int, int]:
+        """Sync course materials (files, modules, pages) from LMS.
+
+        Uses external_lms_id for stable matching. Compares content_hash
+        for change detection. Clears embedding_id when content changes
+        so re-embedding is triggered.
+
+        Returns:
+            (new_count, updated_count)
+        """
+        new_count = 0
+        updated_count = 0
+
         for lms_material in sync_data.materials:
+            # Look up by stable external_lms_id
             result = await self.db.execute(
                 select(CourseMaterial).where(
                     CourseMaterial.course_id == course.id,
-                    CourseMaterial.title == lms_material.title,
-                    CourseMaterial.material_type == lms_material.material_type,
+                    CourseMaterial.external_lms_id == lms_material.external_id,
                 )
             )
-            if not result.scalar_one_or_none():
+            existing = result.scalar_one_or_none()
+
+            if existing:
+                # Check for content changes via hash
+                if (
+                    lms_material.content_hash
+                    and existing.content_hash != lms_material.content_hash
+                ):
+                    existing.title = lms_material.title
+                    existing.content = lms_material.content
+                    existing.content_hash = lms_material.content_hash
+                    existing.source_url = lms_material.url
+                    existing.material_type = lms_material.material_type
+                    # Clear embedding so re-embedding is triggered
+                    existing.embedding_id = None
+                    updated_count += 1
+            else:
                 self.db.add(
                     CourseMaterial(
                         course_id=course.id,
+                        external_lms_id=lms_material.external_id,
                         material_type=lms_material.material_type,
                         title=lms_material.title,
                         content=lms_material.content,
+                        content_hash=lms_material.content_hash,
                         source_url=lms_material.url,
                     )
                 )
-                count += 1
+                new_count += 1
 
         await self.db.flush()
-        return count
+        return new_count, updated_count

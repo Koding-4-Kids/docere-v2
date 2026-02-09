@@ -93,8 +93,12 @@ async def run_lti_course_sync(
     """Background: full sync for a course after first LTI launch.
 
     Uses per-platform API credentials from lti_platforms table.
+    After sync, embeds all materials + syllabus into Qdrant.
     """
     import uuid
+    from sqlalchemy import select
+    from docere.core.memory.teacher_context import TeacherContextManager
+    from docere.models.course import CourseMaterial
     from docere.models.lti_platform import LTIPlatform
     from docere.services.lti_service import create_adapter
     from docere.services.lms_sync_service import LMSSyncService
@@ -112,12 +116,131 @@ async def run_lti_course_sync(
         course = await sync_service.full_sync(external_course_id, lms_platform)
         await db.commit()
 
+        # Embed all synced materials + syllabus into Qdrant
+        try:
+            qdrant = get_qdrant()
+            claude = get_claude()
+            ctx_manager = TeacherContextManager(qdrant, claude)
+
+            result = await db.execute(
+                select(CourseMaterial).where(
+                    CourseMaterial.course_id == course.id,
+                    CourseMaterial.content.isnot(None),
+                )
+            )
+            materials = result.scalars().all()
+
+            materials_data = [
+                {
+                    "title": m.title or "",
+                    "content": m.content or "",
+                    "type": m.material_type,
+                }
+                for m in materials
+                if m.content and len(m.content.strip()) >= 50
+            ]
+
+            chunks = await ctx_manager.ingest_course(
+                course_id=str(course.id),
+                syllabus=course.syllabus_text,
+                materials=materials_data,
+            )
+
+            # Mark materials as embedded
+            for m in materials:
+                if m.content and len(m.content.strip()) >= 50:
+                    m.embedding_id = f"materials_{course.id}"
+            await db.commit()
+
+            logger.info(
+                "Initial material embedding complete",
+                course_id=course_id,
+                chunks=chunks,
+            )
+        except Exception:
+            logger.exception("Failed to embed materials after first sync")
+
     logger.info(
         "LTI course sync complete",
         course_id=course_id,
         platform=platform.institution_name,
     )
     return {"course_id": course_id, "status": "synced"}
+
+
+async def run_lti_material_sync(
+    ctx: dict,
+    platform_id: str,
+    course_id: str,
+    external_course_id: str,
+) -> dict:
+    """Background: lightweight material-only sync on every LTI launch.
+
+    Only syncs materials (not full course), so it's fast. Embeds any
+    new/updated materials afterward.
+    """
+    import uuid
+    from docere.models.lti_platform import LTIPlatform
+    from docere.services.lti_service import create_adapter
+    from docere.services.lms_sync_service import LMSSyncService
+    from docere.tasks.lms_sync import _embed_new_materials
+    from docere.models.course import Course
+
+    new_count = 0
+    updated_count = 0
+    embedded = 0
+
+    async with async_session() as db:
+        platform = await db.get(LTIPlatform, uuid.UUID(platform_id))
+        if not platform:
+            logger.error("Platform not found for material sync", platform_id=platform_id)
+            return {"error": "platform_not_found"}
+
+        adapter = create_adapter(platform)
+        sync_service = LMSSyncService(db, adapter)
+
+        course = await db.get(Course, uuid.UUID(course_id))
+        if not course:
+            logger.error("Course not found for material sync", course_id=course_id)
+            return {"error": "course_not_found"}
+
+        # Pull and sync materials only
+        from docere.integrations.lms.base import LMSFullSync, LMSCourse
+        materials = await adapter.get_course_materials(external_course_id)
+        sync_data = LMSFullSync(
+            course=LMSCourse(
+                external_id=external_course_id,
+                name=course.name,
+                course_code=course.course_code or "",
+            ),
+            materials=materials,
+        )
+        new_count, updated_count = await sync_service._sync_materials(course, sync_data)
+        await db.commit()
+
+        # Embed new/updated materials
+        if new_count > 0 or updated_count > 0:
+            try:
+                embedded = await _embed_new_materials(
+                    db, course, get_qdrant(), get_claude()
+                )
+                await db.commit()
+            except Exception:
+                logger.exception("Failed to embed materials after sync")
+
+    logger.info(
+        "LTI material sync complete",
+        course_id=course_id,
+        new=new_count,
+        updated=updated_count,
+        embedded=embedded,
+    )
+    return {
+        "course_id": course_id,
+        "new_materials": new_count,
+        "updated_materials": updated_count,
+        "embedded": embedded,
+    }
 
 
 # ── Worker lifecycle ──
@@ -149,6 +272,7 @@ class WorkerSettings:
         run_lms_sync,
         run_seed_strategies,
         run_lti_course_sync,
+        run_lti_material_sync,
     ]
 
     # Scheduled cron jobs

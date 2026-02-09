@@ -220,21 +220,34 @@ async def lti_launch(
 
     await db.commit()
 
-    # 7. Enqueue full sync for new courses (don't block the redirect)
-    if course and is_new_course and platform.api_base_url and platform.api_token:
+    # 7. Enqueue sync tasks (don't block the redirect)
+    if course and platform.api_base_url and platform.api_token:
         try:
             redis_settings = RedisSettings.from_dsn(settings.redis_url)
             pool = await create_pool(redis_settings)
-            await pool.enqueue_job(
-                "run_lti_course_sync",
-                str(platform.id),
-                str(course.id),
-                lti_data.external_course_id,
-            )
+
+            if is_new_course:
+                # Full sync for brand-new courses
+                await pool.enqueue_job(
+                    "run_lti_course_sync",
+                    str(platform.id),
+                    str(course.id),
+                    lti_data.external_course_id,
+                )
+                logger.info("Enqueued course sync", course_id=str(course.id))
+            else:
+                # Lightweight material-only sync on every launch
+                await pool.enqueue_job(
+                    "run_lti_material_sync",
+                    str(platform.id),
+                    str(course.id),
+                    lti_data.external_course_id,
+                )
+                logger.info("Enqueued material sync", course_id=str(course.id))
+
             await pool.aclose()
-            logger.info("Enqueued course sync", course_id=str(course.id))
         except Exception:
-            logger.exception("Failed to enqueue course sync")
+            logger.exception("Failed to enqueue sync")
 
     # 8. Create Docere JWT and redirect to frontend
     token = create_access_token(user.id, role=user.role)

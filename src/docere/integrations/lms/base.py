@@ -65,6 +65,8 @@ class LMSCourseMaterial:
     material_type: str  # 'file' | 'module' | 'page' | 'discussion' | 'quiz'
     content: str | None = None
     url: str | None = None
+    file_urls: list[str] = field(default_factory=list)
+    content_hash: str | None = None
 
 
 @dataclass

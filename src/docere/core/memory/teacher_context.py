@@ -123,10 +123,69 @@ class TeacherContextManager:
         )
         return chunks_embedded
 
-    async def refresh_course(self, course_id: str) -> None:
-        """Sync any new/updated materials from LMS."""
-        # TODO: Diff against stored materials, update changed ones
-        pass
+    async def refresh_course(
+        self,
+        course_id: str,
+        updated_materials: list[dict[str, str]],
+    ) -> int:
+        """Re-embed materials that have changed.
+
+        Deletes old Qdrant vectors for the given materials, then re-embeds them.
+
+        Args:
+            course_id: Internal course UUID
+            updated_materials: List of {"title": ..., "content": ..., "type": ...}
+
+        Returns:
+            Number of chunks re-embedded
+        """
+        collection = f"{COLLECTION_PREFIX}_{course_id}"
+        chunks_embedded = 0
+
+        for material in updated_materials:
+            title = material.get("title", "")
+            content = material.get("content", "")
+            if not content or len(content.strip()) < 50:
+                continue
+
+            # Delete old vectors for this material
+            await self.qdrant.delete(
+                collection_name=collection,
+                filter_conditions={"title": title},
+            )
+
+            # Compress large materials
+            if len(content) > 3000:
+                content = await self._compress_material(
+                    content=content,
+                    title=title,
+                    material_type=material.get("type", "document"),
+                )
+
+            # Re-embed
+            chunks = self._chunk_text(content, max_chars=2000)
+            for i, chunk in enumerate(chunks):
+                embedding = await generate_embedding(chunk)
+                await self.qdrant.upsert(
+                    collection_name=collection,
+                    point_id=str(uuid.uuid4()),
+                    vector=embedding,
+                    payload={
+                        "course_id": course_id,
+                        "material_type": material.get("type", "document"),
+                        "title": title,
+                        "content": chunk,
+                    },
+                )
+                chunks_embedded += 1
+
+        logger.info(
+            "Course materials refreshed",
+            course_id=course_id,
+            materials=len(updated_materials),
+            chunks=chunks_embedded,
+        )
+        return chunks_embedded
 
     async def retrieve_relevant_context(
         self,
@@ -143,7 +202,7 @@ class TeacherContextManager:
                 collection_name=collection,
                 query_vector=query_embedding,
                 top_k=max_chunks,
-                score_threshold=0.55,
+                score_threshold=0.1,
             )
         except Exception:
             # Collection may not exist yet (no materials ingested for this course)
