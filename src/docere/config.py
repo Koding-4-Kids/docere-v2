@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     lti_deployment_id: str = ""
     lti_jwks_url: str = ""
 
+    # URLs (for LTI redirect_uri and post-launch redirect)
+    app_base_url: str = "http://localhost:8000"
+    frontend_url: str = "http://localhost:5173"
+
     # Canvas
     canvas_base_url: str = ""
     canvas_api_token: str = ""

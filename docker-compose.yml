@@ -38,6 +38,48 @@ services:
       timeout: 5s
       retries: 5
 
+  # Local Moodle for LTI testing (admin/Admin123!)
+  moodle:
+    image: bitnamilegacy/moodle:latest
+    user: "0:0"
+    environment:
+      MOODLE_DATABASE_HOST: moodle-mariadb
+      MOODLE_DATABASE_PORT_NUMBER: 3306
+      MOODLE_DATABASE_NAME: moodle
+      MOODLE_DATABASE_USER: moodle
+      MOODLE_DATABASE_PASSWORD: moodle_dev
+      MOODLE_USERNAME: admin
+      MOODLE_PASSWORD: "Admin123!"
+      MOODLE_EMAIL: admin@localhost.com
+      MOODLE_SITE_NAME: "Docere Test Moodle"
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    volumes:
+      - moodle_data:/bitnami/moodle
+      - moodledata:/bitnami/moodledata
+    depends_on:
+      moodle-mariadb:
+        condition: service_healthy
+
+  moodle-mariadb:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: root_dev
+      MARIADB_DATABASE: moodle
+      MARIADB_USER: moodle
+      MARIADB_PASSWORD: moodle_dev
+    volumes:
+      - moodle_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   postgres_data:
   qdrant_data:
+  moodle_data:
+  moodledata:
+  moodle_db_data:

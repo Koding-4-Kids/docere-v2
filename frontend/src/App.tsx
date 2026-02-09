@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AuthProvider, useAuth } from './AuthContext'
 import { ChatPage } from './pages/ChatPage'
+import { LTICallbackPage } from './pages/LTICallbackPage'
 import { Icons } from './components/ClaudeChatInput'
 import './index.css'
 
@@ -62,6 +63,11 @@ function LoginPage() {
 
 function AppContent() {
   const { user, loading } = useAuth()
+
+  // Handle LTI callback route before auth check
+  if (window.location.pathname === '/lti/callback') {
+    return <LTICallbackPage />
+  }
 
   if (loading) {
     return (

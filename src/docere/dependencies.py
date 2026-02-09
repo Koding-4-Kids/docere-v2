@@ -4,6 +4,7 @@ import uuid
 from collections.abc import AsyncGenerator
 
 import jwt
+import redis.asyncio as aioredis
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -54,6 +55,32 @@ def get_claude() -> ClaudeClient:
     if _claude is None:
         raise RuntimeError("Claude client not initialized — app lifespan not started")
     return _claude
+
+
+# ── Redis ──
+
+_redis: aioredis.Redis | None = None
+
+
+async def init_redis() -> None:
+    """Initialize the async Redis client. Called once during app startup."""
+    global _redis
+    _redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+
+
+def get_redis() -> aioredis.Redis:
+    """Get the shared async Redis client."""
+    if _redis is None:
+        raise RuntimeError("Redis client not initialized — app lifespan not started")
+    return _redis
+
+
+async def shutdown_redis() -> None:
+    """Close the Redis connection pool."""
+    global _redis
+    if _redis:
+        await _redis.aclose()
+        _redis = None
 
 
 # ── JWT Auth ──

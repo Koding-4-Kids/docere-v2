@@ -10,3 +10,4 @@ from docere.models.strategy import Strategy, StrategyScore  # noqa: F401
 from docere.models.alert import Alert  # noqa: F401
 from docere.models.analytics import LearningAnalyticsEvent  # noqa: F401
 from docere.models.research import StudyConfig, ResearchEvent  # noqa: F401
+from docere.models.lti_platform import LTIPlatform  # noqa: F401

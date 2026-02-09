@@ -84,6 +84,42 @@ async def run_seed_strategies(ctx: dict) -> dict:
     return {"seeded": count}
 
 
+async def run_lti_course_sync(
+    ctx: dict,
+    platform_id: str,
+    course_id: str,
+    external_course_id: str,
+) -> dict:
+    """Background: full sync for a course after first LTI launch.
+
+    Uses per-platform API credentials from lti_platforms table.
+    """
+    import uuid
+    from docere.models.lti_platform import LTIPlatform
+    from docere.services.lti_service import create_adapter
+    from docere.services.lms_sync_service import LMSSyncService
+
+    async with async_session() as db:
+        platform = await db.get(LTIPlatform, uuid.UUID(platform_id))
+        if not platform:
+            logger.error("Platform not found for LTI sync", platform_id=platform_id)
+            return {"error": "platform_not_found"}
+
+        adapter = create_adapter(platform)
+        lms_platform = str(platform.id)
+
+        sync_service = LMSSyncService(db, adapter)
+        course = await sync_service.full_sync(external_course_id, lms_platform)
+        await db.commit()
+
+    logger.info(
+        "LTI course sync complete",
+        course_id=course_id,
+        platform=platform.institution_name,
+    )
+    return {"course_id": course_id, "status": "synced"}
+
+
 # ── Worker lifecycle ──
 
 
@@ -112,6 +148,7 @@ class WorkerSettings:
         run_memory_compression,
         run_lms_sync,
         run_seed_strategies,
+        run_lti_course_sync,
     ]
 
     # Scheduled cron jobs
