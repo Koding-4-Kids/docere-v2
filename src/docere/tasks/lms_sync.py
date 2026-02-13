@@ -11,6 +11,7 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from docere.core.improvement.strategy_archive import StrategyArchive
 from docere.core.memory.memory_layer import MemoryLayer
 from docere.core.memory.teacher_context import TeacherContextManager
 from docere.core.verification.outcome_tracker import OutcomeTracker
@@ -158,13 +159,14 @@ async def _process_grade_changes(
     qdrant: QdrantStore | None,
 ) -> int:
     """Process grade changes: link to interaction scores and create memory records."""
-    tracker = OutcomeTracker(db)
+    strategy_archive = StrategyArchive(db)
+    tracker = OutcomeTracker(db, strategy_archive=strategy_archive)
     total_linked = 0
 
     for change in changes:
         # 1. Link grade to recent tutoring interactions (backfill subsequent_performance)
         try:
-            linked = await tracker.link_grade_to_interactions(
+            linked, _ids = await tracker.link_grade_to_interactions(
                 student_id=str(change.student_id),
                 course_id=str(change.course_id),
                 assignment_id=str(change.assignment_id),

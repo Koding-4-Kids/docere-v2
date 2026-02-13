@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
+from docere.core.memory.concept_utils import normalize_concept
 from docere.integrations.llm.client import ClaudeClient
 from docere.models.memory import ConceptMastery, MemoryRecord, StudentProfile
 
@@ -107,6 +108,7 @@ class StudentProfileBuilder:
         confusion_score: float,
     ) -> None:
         """Update mastery for a single concept."""
+        concept_name = normalize_concept(concept_name)
         result = await self.db.execute(
             select(ConceptMastery).where(
                 ConceptMastery.student_id == student_id,

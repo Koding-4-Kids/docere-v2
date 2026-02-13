@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
+from docere.core.memory.concept_utils import normalize_concept
 from docere.core.memory.interaction_store import InteractionStore
 from docere.core.memory.student_profile import StudentProfileBuilder
 from docere.core.memory.teacher_context import TeacherContextManager
@@ -91,6 +92,8 @@ def _estimate_tokens(text: str) -> int:
     return len(text) // 4
 
 
+
+
 class MemoryLayer:
     """Unified memory retrieval and capture interface."""
 
@@ -112,7 +115,7 @@ class MemoryLayer:
         student_id: str,
         course_id: str,
         current_query: str,
-        max_tokens: int = 4000,
+        max_tokens: int = 8000,
     ) -> MemoryContext:
         """Assemble complete memory context for a student interaction.
 
@@ -165,37 +168,49 @@ class MemoryLayer:
                     f"Student: {student_msg[:200]}\nTutor: {agent_resp[:300]}"
                 )
 
-        # Token budgeting: profile > struggles > materials > history
+        # Token budgeting: materials > profile > grades > history
+        # Materials get the highest priority because the agent needs to
+        # see actual assignment content to help students effectively.
         budget = max_tokens
         context = MemoryContext(
             teacher_context="",
             student_profile="",
         )
 
-        # 1. Profile (highest priority, ~200 tokens)
-        if profile_str:
-            tokens = _estimate_tokens(profile_str)
-            if tokens <= budget:
-                context.student_profile = profile_str
-                budget -= tokens
-
-        # 2. Concept mastery (~100 tokens)
-        context.concept_mastery = mastery_dict
-
-        # 3. Recent grades (~150 tokens)
-        context.recent_grades = recent_grades
-
-        # 4. Teacher context (course materials)
+        # 1. Teacher context (course materials — highest priority)
         if teacher_context:
             tokens = _estimate_tokens(teacher_context)
             if tokens <= budget:
                 context.teacher_context = teacher_context
                 budget -= tokens
             else:
-                # Truncate to fit budget
-                char_limit = budget * 4
+                # Reserve at least half the budget for materials
+                char_limit = max(budget, max_tokens // 2) * 4
                 context.teacher_context = teacher_context[:char_limit]
-                budget = 0
+                budget = max(0, budget - _estimate_tokens(context.teacher_context))
+
+        # 2. Profile (~200 tokens)
+        if profile_str:
+            tokens = _estimate_tokens(profile_str)
+            if tokens <= budget:
+                context.student_profile = profile_str
+                budget -= tokens
+
+        # 3. Concept mastery
+        context.concept_mastery = mastery_dict
+        if mastery_dict:
+            mastery_text = "\n".join(f"- {c}: {l:.0%}" for c, l in mastery_dict.items())
+            budget -= _estimate_tokens(mastery_text)
+
+        # 4. Recent grades
+        context.recent_grades = recent_grades
+        if recent_grades:
+            grades_text = "\n".join(
+                f"- {g.get('title', '')}: {g.get('score', '')}/{g.get('max_score', '')}"
+                for g in recent_grades[:5]
+            )
+            budget -= _estimate_tokens(grades_text)
+        budget = max(0, budget)
 
         # 5. Interaction history (lowest priority, fills remaining budget)
         if budget > 0:
@@ -242,7 +257,7 @@ class MemoryLayer:
                 temperature=0.1,
             )
             data = json.loads(result.strip())
-            concepts = [c.lower().strip() for c in data.get("concepts", []) if c.strip()][:4]
+            concepts = [normalize_concept(c) for c in data.get("concepts", []) if c.strip()][:4]
             confusion = max(0.0, min(1.0, float(data.get("confusion_score", 0.0))))
             sentiment = data.get("sentiment", "neutral")
             if sentiment not in ("positive", "neutral", "frustrated", "confused"):

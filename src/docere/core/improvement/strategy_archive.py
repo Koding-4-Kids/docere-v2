@@ -168,6 +168,7 @@ class StrategyArchive:
         conversation_id: str,
         score: float,
         interaction_score_id: str | None = None,
+        context_metadata: dict | None = None,
     ) -> None:
         """Record an interaction outcome for a strategy."""
         self.db.add(
@@ -176,6 +177,7 @@ class StrategyArchive:
                 conversation_id=conversation_id,
                 interaction_score_id=interaction_score_id,
                 score=score,
+                context_metadata=context_metadata or {},
             )
         )
 
@@ -194,5 +196,36 @@ class StrategyArchive:
             else:
                 old_success = strategy.success_rate or 0.0
                 strategy.success_rate = (old_success * (n - 1)) / n
+
+        await self.db.flush()
+
+    async def incorporate_grade_signal(
+        self,
+        interaction_score_id: str,
+        grade_percentage: float,
+    ) -> None:
+        """Blend a grade signal into the strategy score that produced this interaction."""
+        result = await self.db.execute(
+            select(StrategyScore).where(
+                StrategyScore.interaction_score_id == interaction_score_id
+            )
+        )
+        strategy_score = result.scalar_one_or_none()
+        if not strategy_score:
+            return
+
+        # Blend: 70% original composite, 30% grade signal
+        old_score = strategy_score.score
+        blended = old_score * 0.7 + grade_percentage * 0.3
+        strategy_score.score = blended
+
+        # Adjust parent strategy's avg_score by the delta
+        delta = blended - old_score
+        strategy_result = await self.db.execute(
+            select(StrategyModel).where(StrategyModel.id == strategy_score.strategy_id)
+        )
+        strategy = strategy_result.scalar_one_or_none()
+        if strategy and strategy.total_uses:
+            strategy.avg_score = (strategy.avg_score or 0.0) + delta / strategy.total_uses
 
         await self.db.flush()

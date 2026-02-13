@@ -113,10 +113,24 @@ class MemoryCompressor:
                 self.db.add(summary_record)
                 await self.db.flush()
 
+                # Collect embedding IDs for Qdrant cleanup
+                stale_ids = [mem.embedding_id for mem in batch if mem.embedding_id]
+
                 # Mark originals as compressed
                 for mem in batch:
                     mem.is_compressed = True
                     mem.compressed_into = summary_record.id
+
+                # Remove stale vectors from Qdrant
+                if stale_ids:
+                    try:
+                        collection = f"interactions_{course_id}"
+                        await self.qdrant.delete_by_ids(collection, stale_ids)
+                    except Exception:
+                        logger.warning(
+                            "Failed to clean stale Qdrant vectors",
+                            count=len(stale_ids),
+                        )
 
                 compressed_count += len(batch)
 

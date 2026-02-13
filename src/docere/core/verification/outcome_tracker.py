@@ -1,11 +1,13 @@
 """Outcome tracker: links interaction scores to LMS grade outcomes."""
 
+import re
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
+from docere.core.improvement.strategy_archive import StrategyArchive
 from docere.models.conversation import Conversation, Message
 from docere.models.verification import InteractionScore
 
@@ -15,8 +17,9 @@ logger = structlog.get_logger()
 class OutcomeTracker:
     """Tracks post-interaction outcomes from LMS grade data."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, strategy_archive: StrategyArchive | None = None):
         self.db = db
+        self.strategy_archive = strategy_archive
 
     async def link_grade_to_interactions(
         self,
@@ -27,7 +30,7 @@ class OutcomeTracker:
         max_score: float,
         concepts: list[str],
         lookback_days: int = 14,
-    ) -> int:
+    ) -> tuple[int, list[str]]:
         """Find recent conversations about the graded topic and update scores.
 
         When a grade arrives from the LMS, find all tutoring interactions
@@ -63,6 +66,7 @@ class OutcomeTracker:
         scores = score_result.scalars().all()
 
         updated = 0
+        updated_ids: list[str] = []
         for interaction_score in scores:
             # Check if the message content relates to the graded concepts
             msg_result = await self.db.execute(
@@ -73,6 +77,7 @@ class OutcomeTracker:
             if msg_content and self._content_matches_concepts(msg_content, concepts):
                 interaction_score.subsequent_performance = percentage
                 updated += 1
+                updated_ids.append(str(interaction_score.id))
 
         if updated:
             await self.db.flush()
@@ -84,9 +89,26 @@ class OutcomeTracker:
                 interactions_updated=updated,
             )
 
-        return updated
+            # Feed grade signal back into strategy scores
+            if self.strategy_archive:
+                for score_id in updated_ids:
+                    await self.strategy_archive.incorporate_grade_signal(
+                        score_id, percentage
+                    )
+
+        return updated, updated_ids
 
     def _content_matches_concepts(self, content: str, concepts: list[str]) -> bool:
         """Check if message content relates to any of the given concepts."""
         content_lower = content.lower()
-        return any(concept.lower() in content_lower for concept in concepts)
+        for concept in concepts:
+            c = concept.lower()
+            if " " in c:
+                # Multi-word concepts: substring match is specific enough
+                if c in content_lower:
+                    return True
+            else:
+                # Single-word concepts: use word boundary to avoid false matches
+                if re.search(r"\b" + re.escape(c) + r"\b", content_lower):
+                    return True
+        return False

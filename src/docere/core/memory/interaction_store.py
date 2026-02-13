@@ -82,6 +82,7 @@ class InteractionStore:
                 top_k=top_k * 3,
                 score_threshold=0.55,
                 filter_conditions={"student_id": student_id},
+                with_vectors=True,
             )
         except Exception:
             # Collection may not exist yet (no interactions stored for this course)
@@ -99,22 +100,24 @@ class InteractionStore:
             if len(selected) >= top_k:
                 break
 
+            result_vector = result.get("vector", query_embedding)
+
             # For the first result, always include it
             if not selected_embeddings:
                 selected.append(result)
-                selected_embeddings.append(query_embedding)  # Approximate
+                selected_embeddings.append(result_vector)
                 continue
 
             # Check similarity against all already-selected results
             is_diverse = True
             for prev_embedding in selected_embeddings:
-                similarity = _cosine_similarity(query_embedding, prev_embedding)
+                similarity = _cosine_similarity(result_vector, prev_embedding)
                 if similarity > diversity_threshold:
                     is_diverse = False
                     break
 
             if is_diverse:
                 selected.append(result)
-                selected_embeddings.append(query_embedding)
+                selected_embeddings.append(result_vector)
 
         return selected

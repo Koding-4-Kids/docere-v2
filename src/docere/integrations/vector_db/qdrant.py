@@ -55,6 +55,7 @@ class QdrantStore:
         top_k: int = 5,
         score_threshold: float = 0.6,
         filter_conditions: dict[str, object] | None = None,
+        with_vectors: bool = False,
     ) -> list[dict[str, object]]:
         """Search for similar vectors with optional filtering."""
         query_filter = None
@@ -74,15 +75,54 @@ class QdrantStore:
             limit=top_k,
             score_threshold=score_threshold,
             query_filter=query_filter,
+            with_vectors=with_vectors,
         )
-        return [
-            {
+        items = []
+        for point in results.points:
+            item: dict[str, object] = {
                 "id": str(point.id),
                 "score": point.score,
                 "payload": point.payload,
             }
-            for point in results.points
+            if with_vectors and point.vector:
+                item["vector"] = point.vector
+            items.append(item)
+        return items
+
+    async def scroll(
+        self,
+        collection_name: str,
+        limit: int = 100,
+        with_payload: bool = True,
+        with_vectors: bool = False,
+    ) -> list[dict[str, object]]:
+        """Scroll through all points in a collection (no vector search)."""
+        results, _ = await self.client.scroll(
+            collection_name=collection_name,
+            limit=limit,
+            with_payload=with_payload,
+            with_vectors=with_vectors,
+        )
+        return [
+            {
+                "id": str(point.id),
+                "payload": point.payload or {},
+            }
+            for point in results
         ]
+
+    async def delete_by_ids(
+        self,
+        collection_name: str,
+        point_ids: list[str],
+    ) -> None:
+        """Delete specific points by their IDs."""
+        if not point_ids:
+            return
+        await self.client.delete(
+            collection_name=collection_name,
+            points_selector=models.PointIdsList(points=point_ids),
+        )
 
     async def delete(
         self,

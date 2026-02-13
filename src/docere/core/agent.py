@@ -16,12 +16,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
+from docere.config import settings
 from docere.core.improvement.strategy_archive import StrategyArchive
 from docere.core.memory.memory_layer import MemoryContext, MemoryLayer
 from docere.core.verification.process_verifier import ProcessVerifier
 from docere.integrations.llm.client import ClaudeClient
 from docere.integrations.vector_db.qdrant import QdrantStore
 from docere.models.conversation import Conversation, Message
+from docere.models.memory import MemoryRecord
 
 logger = structlog.get_logger()
 
@@ -104,6 +106,7 @@ class TutoringAgent:
                     student_id=student_id,
                     course_id=course_id,
                     current_query=student_message,
+                    max_tokens=settings.memory_max_context_tokens,
                 )
             except RuntimeError as e:
                 logger.warning("Memory retrieval failed, using empty context", error=str(e))
@@ -259,10 +262,25 @@ class TutoringAgent:
         metadata = prev_assistant.metadata_ or {}
         strategy_id = metadata.get("strategy_id")
         if strategy_id:
+            # Look up concepts from the memory record for this interaction
+            mem_result = await self.db.execute(
+                select(MemoryRecord.concepts).where(
+                    MemoryRecord.source_message_id == prev_assistant.id
+                ).limit(1)
+            )
+            concepts = mem_result.scalar_one_or_none() or []
+
             await self.strategies.record_outcome(
                 strategy_id=strategy_id,
                 conversation_id=conversation_id,
                 score=verification.composite_score,
+                interaction_score_id=verification.score_id,
+                context_metadata={
+                    "concepts": concepts,
+                    "concept": concepts[0] if concepts else None,
+                    "student_id": student_id,
+                    "followup_type": verification.student_followup_type,
+                },
             )
 
         logger.info(

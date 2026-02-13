@@ -75,6 +75,7 @@ class VerificationResult:
     composite_score: float
     student_followup_type: str
     scoring_method: str
+    score_id: str | None = None
 
 
 class ProcessVerifier:
@@ -177,6 +178,7 @@ class ProcessVerifier:
             composite_score=composite,
             student_followup_type=followup_type,
             scoring_method=method,
+            score_id=str(score_record.id),
         )
 
     async def classify_followup(
