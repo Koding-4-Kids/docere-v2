@@ -21,7 +21,8 @@ Built for integration with Canvas and Moodle via LTI 1.3, Docere requires zero m
   - [Process Verification](#3-process-verification)
   - [Self-Improvement Loop](#4-self-improvement-loop)
   - [LMS Integration](#5-lms-integration)
-  - [Research Infrastructure](#6-research-infrastructure)
+  - [Gradebook Ingestion](#6-gradebook-ingestion-excel--google-sheets--lms)
+  - [Research Infrastructure](#7-research-infrastructure)
 - [Data Model](#data-model)
 - [API Reference](#api-reference)
 - [Project Structure](#project-structure)
@@ -318,7 +319,189 @@ Iterates all LMS-enabled courses, instantiates the appropriate adapter, runs inc
 
 ---
 
-### 6. Research Infrastructure
+### 6. Gradebook Ingestion (Excel & Google Sheets → LMS)
+
+**`src/docere/api/gradebook_sync.py`**, **`src/docere/api/integrations.py`**, **`src/docere/services/google_sheets.py`**, **`frontend/src/components/GradebookSyncModal.tsx`**
+
+Instructors can push grades from an Excel spreadsheet or Google Sheet into their LMS gradebook through a 4-step wizard.
+
+```
+┌─────────────┐     ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│  1. Source   │ ──▶ │ 2. Dest.    │ ──▶ │ 3. Validate  │ ──▶ │  4. Sync    │
+│  Selection   │     │  Selection  │     │  & Fix       │     │  to LMS     │
+└─────────────┘     └─────────────┘     └──────────────┘     └─────────────┘
+```
+
+#### 6.1 Source Selection
+
+Two input methods:
+
+**Excel Upload** (`POST /api/v1/integrations/upload-excel`):
+- Accepts `.xlsx` files up to 10 MB
+- Parses with `openpyxl` in read-only/data-only mode
+- **Auto-detects the header row**: scans from the top and picks the first row with 2+ non-empty cells (handles title rows, merged cells, blank lines at the top)
+- Strips trailing empty rows
+- Returns `{upload_id, filename, headers, rows, sheet_names}`
+- Parsed data is held in an in-memory cache keyed by `upload_id`
+
+**Google Sheets** (3 sub-routes under `/api/v1/gradebook`):
+
+| Endpoint | What it does |
+|---|---|
+| `GET /sources/google` | Lists sheets the instructor created via Docere (Drive API, `drive.file` scope) |
+| `POST /sources/google/read` | Reads a sheet by spreadsheet ID (Sheets API v4) |
+| `POST /sources/google/read-url` | Extracts the spreadsheet ID from a pasted URL via regex, then delegates to `read` |
+
+All Google API calls run through `GoogleSheetsService`, which:
+- Fetches OAuth credentials from `InstructorCalendarToken` in the database
+- Builds the Sheets/Drive service with `static_discovery=False` (required because the Sheets and Drive discovery documents aren't in the static cache)
+- Wraps every blocking `googleapiclient` call in `run_in_executor` to avoid blocking the async event loop
+
+The frontend provides a tab switcher: "Google Sheets" shows the instructor's sheet list plus a paste-URL input; "Excel Upload" shows a drag-and-drop zone. If Google isn't connected or is missing Sheets scopes, the UI shows a "Connect Google" or "Upgrade Permissions" button.
+
+#### 6.2 Destination Selection
+
+The instructor picks:
+1. **Course** — dropdown if they have multiple courses
+2. **Grade items** — checkboxes for which LMS assignments to sync
+
+Grade items are fetched from the LMS via `GET /api/v1/gradebook/destinations/{course_id}/grade-items`, which calls the appropriate adapter:
+- **Moodle**: `mod_assign_get_assignments` → returns `[{id, name, category: "assignments", grade_max}]`
+- **Canvas**: `GET /courses/{id}/assignment_groups?include[]=assignments` → groups assignments by assignment group name
+
+Items are grouped by category in the UI with select-all / deselect-all controls.
+
+#### 6.3 Validation (`POST /api/v1/gradebook/validate`)
+
+This is the core of the system. Validation does three things: **column mapping**, **student matching**, and **grade parsing**.
+
+**Column Mapping — 4-Tier Fallback:**
+
+The system needs to figure out which spreadsheet column is the student name and which columns correspond to which LMS assignments.
+
+**Tier 1 — Heuristic student column detection** (`_find_student_column`):
+- Scans headers for keywords: "student", "name", "full name", "learner"
+- Fallback: finds the column where most values contain a space and are mostly alphabetic (i.e., look like human names)
+
+**Tier 2 — Deterministic header-to-assignment matching** (`_match_headers_to_items`):
+- Normalizes both headers and assignment names: lowercase, strip whitespace, remove numbering prefixes like `"1. "` or `"1) "`
+- Scoring: exact match = 100, substring containment = 80, word overlap >= 50% = 60
+- Only accepts matches with score >= 30
+- Prevents duplicate column assignments (a column can only match one grade item)
+
+**Tier 3 — Claude LLM fallback**:
+- If deterministic matching finds zero grade column matches, the system sends the headers, 5 sample rows, and the LMS grade items list to Claude with a structured prompt
+- Claude returns JSON: `{"student_name_col": <int>, "grade_columns": {"<grade_item_id>": <col_index>}}`
+- The response is parsed with fallback logic to handle Claude returning assignment names instead of IDs (resolved via partial name matching)
+
+**Tier 4 — Numeric column auto-assignment**:
+- If all else fails, the system identifies columns where >= 50% of sample values are numeric
+- If there's exactly 1 unmatched grade item and 1 numeric column, they're matched
+- If the count of unmatched items equals the count of numeric columns, they're matched in order
+
+If no columns can be matched after all 4 tiers, the endpoint returns HTTP 422 with a helpful error listing expected assignment names.
+
+**Student Matching:**
+
+For each row:
+1. Extract the student name from the mapped column
+2. Look up in `enrollment_map` (built from `adapter.get_enrollments()`, keyed by `name.lower()`)
+3. If no exact match, try substring matching in both directions
+4. If still no match, flag as `missing_student` issue with suggestion
+
+**Grade Parsing:**
+
+For each grade cell:
+1. Strip `%` suffix (`"85%"` → `"85"`)
+2. Handle fractions (`"85/100"` → `"85"`)
+3. Parse as float
+4. Range check: must be `0 ≤ grade ≤ grade_max`
+5. Non-numeric values (e.g. `"B+"`, `"Absent"`) are flagged as `format_error`
+
+**Validation Output:**
+
+```json
+{
+  "valid": false,
+  "mappings": {"student_name_col": 0, "grade_columns": {"123": 1, "456": 2}},
+  "issues": [
+    {"row": 3, "col": 1, "type": "invalid_grade", "current": "105", "expected": "0-100", "suggestion": "Grade exceeds maximum (100)"},
+    {"row": 5, "col": 0, "type": "missing_student", "current": "Jon Smith", "expected": "Enrolled student name", "suggestion": "'Jon Smith' not found in course roster"}
+  ],
+  "preview": [{"student": "Jane Doe", "student_lms_id": "42", "grades": [{"item": "HW 1", "item_id": "123", "new": 85.0}]}],
+  "student_count": 25
+}
+```
+
+If `valid` is true, the frontend shows a preview table and a "Sync to Gradebook" button. If false, it shows an editable spreadsheet with issue cells highlighted in red.
+
+#### 6.4 Error Recovery
+
+When validation finds issues, the instructor has two options:
+
+**"Let Docere Fix It"** (`POST /api/v1/gradebook/fix`):
+- Sends the spreadsheet data and issue list to Claude with a rule-based system prompt
+- Fix rules applied by Claude:
+  - Fractions/percentages: `"85/100"` → `"85"`, `"85%"` → `"85"`
+  - Letter grades: `"B+"` → `"87"`, `"A-"` → `"92"`, `"C"` → `"75"` (standard scale)
+  - Attendance: `"Absent"` → `"0"`, `"Excused"` / `"N/A"` → `""` (empty = skip)
+  - Out-of-range: clamped to valid range (e.g. `105` → `100`)
+  - Missing students: suggest closest matching name from the roster
+- Returns the corrected `SpreadsheetData` and a changelog of every cell changed with reasons
+- The frontend **auto-revalidates** the fixed data immediately
+
+**"Fix Manually & Retry"**:
+- The spreadsheet is displayed inline with editable `<input>` cells
+- Issue cells are highlighted red with a tooltip showing the error type and suggestion
+- Instructor edits inline, then clicks back to re-validate
+
+This same two-option pattern appears again if any grades fail during the sync step.
+
+#### 6.5 Sync to LMS (`POST /api/v1/gradebook/sync`)
+
+Once validation passes, syncing pushes each grade to the LMS one at a time:
+
+- **Moodle**: calls `mod_assign_save_grade` per student per assignment with `workflowstate="graded"`
+- **Canvas**: `PUT /api/v1/courses/{course_id}/assignments/{assignment_id}/submissions/{student_id}` with `posted_grade`
+
+Each grade save is individually try/caught — partial success is possible. The result shows `{synced: N, failed: M, errors: [...]}`:
+- **All succeeded**: green checkmark, "X grades synced"
+- **Some failed**: amber warning with progress bar, error details per student, and the same "Let Docere Fix It" / "Fix Manually & Retry" buttons
+
+Rows can be skipped via the `skip_rows` parameter in the sync request.
+
+#### 6.6 How Synced Grades Feed Into the Agent
+
+Grades don't just sit in the LMS. They're integrated into Docere's memory layer for personalized tutoring:
+
+1. **`LMSSyncService`** runs on LTI launch and periodically (every 2 hours). It pulls submissions from the LMS and detects grade changes (compares `new_score ≠ old_score`).
+
+2. **`MemoryLayer.integrate_grade()`** is called for each change:
+   - Creates a `MemoryRecord` of type `"grade"` with content like `"Scored 85/100 (85%) on 'Homework 3'"`
+   - Computes confusion: `confusion = 1.0 - (percentage / 100)` — a low grade implies high confusion on those topics
+   - Updates concept mastery via Bayesian Knowledge Tracing if concepts are associated with the assignment
+   - Updates `student_profile.current_grade` for the overall profile
+
+3. **Agent context assembly**: When the agent builds context for a conversation, `_get_recent_grades()` includes the 5 most recent graded submissions. This lets the agent say things like "I see you got 72% on the last quiz — want to review those topics?"
+
+4. **Instructor dashboard**: Grade data also feeds into the instructor-facing at-risk student detection and student cards.
+
+#### 6.7 Key Files
+
+| File | Purpose |
+|---|---|
+| `src/docere/api/gradebook_sync.py` | Validate, sync, and fix endpoints |
+| `src/docere/api/integrations.py` | Excel upload/download, action execution |
+| `src/docere/services/google_sheets.py` | Google Sheets read/write/list via Sheets + Drive APIs |
+| `src/docere/integrations/lms/moodle.py` | Moodle adapter: grade items, save grade, enrollments |
+| `src/docere/integrations/lms/canvas.py` | Canvas adapter: same interface |
+| `src/docere/core/memory/memory_layer.py` | `integrate_grade()` — grade → memory record → concept mastery |
+| `frontend/src/components/GradebookSyncModal.tsx` | 4-step wizard UI (source → destination → validate → sync) |
+| `frontend/src/api.ts` | Frontend API client functions for all gradebook endpoints |
+
+---
+
+### 7. Research Infrastructure
 
 #### Data Collection Models
 
