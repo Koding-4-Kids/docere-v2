@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AuthProvider, useAuth } from './AuthContext'
 import { ChatPage } from './pages/ChatPage'
 import { LTICallbackPage } from './pages/LTICallbackPage'
+import { InstructorDashboardPage } from './pages/InstructorDashboardPage'
 import { Icons } from './components/ClaudeChatInput'
 import './index.css'
 
@@ -67,6 +68,11 @@ function AppContent() {
   // Handle LTI callback route before auth check
   if (window.location.pathname === '/lti/callback') {
     return <LTICallbackPage />
+  }
+
+  // Handle instructor dashboard route (self-contained auth from hash fragment)
+  if (window.location.pathname.startsWith('/instructor/dashboard/')) {
+    return <InstructorDashboardPage />
   }
 
   if (loading) {

@@ -65,6 +65,15 @@ body {
   animation: fade-in 0.3s ease-out;
 }
 
+/* Slide-in from right for study panel */
+@keyframes slide-in-right {
+  from { transform: translateX(40%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Hidden file input */
 input[type="file"] {
   display: none;

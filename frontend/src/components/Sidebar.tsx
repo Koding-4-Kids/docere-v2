@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageSquare, Sun, Moon, HelpCircle, Settings, LogOut, Plus } from 'lucide-react'
+import { MessageSquare, Sun, Moon, HelpCircle, Settings, LogOut, Plus, Trash2 } from 'lucide-react'
 
 interface Conversation {
   id: string
@@ -13,6 +13,7 @@ interface SidebarProps {
   activeId: string | null
   onSelect: (id: string) => void
   onNew: () => void
+  onDelete: (id: string) => void
   onLogout: () => void
   userEmail: string
   dark: boolean
@@ -74,7 +75,7 @@ function Menu({ children, items }: { children: React.ReactNode; items: { name: s
   )
 }
 
-export function Sidebar({ conversations, activeId, onSelect, onNew, onLogout, userEmail, dark, toggleTheme }: SidebarProps) {
+export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onLogout, userEmail, dark, toggleTheme }: SidebarProps) {
   const profileRef = useRef<HTMLButtonElement | null>(null)
   const [isProfileActive, setIsProfileActive] = useState(false)
 
@@ -205,24 +206,35 @@ export function Sidebar({ conversations, activeId, onSelect, onNew, onLogout, us
                 <p className="text-[11px] uppercase tracking-wider text-text-500 px-2 mb-1">Recent</p>
                 <div className="space-y-0.5">
                   {conversations.slice(0, 8).map(conv => (
-                    <button
+                    <div
                       key={conv.id}
-                      onClick={() => onSelect(conv.id)}
-                      className={`w-full text-left flex items-center gap-x-2 p-2 rounded-lg duration-150 ${
+                      className={`group relative flex items-center gap-x-2 p-2 rounded-lg duration-150 ${
                         activeId === conv.id
                           ? 'bg-bg-200 text-text-100'
                           : 'text-text-300 hover:bg-bg-200 hover:text-text-200'
                       }`}
                     >
-                      <MessageSquare className="w-4 h-4 shrink-0 text-text-400" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm truncate">{conv.title || 'New conversation'}</p>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-accent font-medium">{conv.courseName}</span>
-                          <span className="text-[11px] text-text-500">{timeAgo(conv.lastMessageAt)}</span>
+                      <button
+                        onClick={() => onSelect(conv.id)}
+                        className="flex items-center gap-x-2 min-w-0 flex-1 text-left"
+                      >
+                        <MessageSquare className="w-4 h-4 shrink-0 text-text-400" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm truncate">{conv.title || 'New conversation'}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-accent font-medium">{conv.courseName}</span>
+                            <span className="text-[11px] text-text-500">{timeAgo(conv.lastMessageAt)}</span>
+                          </div>
                         </div>
-                      </div>
-                    </button>
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(conv.id) }}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-bg-300 text-text-500 hover:text-red-500 transition-all shrink-0"
+                        title="Delete conversation"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </li>

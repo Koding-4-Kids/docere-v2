@@ -242,6 +242,84 @@ async def ensure_enrollment(
     return enrollment
 
 
+async def sync_user_enrollments(
+    db: AsyncSession,
+    user: User,
+    lms_adapter: LMSAdapter,
+    platform: LTIPlatform,
+) -> int:
+    """Discover all courses the user is enrolled in via the LMS and ensure
+    local Course + Enrollment records exist for each.
+
+    Called during LTI launch so that the user sees all their courses
+    immediately, not just the one they launched from.
+
+    Returns the number of new enrollments created.
+    """
+    if not user.external_lms_id:
+        return 0
+
+    lms_platform = str(platform.id)
+
+    try:
+        lms_courses = await lms_adapter.get_user_courses(user.external_lms_id)
+    except Exception:
+        logger.warning(
+            "Failed to fetch user courses from LMS",
+            user_id=str(user.id),
+            external_id=user.external_lms_id,
+        )
+        return 0
+
+    created = 0
+    for lms_course in lms_courses:
+        # Find or create the course
+        result = await db.execute(
+            select(Course).where(
+                Course.external_lms_id == lms_course.external_id,
+                Course.lms_platform == lms_platform,
+            )
+        )
+        course = result.scalar_one_or_none()
+
+        if not course:
+            course = Course(
+                external_lms_id=lms_course.external_id,
+                lms_platform=lms_platform,
+                name=lms_course.name,
+                course_code=lms_course.course_code,
+                lms_sync_enabled=True,
+            )
+            db.add(course)
+            await db.flush()
+
+        # Ensure enrollment exists
+        result = await db.execute(
+            select(Enrollment).where(
+                Enrollment.user_id == user.id,
+                Enrollment.course_id == course.id,
+            )
+        )
+        if not result.scalar_one_or_none():
+            db.add(Enrollment(
+                user_id=user.id,
+                course_id=course.id,
+                lms_role="student",
+            ))
+            created += 1
+
+    if created:
+        await db.flush()
+        logger.info(
+            "Cross-course enrollments synced",
+            user_id=str(user.id),
+            new_enrollments=created,
+            total_courses=len(lms_courses),
+        )
+
+    return created
+
+
 def create_adapter(platform: LTIPlatform) -> LMSAdapter:
     """Instantiate the correct LMS adapter with per-platform credentials."""
     if platform.platform_type == "canvas":

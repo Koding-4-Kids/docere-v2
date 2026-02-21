@@ -14,20 +14,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(getStoredUser)
   const [loading, setLoading] = useState(!!getStoredToken())
 
-  // On mount, verify stored token is still valid
+  // On mount, verify stored token or auto-login in dev mode
   useEffect(() => {
     const token = getStoredToken()
-    if (!token) {
-      setLoading(false)
-      return
+    if (token) {
+      getMe()
+        .then(setUser)
+        .catch(() => {
+          clearAuth()
+          setUser(null)
+        })
+        .finally(() => setLoading(false))
+    } else {
+      // Auto dev login — skip the login page entirely
+      setLoading(true)
+      devLogin('student@test.com')
+        .then(data => {
+          setUser({ id: data.user_id, name: data.name, email: 'student@test.com', role: data.role })
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false))
     }
-    getMe()
-      .then(setUser)
-      .catch(() => {
-        clearAuth()
-        setUser(null)
-      })
-      .finally(() => setLoading(false))
   }, [])
 
   const login = useCallback(async (email: string) => {

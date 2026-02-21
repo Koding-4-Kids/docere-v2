@@ -76,6 +76,17 @@ class Settings(BaseSettings):
     strategy_prune_score_threshold: float = 0.3
     strategy_evolution_top_k: int = 3
 
+    # Google Calendar integration
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/api/v1/calendar/oauth/callback"
+    token_encryption_key: str = ""  # Fernet key — generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+    # Meeting scheduling
+    meeting_default_duration_minutes: int = 30
+    meeting_struggle_threshold: float = 0.6
+    meeting_struggle_consecutive_count: int = 3
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

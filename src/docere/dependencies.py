@@ -127,6 +127,55 @@ async def get_current_user_id(
         )
 
 
+async def get_current_user_role(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+) -> tuple[uuid.UUID, str]:
+    """Extract user ID and role from JWT bearer token."""
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authentication token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
+        )
+        user_id = payload.get("sub")
+        role = payload.get("role", "student")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing subject",
+            )
+        return uuid.UUID(user_id), role
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+        )
+    except (jwt.InvalidTokenError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token",
+        )
+
+
+async def require_instructor(
+    user_data: tuple[uuid.UUID, str] = Depends(get_current_user_role),
+) -> uuid.UUID:
+    """Ensure the caller is an instructor, TA, or admin. Returns user_id."""
+    user_id, role = user_data
+    if role not in ("instructor", "ta", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Instructor access required",
+        )
+    return user_id
+
+
 def create_access_token(user_id: uuid.UUID, role: str = "student") -> str:
     """Create a JWT access token for a user."""
     from datetime import datetime, timedelta, timezone

@@ -1,4 +1,4 @@
-"""Strategy archive: maintains and selects teaching strategies using UCB1 bandit.
+"""Strategy archive: maintains and selects teaching strategies using contextual UCB1 bandit.
 
 Seed strategies:
 - Socratic Questioning: Ask guiding questions, never give answers directly
@@ -6,9 +6,15 @@ Seed strategies:
 - Scaffolded Hints: 3-level hints (concept → example → walkthrough)
 - Error-Focused: Focus on WHY errors happen (common misconceptions)
 - Minimal Intervention: Shortest possible hint, let student struggle productively
+
+Context-aware selection:
+  Strategy selection is bucketed by student context (confusion × experience × quality).
+  Each strategy accumulates per-bucket UCB1 stats in its applicable_contexts JSONB.
+  Falls back to global stats when a bucket has fewer than MIN_CONTEXT_OBS observations.
 """
 
 import math
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from sqlalchemy import select, func
@@ -18,6 +24,34 @@ import structlog
 from docere.models.strategy import Strategy as StrategyModel, StrategyScore
 
 logger = structlog.get_logger()
+
+# Minimum observations in a context bucket before trusting its stats
+MIN_CONTEXT_OBS = 3
+
+
+@dataclass
+class StrategyContext:
+    """Student context for contextual bandit strategy selection."""
+
+    confusion_level: str   # "low", "mid", "high"
+    experience_level: str  # "new", "regular", "experienced"
+    quality_level: str     # "poor", "average", "good"
+
+    @staticmethod
+    def from_profile(
+        avg_confusion: float,
+        total_interactions: int,
+        avg_interaction_score: float,
+    ) -> "StrategyContext":
+        """Build context buckets from StudentProfile data."""
+        confusion = "low" if avg_confusion < 0.3 else "mid" if avg_confusion < 0.6 else "high"
+        experience = "new" if total_interactions < 5 else "regular" if total_interactions < 20 else "experienced"
+        quality = "poor" if avg_interaction_score < 0.4 else "average" if avg_interaction_score < 0.7 else "good"
+        return StrategyContext(confusion, experience, quality)
+
+    @property
+    def key(self) -> str:
+        return f"{self.confusion_level}:{self.experience_level}:{self.quality_level}"
 
 SEED_STRATEGIES = [
     {
@@ -114,18 +148,18 @@ class StrategyArchive:
     async def select_strategy(
         self,
         study_group: str | None,
+        context: StrategyContext | None = None,
     ) -> StrategyModel | None:
-        """Select a teaching strategy using UCB1 multi-armed bandit.
+        """Select a teaching strategy using contextual UCB1 multi-armed bandit.
 
         For control/treatment_a groups, returns None (no strategy augmentation).
         For treatment_full, uses UCB1 to balance exploration vs exploitation.
+        When context is provided, uses per-context stats if enough data exists,
+        otherwise falls back to global stats.
         """
-        # Strategies are used for treatment_full group and in dev (study_group=None)
-        # Control and treatment_a groups get no strategy augmentation
         if study_group in ("control", "treatment_a"):
             return None
 
-        # Fetch all active strategies
         result = await self.db.execute(
             select(StrategyModel).where(StrategyModel.is_active.is_(True))
         )
@@ -134,15 +168,15 @@ class StrategyArchive:
         if not strategies:
             return None
 
-        # Calculate total uses across all strategies
         total_uses = sum(s.total_uses for s in strategies) or 1
+        context_key = context.key if context else None
 
-        # UCB1 selection
+        # UCB1 selection (context-aware when possible)
         best_strategy = None
         best_score = -1.0
 
         for strategy in strategies:
-            score = self._ucb1_score(strategy, total_uses)
+            score = self._ucb1_score(strategy, total_uses, context_key)
             if score > best_score:
                 best_score = score
                 best_strategy = strategy
@@ -152,10 +186,37 @@ class StrategyArchive:
             best_strategy.last_used_at = datetime.now(timezone.utc)
             await self.db.flush()
 
+        logger.info(
+            "Strategy selected",
+            strategy=best_strategy.name if best_strategy else None,
+            context_key=context_key,
+            ucb1_score=f"{best_score:.3f}" if best_score != float("inf") else "inf",
+        )
+
         return best_strategy
 
-    def _ucb1_score(self, strategy: StrategyModel, total_uses: int) -> float:
-        """Calculate UCB1 score for a strategy."""
+    def _ucb1_score(
+        self,
+        strategy: StrategyModel,
+        total_uses: int,
+        context_key: str | None = None,
+    ) -> float:
+        """Calculate UCB1 score, using context-specific stats when available."""
+        # Try context-specific stats first
+        if context_key:
+            ctx_stats = (
+                (strategy.applicable_contexts or {})
+                .get("context_stats", {})
+                .get(context_key)
+            )
+            if ctx_stats and ctx_stats.get("total_uses", 0) >= MIN_CONTEXT_OBS:
+                exploitation = ctx_stats["avg_score"]
+                exploration = math.sqrt(
+                    2 * math.log(total_uses) / ctx_stats["total_uses"]
+                )
+                return exploitation + exploration
+
+        # Fall back to global stats
         if strategy.total_uses == 0:
             return float("inf")
         exploitation = strategy.avg_score or 0.0
@@ -169,8 +230,12 @@ class StrategyArchive:
         score: float,
         interaction_score_id: str | None = None,
         context_metadata: dict | None = None,
+        context: StrategyContext | None = None,
     ) -> None:
-        """Record an interaction outcome for a strategy."""
+        """Record an interaction outcome for a strategy.
+
+        Updates both global stats and context-specific stats (if context provided).
+        """
         self.db.add(
             StrategyScore(
                 strategy_id=strategy_id,
@@ -181,7 +246,7 @@ class StrategyArchive:
             )
         )
 
-        # Update running average
+        # Update global running average
         result = await self.db.execute(
             select(StrategyModel).where(StrategyModel.id == strategy_id)
         )
@@ -196,6 +261,26 @@ class StrategyArchive:
             else:
                 old_success = strategy.success_rate or 0.0
                 strategy.success_rate = (old_success * (n - 1)) / n
+
+            # Update context-specific stats
+            if context:
+                ctx_key = context.key
+                applicable = strategy.applicable_contexts or {}
+                ctx_stats = applicable.setdefault("context_stats", {})
+                bucket = ctx_stats.get(ctx_key, {"total_uses": 0, "avg_score": 0.0})
+                bn = bucket["total_uses"]
+                bucket["avg_score"] = (bucket["avg_score"] * bn + score) / (bn + 1)
+                bucket["total_uses"] = bn + 1
+                ctx_stats[ctx_key] = bucket
+                strategy.applicable_contexts = applicable
+
+                logger.debug(
+                    "Context stats updated",
+                    strategy=strategy.name,
+                    context_key=ctx_key,
+                    bucket_uses=bucket["total_uses"],
+                    bucket_avg=f"{bucket['avg_score']:.3f}",
+                )
 
         await self.db.flush()
 

@@ -107,7 +107,9 @@ class StudentProfileBuilder:
         concept_name: str,
         confusion_score: float,
     ) -> None:
-        """Update mastery for a single concept."""
+        """Update mastery for a single concept using Bayesian Knowledge Tracing."""
+        from docere.core.knowledge_tracing import BKTParams, bkt_update, confusion_to_correct
+
         concept_name = normalize_concept(concept_name)
         result = await self.db.execute(
             select(ConceptMastery).where(
@@ -117,26 +119,70 @@ class StudentProfileBuilder:
             )
         )
         mastery = result.scalar_one_or_none()
+        correct = confusion_to_correct(confusion_score)
+        now = datetime.now(timezone.utc)
 
         if mastery:
             mastery.times_practiced += 1
-            if confusion_score > 0.6:
+            if not correct:
                 mastery.times_struggled += 1
-            # Adjust mastery: high confusion lowers it, low confusion raises it
-            adjustment = 0.05 if confusion_score < 0.4 else -0.03
-            mastery.mastery_level = max(0.0, min(1.0, mastery.mastery_level + adjustment))
-            mastery.last_practiced_at = datetime.now(timezone.utc)
+
+            # Load or initialize BKT state from evidence JSONB
+            evidence = mastery.evidence or {}
+            p_learned = evidence.get("bkt_p_learned", mastery.mastery_level or 0.1)
+            params = BKTParams(**evidence.get("bkt_params", {}))
+
+            # BKT update
+            p_learned = bkt_update(p_learned, correct, params)
+
+            # Store back
+            mastery.mastery_level = p_learned
+            evidence["bkt_p_learned"] = p_learned
+            evidence["bkt_params"] = {
+                "p_l0": params.p_l0,
+                "p_transit": params.p_transit,
+                "p_guess": params.p_guess,
+                "p_slip": params.p_slip,
+            }
+
+            # Keep last 20 observations for analysis
+            obs_history = evidence.get("observation_history", [])
+            obs_history.append({
+                "correct": correct,
+                "confusion": confusion_score,
+                "timestamp": now.isoformat(),
+            })
+            evidence["observation_history"] = obs_history[-20:]
+            mastery.evidence = evidence
+            mastery.last_practiced_at = now
         else:
-            initial_mastery = max(0.0, 0.5 - confusion_score * 0.3)
+            # First observation for this concept
+            params = BKTParams()
+            p_learned = bkt_update(params.p_l0, correct, params)
+
             self.db.add(
                 ConceptMastery(
                     student_id=student_id,
                     course_id=course_id,
                     concept_name=concept_name,
-                    mastery_level=initial_mastery,
+                    mastery_level=p_learned,
                     times_practiced=1,
-                    times_struggled=1 if confusion_score > 0.6 else 0,
-                    last_practiced_at=datetime.now(timezone.utc),
+                    times_struggled=0 if correct else 1,
+                    last_practiced_at=now,
+                    evidence={
+                        "bkt_p_learned": p_learned,
+                        "bkt_params": {
+                            "p_l0": params.p_l0,
+                            "p_transit": params.p_transit,
+                            "p_guess": params.p_guess,
+                            "p_slip": params.p_slip,
+                        },
+                        "observation_history": [{
+                            "correct": correct,
+                            "confusion": confusion_score,
+                            "timestamp": now.isoformat(),
+                        }],
+                    },
                 )
             )
 

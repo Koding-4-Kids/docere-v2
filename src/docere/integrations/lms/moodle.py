@@ -12,6 +12,7 @@ Key functions:
 
 import hashlib
 import io
+from urllib.parse import unquote
 
 import httpx
 import structlog
@@ -135,12 +136,29 @@ class MoodleAdapter(LMSAdapter):
             if isinstance(u, dict)
         ]
 
+    async def get_user_courses(self, user_id: str) -> list[LMSCourse]:
+        """Get all courses a user is enrolled in via Moodle."""
+        data = await self._call(
+            "core_enrol_get_users_courses",
+            {"userid": user_id},
+        )
+        assert isinstance(data, list)
+        return [
+            LMSCourse(
+                external_id=str(c["id"]),
+                name=c.get("fullname", ""),
+                course_code=c.get("shortname", ""),
+            )
+            for c in data
+            if isinstance(c, dict)
+        ]
+
     async def get_course_materials(self, course_id: str) -> list[LMSCourseMaterial]:
-        """Get all course materials via core_course_get_contents + page content.
+        """Get all course materials via core_course_get_contents + assignments.
 
         Reads the contents[] array from each module to find file download URLs,
-        downloads and extracts PDF text, fetches page HTML content, and computes
-        content_hash for change detection.
+        downloads and extracts PDF text, fetches page HTML content, pulls
+        assignment intro attachments, and computes content_hash for change detection.
         """
         data = await self._call(
             "core_course_get_contents",
@@ -148,8 +166,11 @@ class MoodleAdapter(LMSAdapter):
         )
         assert isinstance(data, list)
 
-        # Fetch page content in bulk
+        # Fetch page content in bulk (may fail if function not enabled)
         page_content_map = await self._get_page_contents(course_id)
+
+        # Fetch assignment intro attachments (PDFs attached to assignments)
+        assignment_attachment_map = await self._get_assignment_attachments(course_id)
 
         materials = []
         for section in data:
@@ -171,15 +192,36 @@ class MoodleAdapter(LMSAdapter):
                         if file_url:
                             file_urls.append(file_url)
 
+                # Also check assignment intro attachments
+                # Moodle maps: course module id -> assignment, but the assignment
+                # API returns assignment IDs, not module IDs. We match by title.
+                if modname == "assign" and title in assignment_attachment_map:
+                    attach_info = assignment_attachment_map[title]
+                    file_urls.extend(attach_info["urls"])
+
                 # Determine content: page HTML, PDF text, or module description
                 content = module.get("description")
 
                 if modname == "page" and module_id in page_content_map:
                     content = page_content_map[module_id]
-                elif file_urls:
+
+                # Try to extract PDF text from any file URLs
+                if file_urls:
                     pdf_text = await self._extract_pdf_text(file_urls)
                     if pdf_text:
-                        content = pdf_text
+                        # Combine with existing description if any
+                        if content:
+                            content = content + "\n\n" + pdf_text
+                        else:
+                            content = pdf_text
+
+                # For assignments, also include the intro text from the API
+                if modname == "assign" and title in assignment_attachment_map:
+                    intro = assignment_attachment_map[title].get("intro")
+                    if intro and not content:
+                        content = intro
+                    elif intro and content and intro not in content:
+                        content = intro + "\n\n" + content
 
                 # Compute content hash for change detection
                 content_hash = None
@@ -198,6 +240,144 @@ class MoodleAdapter(LMSAdapter):
                     )
                 )
         return materials
+
+    async def get_grade_items(self, course_id: str) -> list[dict]:
+        """Get assignment/grade items from Moodle gradebook.
+
+        Uses mod_assign_get_assignments to get assignment items with their
+        max grade, grouped by category.
+        """
+        data = await self._call(
+            "mod_assign_get_assignments",
+            {"courseids[0]": course_id},
+        )
+        if not isinstance(data, dict):
+            return []
+
+        items: list[dict] = []
+        for course_data in data.get("courses", []):
+            for a in course_data.get("assignments", []):
+                items.append({
+                    "id": str(a["id"]),
+                    "name": a.get("name", ""),
+                    "category": "assignments",
+                    "grade_max": float(a.get("grade", 100)),
+                })
+        return items
+
+    async def save_grade(
+        self,
+        course_id: str,
+        assignment_id: str,
+        student_id: str,
+        grade: float,
+        feedback: str | None = None,
+    ) -> dict:
+        """Write a grade to Moodle via mod_assign_save_grade.
+
+        This is per-student — no bulk endpoint available.
+        """
+        params: dict[str, object] = {
+            "assignmentid": assignment_id,
+            "userid": student_id,
+            "grade": grade,
+            "attemptnumber": -1,
+            "addattempt": 1,
+            "workflowstate": "graded",
+            "applytoall": 0,
+        }
+        if feedback:
+            params["plugindata[assignfeedbackcomments_editor][text]"] = feedback
+            params["plugindata[assignfeedbackcomments_editor][format]"] = 1
+
+        result = await self._call("mod_assign_save_grade", params)
+        # mod_assign_save_grade returns null on success
+        if result is not None and isinstance(result, dict) and result.get("exception"):
+            raise ValueError(f"Moodle grade save failed: {result.get('message', 'Unknown error')}")
+        return {"success": True}
+
+    async def post_announcement(
+        self, course_id: str, title: str, message: str
+    ) -> dict:
+        """Post announcement via Moodle forum (mod_forum_add_discussion).
+
+        Moodle announcements are forum posts in the 'Announcements' forum (type=news).
+        """
+        forums = await self._call(
+            "mod_forum_get_forums_by_courses",
+            {"courseids[0]": course_id},
+        )
+        if not isinstance(forums, list):
+            raise ValueError(f"Unexpected response from Moodle forums API for course {course_id}")
+
+        announce_forum = None
+        for forum in forums:
+            if isinstance(forum, dict) and forum.get("type") == "news":
+                announce_forum = forum
+                break
+
+        if not announce_forum:
+            raise ValueError(f"No announcements forum found for course {course_id}")
+
+        result = await self._call(
+            "mod_forum_add_discussion",
+            {
+                "forumid": announce_forum["id"],
+                "subject": title,
+                "message": message,
+            },
+        )
+        if not isinstance(result, dict):
+            raise ValueError("Unexpected response from Moodle add discussion API")
+
+        discussion_id = result.get("discussionid", "")
+        return {
+            "id": str(discussion_id),
+            "url": f"{self.base_url}/mod/forum/discuss.php?d={discussion_id}",
+        }
+
+    async def _get_assignment_attachments(
+        self, course_id: str
+    ) -> dict[str, dict[str, object]]:
+        """Fetch PDF attachments from assignment intros.
+
+        Moodle's core_course_get_contents doesn't include assignment intro
+        attachments in the contents[] array. We pull them separately from
+        mod_assign_get_assignments.
+
+        Returns mapping of assignment_title -> {"urls": [...], "intro": "..."}
+        """
+        try:
+            data = await self._call(
+                "mod_assign_get_assignments",
+                {"courseids[0]": course_id},
+            )
+        except Exception:
+            logger.warning("Failed to fetch assignment attachments", course_id=course_id)
+            return {}
+
+        if not isinstance(data, dict):
+            return {}
+
+        result: dict[str, dict[str, object]] = {}
+        for course_data in data.get("courses", []):
+            for assignment in course_data.get("assignments", []):
+                attachments = assignment.get("introattachments", [])
+                if not attachments and not assignment.get("intro"):
+                    continue
+
+                urls: list[str] = []
+                for att in attachments:
+                    if isinstance(att, dict) and att.get("fileurl"):
+                        urls.append(att["fileurl"])
+
+                name = assignment.get("name", "")
+                if name:
+                    result[name] = {
+                        "urls": urls,
+                        "intro": assignment.get("intro", ""),
+                    }
+        return result
 
     async def _get_page_contents(self, course_id: str) -> dict[str, str]:
         """Fetch HTML content for all page modules in a course.
@@ -235,8 +415,9 @@ class MoodleAdapter(LMSAdapter):
 
         for url in file_urls:
             # Only attempt PDF extraction for URLs that look like PDFs
-            url_lower = url.lower()
-            if not url_lower.endswith(".pdf") and "pdf" not in url_lower:
+            # URL-decode first since Moodle may encode filenames (%20, %28, etc.)
+            url_decoded = unquote(url).lower()
+            if not url_decoded.endswith(".pdf") and "pdf" not in url_decoded:
                 continue
 
             try:

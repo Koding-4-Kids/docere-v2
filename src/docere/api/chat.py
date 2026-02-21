@@ -18,8 +18,10 @@ from docere.schemas.chat import (
     ConversationDetailResponse,
     ConversationResponse,
     CreateConversationRequest,
+    MeetingAction,
     MessageResponse,
     SendMessageRequest,
+    StudyArtifact,
 )
 
 router = APIRouter()
@@ -95,6 +97,27 @@ async def get_conversation(
     return conversation
 
 
+@router.delete("/conversations/{conversation_id}", status_code=204)
+async def delete_conversation(
+    conversation_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Soft-delete a conversation."""
+    result = await db.execute(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.student_id == user_id,
+        )
+    )
+    conversation = result.scalar_one_or_none()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    conversation.status = "deleted"
+    await db.commit()
+
+
 @router.post(
     "/conversations/{conversation_id}/messages",
     response_model=AgentMessageResponse,
@@ -135,6 +158,7 @@ async def send_message(
         student_message=request.content,
         student_id=str(user_id),
         course_id=str(conversation.course_id),
+        assignment_id=str(conversation.assignment_id) if conversation.assignment_id else None,
         study_group=conversation.study_group,
     )
 
@@ -150,6 +174,28 @@ async def send_message(
     )
     assistant_msg = msg_result.scalar_one()
 
+    # Extract artifact and action from message metadata if present
+    artifact = None
+    action = None
+    metadata = assistant_msg.metadata_ or {}
+
+    artifact_data = metadata.get("artifact")
+    if artifact_data and isinstance(artifact_data, dict):
+        try:
+            artifact = StudyArtifact(**artifact_data)
+        except Exception:
+            artifact = None
+
+    action_data = metadata.get("action")
+    if action_data and isinstance(action_data, dict):
+        try:
+            action = MeetingAction(**action_data)
+        except Exception:
+            action = None
+
+    widgets_data = metadata.get("widgets")
+    widgets = widgets_data if isinstance(widgets_data, list) else None
+
     return AgentMessageResponse(
         message=MessageResponse(
             id=assistant_msg.id,
@@ -158,6 +204,9 @@ async def send_message(
             model_used=assistant_msg.model_used,
             token_count=assistant_msg.token_count,
             created_at=assistant_msg.created_at,
+            artifact=artifact,
+            action=action,
+            widgets=widgets,
         ),
         strategy_used=agent_response.strategy_used,
         memory_context_tokens=agent_response.memory_context_size,

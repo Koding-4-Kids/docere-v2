@@ -29,3 +29,5 @@ htmlcov/
 
 .idea/
 .vscode/
+
+.logs/

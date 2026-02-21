@@ -3,15 +3,21 @@ import { Sidebar } from '../components/Sidebar'
 import { CourseSelector } from '../components/CourseSelector'
 import { ClaudeChatInput, Icons } from '../components/ClaudeChatInput'
 import { MessageBubble } from '../components/MessageBubble'
+import { StudyPanel } from '../components/StudyPanel'
 import { useTheme } from '../hooks/useTheme'
 import { useAuth } from '../AuthContext'
-import { Pencil, BookOpen, Code, Lightbulb } from 'lucide-react'
+import { Pencil, BookOpen, Code, Lightbulb, FileText } from 'lucide-react'
+import { MeetingScheduler } from '../components/MeetingScheduler'
 import * as api from '../api'
+import type { StudyArtifact, MeetingAction, Widget } from '../api'
 
 interface LocalMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  artifact?: StudyArtifact | null
+  action?: MeetingAction | null
+  widgets?: Widget[] | null
 }
 
 interface LocalConversation {
@@ -36,6 +42,9 @@ const QUICK_ACTIONS = [
   { label: 'Study', icon: Lightbulb, prompt: 'Help me study for ' },
 ]
 
+// Keywords that hint the student wants study materials
+const STUDY_KEYWORDS = /\b(flashcard|flash card|study guide|study notes|make me notes|create notes|make me slides|create slides|make me flashcards|create flashcards|generate notes|generate flashcards|generate slides|generate a study guide|study material)\b/i
+
 export function ChatPage() {
   const { dark, toggle } = useTheme()
   const { user, logout } = useAuth()
@@ -45,7 +54,19 @@ export function ChatPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [assignments, setAssignments] = useState<api.AssignmentSummary[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const shouldAutoScroll = useRef(true)
+
+  // Study panel state
+  const [activeArtifact, setActiveArtifact] = useState<StudyArtifact | null>(null)
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const [isGeneratingArtifact, setIsGeneratingArtifact] = useState(false)
+
+  // Meeting scheduler state
+  const [isMeetingPanelOpen, setIsMeetingPanelOpen] = useState(false)
+  const [meetingAction, setMeetingAction] = useState<MeetingAction | null>(null)
 
   const activeConv = conversations.find(c => c.id === activeConvId)
 
@@ -71,9 +92,7 @@ export function ChatPage() {
         }))
         setConversations(mapped)
       })
-    }).catch(() => {
-      // Backend might not be running — that's OK for dev
-    })
+    }).catch(() => {})
   }, [])
 
   // Load messages when selecting a conversation that has none loaded
@@ -91,6 +110,9 @@ export function ChatPage() {
                     id: m.id,
                     role: m.role as 'user' | 'assistant',
                     content: m.content,
+                    artifact: m.artifact || null,
+                    action: m.action || null,
+                    widgets: m.widgets || null,
                   })),
                 }
               : c
@@ -100,27 +122,96 @@ export function ChatPage() {
     }
   }, [activeConvId, conversations])
 
-  // Scroll to bottom on new messages
+  // Track whether user has scrolled up
+  const handleMessagesScroll = () => {
+    const container = messagesContainerRef.current
+    if (!container) return
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+    shouldAutoScroll.current = distanceFromBottom < 100
+  }
+
+  // Scroll to bottom on new messages or when loading indicator appears
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [activeConv?.messages.length])
+    if (!shouldAutoScroll.current) return
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [activeConv?.messages.length, isLoading])
+
+  // Always scroll to bottom when switching conversations
+  useEffect(() => {
+    shouldAutoScroll.current = true
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [activeConvId])
 
   const handleNewConversation = () => {
     setActiveConvId(null)
     setSelectedCourseId(null)
     setError(null)
+    closePanel()
   }
 
   const handleSelectCourse = (courseId: string) => {
     setSelectedCourseId(courseId)
+    api.listAssignments(courseId).then(setAssignments).catch(() => setAssignments([]))
+  }
+
+  const handleDeleteConversation = async (convId: string) => {
+    try {
+      await api.deleteConversation(convId)
+      setConversations(prev => prev.filter(c => c.id !== convId))
+      if (activeConvId === convId) {
+        setActiveConvId(null)
+        setSelectedCourseId(null)
+        closePanel()
+      }
+    } catch {
+      setError('Failed to delete conversation')
+    }
+  }
+
+  const openArtifact = (artifact: StudyArtifact) => {
+    setActiveArtifact(artifact)
+    setIsPanelOpen(true)
+    setIsGeneratingArtifact(false)
+  }
+
+  const closePanel = () => {
+    setIsPanelOpen(false)
+    setIsGeneratingArtifact(false)
+    // Keep activeArtifact so re-open doesn't flash
+  }
+
+  const openMeetingScheduler = (action?: MeetingAction | null) => {
+    // Close study panel if open — only one panel at a time
+    closePanel()
+    setMeetingAction(action || null)
+    setIsMeetingPanelOpen(true)
+  }
+
+  const closeMeetingPanel = () => {
+    setIsMeetingPanelOpen(false)
   }
 
   const handleSendMessage = async (content: string, _files?: File[]) => {
     if (!selectedCourseId && !activeConv) return
     setError(null)
+    shouldAutoScroll.current = true
 
     const courseId = activeConv?.courseId || selectedCourseId!
     const course = courses.find(c => c.id === courseId)
+
+    // Detect study intent — optimistically open panel
+    const isStudyRequest = STUDY_KEYWORDS.test(content)
+    if (isStudyRequest) {
+      setActiveArtifact(null)
+      setIsGeneratingArtifact(true)
+      setIsPanelOpen(true)
+    }
 
     try {
       // If no active conversation, create one via API
@@ -138,9 +229,11 @@ export function ChatPage() {
         setConversations(prev => [newConv, ...prev])
         setActiveConvId(serverConv.id)
 
-        // Send message to the new conversation
         setIsLoading(true)
         const response = await api.sendMessage(serverConv.id, content)
+        const artifact = response.message.artifact || null
+        const action = response.message.action || null
+        const widgets = response.message.widgets || null
 
         setConversations(prev =>
           prev.map(c =>
@@ -149,13 +242,20 @@ export function ChatPage() {
                   ...c,
                   messages: [
                     ...c.messages,
-                    { id: response.message.id, role: 'assistant', content: response.message.content },
+                    { id: response.message.id, role: 'assistant', content: response.message.content, artifact, action, widgets },
                   ],
                 }
               : c
           )
         )
         setIsLoading(false)
+
+        // Handle artifact result
+        if (artifact) {
+          openArtifact(artifact)
+        } else if (isStudyRequest) {
+          closePanel()
+        }
         return
       }
 
@@ -172,6 +272,9 @@ export function ChatPage() {
       // Send to API and get AI response
       setIsLoading(true)
       const response = await api.sendMessage(activeConvId, content)
+      const artifact = response.message.artifact || null
+      const action = response.message.action || null
+      const widgets = response.message.widgets || null
 
       setConversations(prev =>
         prev.map(c =>
@@ -180,15 +283,24 @@ export function ChatPage() {
                 ...c,
                 messages: [
                   ...c.messages,
-                  { id: response.message.id, role: 'assistant', content: response.message.content },
+                  { id: response.message.id, role: 'assistant', content: response.message.content, artifact, action, widgets },
                 ],
               }
             : c
         )
       )
       setIsLoading(false)
+
+      // Handle artifact result
+      if (artifact) {
+        openArtifact(artifact)
+      } else if (isStudyRequest) {
+        closePanel()
+      }
     } catch (err) {
       setIsLoading(false)
+      setIsGeneratingArtifact(false)
+      if (isStudyRequest) closePanel()
       setError(err instanceof Error ? err.message : 'Failed to send message')
     }
   }
@@ -211,6 +323,7 @@ export function ChatPage() {
         activeId={activeConvId}
         onSelect={setActiveConvId}
         onNew={handleNewConversation}
+        onDelete={handleDeleteConversation}
         onLogout={logout}
         userEmail={user?.email || ''}
         dark={dark}
@@ -218,7 +331,7 @@ export function ChatPage() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Error banner */}
         {error && (
           <div className="px-6 py-2 bg-red-500/10 border-b border-red-500/20 text-red-600 text-sm flex items-center justify-between">
@@ -240,27 +353,50 @@ export function ChatPage() {
 
         {/* Empty chat (course selected, ready to type) */}
         {showEmptyChat && (
-          <div className="flex-1 flex flex-col">
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center animate-fade-in">
-                <Icons.Logo className="w-12 h-12 mx-auto mb-4" />
-                <p className="text-xl font-serif text-text-200 mb-1">
-                  {courses.find(c => c.id === selectedCourseId)?.name}
-                </p>
-                <p className="text-sm text-text-400">Ask me anything about this course</p>
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              <div className="flex flex-col items-center justify-center min-h-full py-8">
+                <div className="text-center animate-fade-in">
+                  <Icons.Logo className="w-12 h-12 mx-auto mb-4" />
+                  <p className="text-xl font-serif text-text-200 mb-1">
+                    {courses.find(c => c.id === selectedCourseId)?.name}
+                  </p>
+                  <p className="text-sm text-text-400">Ask me anything about this course</p>
 
-                {/* Quick Action Buttons */}
-                <div className="flex flex-wrap justify-center gap-2 mt-6">
-                  {QUICK_ACTIONS.map(action => (
-                    <button
-                      key={action.label}
-                      onClick={() => handleSendMessage(action.prompt)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-bg-300 bg-bg-0 hover:bg-bg-200 hover:border-accent/40 transition-all text-sm text-text-300 hover:text-text-200 group"
-                    >
-                      <action.icon className="w-4 h-4 text-text-400 group-hover:text-accent transition-colors" />
-                      {action.label}
-                    </button>
-                  ))}
+                  {/* Quick Action Buttons */}
+                  <div className="flex flex-wrap justify-center gap-2 mt-6">
+                    {QUICK_ACTIONS.map(action => (
+                      <button
+                        key={action.label}
+                        onClick={() => handleSendMessage(action.prompt)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-bg-300 bg-bg-0 hover:bg-bg-200 hover:border-accent/40 transition-all text-sm text-text-300 hover:text-text-200 group"
+                      >
+                        <action.icon className="w-4 h-4 text-text-400 group-hover:text-accent transition-colors" />
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Assignments Section */}
+                  {assignments.length > 0 && (
+                    <div className="mt-8 w-full max-w-md mx-auto text-left">
+                      <p className="text-xs uppercase tracking-wider text-text-500 mb-2 px-1">Assignments</p>
+                      <div className="space-y-1.5">
+                        {assignments.map(a => (
+                          <button
+                            key={a.id}
+                            onClick={() => handleSendMessage(`Help me with the assignment: ${a.title}`)}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-bg-300 bg-bg-0 hover:bg-bg-200 hover:border-accent/40 transition-all text-left group"
+                          >
+                            <FileText className="w-4 h-4 text-text-400 group-hover:text-accent transition-colors shrink-0" />
+                            <span className="text-sm text-text-300 group-hover:text-text-200 truncate">
+                              {a.title}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -272,7 +408,7 @@ export function ChatPage() {
 
         {/* Active conversation */}
         {showChat && activeConv && (
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
             <div className="px-6 py-3 border-b border-bg-300 flex items-center gap-2">
               <span className="text-xs font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full">
@@ -282,18 +418,30 @@ export function ChatPage() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+            <div ref={messagesContainerRef} onScroll={handleMessagesScroll} className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
               <div className="max-w-2xl mx-auto">
                 {activeConv.messages.map(msg => (
-                  <MessageBubble key={msg.id} role={msg.role} content={msg.content} />
+                  <MessageBubble
+                    key={msg.id}
+                    role={msg.role}
+                    content={msg.content}
+                    artifact={msg.artifact}
+                    action={msg.action}
+                    widgets={msg.widgets}
+                    onOpenArtifact={openArtifact}
+                    onOpenMeetingScheduler={() => openMeetingScheduler(msg.action)}
+                  />
                 ))}
                 {isLoading && (
                   <div className="flex justify-start gap-2 mb-4">
                     <div className="w-6 h-6 shrink-0 mt-1">
                       <Icons.Logo className="w-6 h-6" />
                     </div>
-                    <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-bg-200 text-text-400 text-sm">
-                      <span className="inline-flex gap-1">
+                    <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-bg-200 text-sm">
+                      <span className="text-text-300 mr-1.5">
+                        {isGeneratingArtifact ? 'Docere is thinking' : 'Thinking'}
+                      </span>
+                      <span className="inline-flex gap-0.5 text-text-400">
                         <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
                         <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
                         <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
@@ -312,6 +460,26 @@ export function ChatPage() {
           </div>
         )}
       </div>
+
+      {/* Study Materials Panel */}
+      {isPanelOpen && (
+        <StudyPanel
+          artifact={activeArtifact}
+          isGenerating={isGeneratingArtifact}
+          onClose={closePanel}
+        />
+      )}
+
+      {/* Meeting Scheduler Panel */}
+      {isMeetingPanelOpen && activeConv && (
+        <MeetingScheduler
+          courseId={activeConv.courseId}
+          conversationId={activeConvId}
+          action={meetingAction}
+          onClose={closeMeetingPanel}
+          onBooked={closeMeetingPanel}
+        />
+      )}
     </div>
   )
 }

@@ -20,9 +20,11 @@ from docere.models.lti_platform import LTIPlatform
 from docere.models.user import User
 from docere.services.jwks_cache import get_jwks_client
 from docere.services.lti_service import (
+    create_adapter,
     ensure_enrollment,
     extract_lti_claims,
     handle_lti_course,
+    sync_user_enrollments,
     upsert_lti_user,
 )
 
@@ -218,6 +220,15 @@ async def lti_launch(
     if course:
         enrollment = await ensure_enrollment(db, user, course, lti_role=lti_data.role)
 
+    # Discover and sync enrollments for the user's other LMS courses
+    # so all their courses show up immediately, not just the launched one
+    if platform.api_base_url and platform.api_token:
+        try:
+            adapter = create_adapter(platform)
+            await sync_user_enrollments(db, user, adapter, platform)
+        except Exception:
+            logger.warning("Cross-course enrollment sync failed", user_id=str(user.id))
+
     await db.commit()
 
     # 7. Enqueue sync tasks (don't block the redirect)
@@ -258,8 +269,14 @@ async def lti_launch(
         "user_id": str(user.id),
         "name": user.name,
         "role": user.role,
+        "course_id": str(course.id) if course else "",
     })
-    redirect_url = f"{settings.frontend_url}/lti/callback#{fragment}"
+
+    # Route instructors to the dashboard, students to the chat
+    if user.role in ("instructor", "admin", "ta") and course:
+        redirect_url = f"{settings.frontend_url}/instructor/dashboard/{course.id}#{fragment}"
+    else:
+        redirect_url = f"{settings.frontend_url}/lti/callback#{fragment}"
 
     logger.info(
         "LTI launch complete",

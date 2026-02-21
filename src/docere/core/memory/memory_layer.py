@@ -8,8 +8,9 @@ Combines:
 """
 
 import asyncio
+import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +23,7 @@ from docere.core.memory.teacher_context import TeacherContextManager
 from docere.integrations.llm.client import ClaudeClient
 from docere.integrations.llm.embeddings import generate_embedding
 from docere.integrations.vector_db.qdrant import QdrantStore
+from docere.models.conversation import Conversation, Message
 from docere.models.course import Assignment, Submission
 from docere.models.memory import ConceptMastery, MemoryRecord
 
@@ -40,6 +42,20 @@ Rules:
 - confusion_score: 0.0 (student clearly understands) to 1.0 (student is very confused)
 - sentiment: one of "positive", "neutral", "frustrated", "confused"
 """
+
+CONVERSATION_SUMMARY_PROMPT = """Summarize this tutoring conversation for an instructor's reference.
+
+Conversation ({message_count} messages, {duration}):
+{transcript}
+
+Respond with ONLY a JSON object:
+{{"summary": "2-4 sentence narrative of the conversation arc", "key_struggles": ["concept1"], "breakthroughs": ["concept2"], "overall_confusion": 0.5, "sentiment_arc": "confused -> guided -> understood"}}
+
+Focus on: what the student struggled with, any breakthroughs, and the learning trajectory.
+Keep the summary concise and data-driven."""
+
+# How long a conversation must be idle before it gets summarized
+CONVERSATION_IDLE_THRESHOLD = timedelta(hours=1)
 
 
 @dataclass
@@ -115,6 +131,7 @@ class MemoryLayer:
         student_id: str,
         course_id: str,
         current_query: str,
+        assignment_id: str | None = None,
         max_tokens: int = 8000,
     ) -> MemoryContext:
         """Assemble complete memory context for a student interaction.
@@ -132,7 +149,9 @@ class MemoryLayer:
         # Note: DB queries must be sequential (asyncpg doesn't allow concurrent
         # queries on the same connection). Qdrant calls can run in parallel.
         teacher_context, raw_interactions = await asyncio.gather(
-            self.teacher_ctx.retrieve_relevant_context(course_id, current_query, max_chunks=3),
+            self.teacher_ctx.retrieve_relevant_context(
+                course_id, current_query, max_chunks=3, assignment_id=assignment_id,
+            ),
             self.interaction_store.retrieve_relevant(
                 student_id, course_id, query_embedding, top_k=5
             ),
@@ -331,6 +350,219 @@ class MemoryLayer:
             student_id=student_id,
             course_id=course_id,
             concepts=concepts,
+        )
+
+    async def update_live_metrics(
+        self,
+        student_id: str,
+        course_id: str,
+        concepts: list[str],
+        confusion_score: float,
+        sentiment: str,
+    ) -> None:
+        """Update StudentProfile + ConceptMastery per-message without storing a memory.
+
+        This replaces the per-message capture_interaction() call. Concepts and
+        mastery stay live-updated, but no Qdrant vector or MemoryRecord is created.
+        The actual memory is deferred to conversation-level summarization.
+        """
+        await self.profile_builder.update_from_interaction(
+            student_id=student_id,
+            course_id=course_id,
+            concepts=concepts,
+            confusion_score=confusion_score,
+            sentiment=sentiment,
+        )
+        await self.db.flush()
+
+    async def summarize_stale_conversations(
+        self,
+        student_id: str,
+        course_id: str,
+    ) -> int:
+        """Find and summarize conversations that have been idle for 1+ hour.
+
+        Called at the start of handle_message() so stale conversations get
+        summarized before the new message is processed.
+
+        Returns the number of conversations summarized.
+        """
+        cutoff = datetime.now(timezone.utc) - CONVERSATION_IDLE_THRESHOLD
+
+        result = await self.db.execute(
+            select(Conversation.id, Conversation.student_id, Conversation.course_id)
+            .where(
+                Conversation.student_id == student_id,
+                Conversation.course_id == course_id,
+                Conversation.status == "active",
+                Conversation.summarized.is_(False),
+                Conversation.last_message_at < cutoff,
+            )
+        )
+        stale = result.all()
+
+        if not stale:
+            return 0
+
+        count = 0
+        for conv_id, s_id, c_id in stale:
+            try:
+                await self.summarize_conversation(
+                    conversation_id=str(conv_id),
+                    student_id=str(s_id),
+                    course_id=str(c_id),
+                )
+                count += 1
+            except Exception as e:
+                logger.warning(
+                    "Failed to summarize stale conversation",
+                    conversation_id=str(conv_id),
+                    error=str(e),
+                )
+
+        logger.info("Summarized stale conversations", count=count, student_id=student_id)
+        return count
+
+    async def summarize_conversation(
+        self,
+        conversation_id: str,
+        student_id: str,
+        course_id: str,
+    ) -> None:
+        """Generate a single summary memory for an entire conversation.
+
+        1. Fetch all messages
+        2. Claude summarizes the arc
+        3. Store 1 Qdrant vector + 1 MemoryRecord
+        4. Mark conversation as summarized
+        """
+        # Fetch messages
+        result = await self.db.execute(
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(Message.created_at.asc())
+        )
+        messages = result.scalars().all()
+
+        if len(messages) < 2:
+            # Too short to summarize — just mark it
+            conv_result = await self.db.execute(
+                select(Conversation).where(Conversation.id == conversation_id)
+            )
+            conv = conv_result.scalar_one_or_none()
+            if conv:
+                conv.summarized = True
+                await self.db.flush()
+            return
+
+        # Build transcript
+        transcript_lines = []
+        for msg in messages:
+            role = "Student" if msg.role == "user" else "Tutor"
+            transcript_lines.append(f"{role}: {msg.content[:300]}")
+        transcript = "\n".join(transcript_lines)
+
+        # Cap transcript to avoid huge prompts
+        if len(transcript) > 4000:
+            transcript = transcript[:4000] + "\n[...truncated]"
+
+        # Calculate duration
+        first_msg = messages[0].created_at
+        last_msg = messages[-1].created_at
+        duration_mins = int((last_msg - first_msg).total_seconds() / 60)
+        duration_str = f"{duration_mins} minutes" if duration_mins > 0 else "< 1 minute"
+
+        # Call Claude for summary
+        prompt = CONVERSATION_SUMMARY_PROMPT.format(
+            message_count=len(messages),
+            duration=duration_str,
+            transcript=transcript,
+        )
+
+        try:
+            raw = await self.claude.chat(
+                system_prompt="You are an educational conversation summarizer. Respond with only JSON.",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=300,
+                temperature=0.3,
+            )
+            data = json.loads(raw.strip())
+            summary_text = data.get("summary", "")
+            key_struggles = data.get("key_struggles", [])
+            breakthroughs = data.get("breakthroughs", [])
+            overall_confusion = max(0.0, min(1.0, float(data.get("overall_confusion", 0.5))))
+            sentiment_arc = data.get("sentiment_arc", "")
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning("Conversation summary parse failed, using fallback", error=str(e))
+            summary_text = f"Conversation with {len(messages)} messages over {duration_str}."
+            key_struggles = []
+            breakthroughs = []
+            overall_confusion = 0.5
+            sentiment_arc = ""
+
+        # Collect all concepts from the conversation
+        all_concepts = list(set(key_struggles + breakthroughs))
+
+        # Build the full summary content for storage
+        full_summary = summary_text
+        if sentiment_arc:
+            full_summary += f" Arc: {sentiment_arc}."
+
+        # Generate embedding and store in Qdrant
+        embedding = await generate_embedding(full_summary)
+        point_id = await self.interaction_store.store(
+            student_id=student_id,
+            course_id=course_id,
+            student_message=full_summary,  # summary goes in the searchable field
+            agent_response="",
+            embedding=embedding,
+            metadata={
+                "concepts": all_concepts,
+                "confusion_score": overall_confusion,
+                "sentiment": sentiment_arc,
+                "memory_type": "conversation_summary",
+                "conversation_id": conversation_id,
+                "message_count": len(messages),
+            },
+        )
+
+        # Store MemoryRecord in PostgreSQL
+        memory = MemoryRecord(
+            student_id=student_id,
+            course_id=course_id,
+            memory_type="conversation_summary",
+            content=full_summary[:2000],
+            embedding_id=point_id,
+            concepts=all_concepts,
+            sentiment=sentiment_arc or None,
+            confusion_score=overall_confusion,
+            source="chat",
+            metadata_={
+                "conversation_id": conversation_id,
+                "message_count": len(messages),
+                "duration_minutes": duration_mins,
+                "key_struggles": key_struggles,
+                "breakthroughs": breakthroughs,
+            },
+        )
+        self.db.add(memory)
+
+        # Mark conversation as summarized
+        conv_result = await self.db.execute(
+            select(Conversation).where(Conversation.id == conversation_id)
+        )
+        conv = conv_result.scalar_one_or_none()
+        if conv:
+            conv.summarized = True
+
+        await self.db.flush()
+
+        logger.info(
+            "Conversation summarized",
+            conversation_id=conversation_id,
+            message_count=len(messages),
+            concepts=all_concepts,
+            confusion=overall_confusion,
         )
 
     async def integrate_grade(

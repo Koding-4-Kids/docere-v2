@@ -38,6 +38,12 @@ export function LTICallbackPage() {
         role,
       })
 
+      // Store launched course ID so ChatPage can auto-select it
+      const courseId = params.get('course_id')
+      if (courseId) {
+        localStorage.setItem('docere_lti_course_id', courseId)
+      }
+
       // Use replace so back button doesn't return to callback
       // Small delay to ensure localStorage write completes
       setTimeout(() => {

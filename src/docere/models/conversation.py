@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Integer, String, Text, DateTime, Index, func
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, DateTime, Index, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,6 +36,7 @@ class Conversation(Base, UUIDMixin):
     last_message_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    summarized: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     # Relationships
     student: Mapped["User"] = relationship(back_populates="conversations")  # type: ignore[name-defined]  # noqa: F821
@@ -65,6 +66,27 @@ class Message(Base, UUIDMixin):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+    @property
+    def artifact(self) -> dict | None:
+        """Extract study artifact from metadata for serialization."""
+        meta = self.metadata_ or {}
+        a = meta.get("artifact")
+        return a if isinstance(a, dict) else None
+
+    @property
+    def action(self) -> dict | None:
+        """Extract action (meeting suggestion) from metadata for serialization."""
+        meta = self.metadata_ or {}
+        a = meta.get("action")
+        return a if isinstance(a, dict) else None
+
+    @property
+    def widgets(self) -> list[dict] | None:
+        """Extract widget list from metadata for serialization."""
+        meta = self.metadata_ or {}
+        w = meta.get("widgets")
+        return w if isinstance(w, list) else None
 
     # Relationships
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")

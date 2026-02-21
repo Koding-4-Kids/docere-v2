@@ -115,6 +115,41 @@ class LMSAdapter(ABC):
         """Get all course materials (files, modules, pages, etc)."""
         ...
 
+    @abstractmethod
+    async def get_user_courses(self, user_id: str) -> list[LMSCourse]:
+        """Get all courses a specific user is enrolled in."""
+        ...
+
+    async def get_grade_items(self, course_id: str) -> list[dict]:
+        """Get gradebook columns (assignments/grade items) for a course.
+
+        Returns [{"id": str, "name": str, "category": str, "grade_max": float}].
+        """
+        raise NotImplementedError("This LMS adapter does not support grade items")
+
+    async def save_grade(
+        self,
+        course_id: str,
+        assignment_id: str,
+        student_id: str,
+        grade: float,
+        feedback: str | None = None,
+    ) -> dict:
+        """Write a single grade to the LMS gradebook.
+
+        Returns {"success": bool}.
+        """
+        raise NotImplementedError("This LMS adapter does not support grade writing")
+
+    async def post_announcement(
+        self, course_id: str, title: str, message: str
+    ) -> dict:
+        """Post an announcement to the LMS course.
+
+        Returns {"id": str, "url": str}.
+        """
+        raise NotImplementedError("This LMS adapter does not support announcements")
+
     async def full_sync(self, course_id: str) -> LMSFullSync:
         """Pull everything for a course in one call.
 

@@ -36,6 +36,123 @@ export interface ConversationSummary {
   last_message_at: string
 }
 
+export interface StudyArtifact {
+  type: 'notes' | 'flashcards' | 'study_guide' | 'slides'
+  title: string
+  content: string
+  source_concepts: string[]
+}
+
+export interface MeetingAction {
+  type: 'meeting_suggestion'
+  reason: string
+  concepts: string[]
+}
+
+// ── Student Widget Types ──
+
+export interface QuizQuestion {
+  question: string
+  choices: string[]
+  correct_index: number | null
+  correct_answer: string
+  explanation: string
+}
+
+export interface PracticeQuizWidget {
+  type: 'practice_quiz'
+  title: string
+  concept: string
+  questions: QuizQuestion[]
+}
+
+export interface StepHint {
+  text: string
+}
+
+export interface StepHintsWidget {
+  type: 'step_hints'
+  title: string
+  problem_context: string
+  hints: StepHint[]
+}
+
+// ── Instructor Widget Types ──
+
+export interface StudentCardWidget {
+  type: 'student_card'
+  student_name: string
+  student_id: string
+  engagement_level: string
+  confusion_label: string
+  grade_label: string
+  total_interactions: number
+  top_concepts: { name: string; mastery_label: string }[]
+  recent_activity: string
+  profile_summary: string
+}
+
+export interface AtRiskRow {
+  student_name: string
+  student_id: string
+  risk_reason: string
+  confusion_label: string
+  engagement_level: string
+  grade_label: string
+  recommended_action: string
+}
+
+export interface AtRiskTableWidget {
+  type: 'at_risk_table'
+  title: string
+  students: AtRiskRow[]
+}
+
+export interface HeatmapCell {
+  concept: string
+  mastery_label: string
+  mastery_value: number
+  student_count: number
+  times_struggled: number
+}
+
+export interface ConceptHeatmapWidget {
+  type: 'concept_heatmap'
+  title: string
+  cells: HeatmapCell[]
+}
+
+export interface EngagementBucket {
+  level: string
+  count: number
+  student_names: string[]
+}
+
+export interface EngagementChartWidget {
+  type: 'engagement_chart'
+  title: string
+  total_students: number
+  buckets: EngagementBucket[]
+}
+
+export type StudentWidget = PracticeQuizWidget | StepHintsWidget
+export type InstructorWidget = StudentCardWidget | AtRiskTableWidget | ConceptHeatmapWidget | EngagementChartWidget
+export type Widget = StudentWidget | InstructorWidget
+
+// ── Source References ──
+
+export interface SourceRef {
+  type: string
+  label: string
+  student_name: string | null
+  detail: string | null
+}
+
+export interface SourceFilters {
+  profiles: boolean
+  mastery: boolean
+}
+
 export interface Message {
   id: string
   role: 'user' | 'assistant'
@@ -43,6 +160,9 @@ export interface Message {
   model_used: string | null
   token_count: number | null
   created_at: string
+  artifact: StudyArtifact | null
+  action: MeetingAction | null
+  widgets: Widget[] | null
 }
 
 export interface ConversationDetail extends ConversationSummary {
@@ -133,6 +253,18 @@ export async function listCourses(): Promise<Course[]> {
   return apiFetch<Course[]>('/api/v1/courses/')
 }
 
+// ── Assignments ──
+
+export interface AssignmentSummary {
+  id: string
+  title: string | null
+  material_type: string
+}
+
+export async function listAssignments(courseId: string): Promise<AssignmentSummary[]> {
+  return apiFetch<AssignmentSummary[]>(`/api/v1/courses/${courseId}/assignments`)
+}
+
 // ── Conversations ──
 
 export async function createConversation(courseId: string, title?: string): Promise<ConversationSummary> {
@@ -151,11 +283,264 @@ export async function getConversation(conversationId: string): Promise<Conversat
   return apiFetch<ConversationDetail>(`/api/v1/chat/conversations/${conversationId}`)
 }
 
+export async function deleteConversation(conversationId: string): Promise<void> {
+  const token = getStoredToken()
+  const res = await fetch(`/api/v1/chat/conversations/${conversationId}`, {
+    method: 'DELETE',
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+  })
+  if (!res.ok && res.status !== 204) {
+    throw new Error('Failed to delete conversation')
+  }
+}
+
 // ── Messages ──
 
 export async function sendMessage(conversationId: string, content: string): Promise<AgentMessageResponse> {
   return apiFetch<AgentMessageResponse>(`/api/v1/chat/conversations/${conversationId}/messages`, {
     method: 'POST',
     body: JSON.stringify({ content }),
+  })
+}
+
+// ── Calendar / Meetings ──
+
+export interface TimeSlot {
+  start: string
+  end: string
+  instructor_id: string
+}
+
+export interface MeetingRequest {
+  id: string
+  student_id: string
+  instructor_id: string
+  course_id: string
+  conversation_id: string | null
+  scheduled_start: string
+  scheduled_end: string
+  status: string
+  context_summary: string | null
+  struggle_concepts: string[] | null
+  google_event_id: string | null
+  created_at: string
+}
+
+export async function getAvailableSlots(courseId: string): Promise<TimeSlot[]> {
+  return apiFetch<TimeSlot[]>(`/api/v1/calendar/available-slots/${courseId}`)
+}
+
+export async function bookMeeting(
+  courseId: string,
+  instructorId: string,
+  slotStart: string,
+  slotEnd: string,
+  conversationId?: string,
+): Promise<MeetingRequest> {
+  return apiFetch<MeetingRequest>(`/api/v1/calendar/book/${courseId}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      instructor_id: instructorId,
+      slot_start: slotStart,
+      slot_end: slotEnd,
+      conversation_id: conversationId || null,
+    }),
+  })
+}
+
+export async function listMeetings(courseId: string): Promise<MeetingRequest[]> {
+  return apiFetch<MeetingRequest[]>(`/api/v1/calendar/meetings/${courseId}`)
+}
+
+export async function cancelMeeting(meetingId: string): Promise<void> {
+  await apiFetch(`/api/v1/calendar/meetings/${meetingId}/cancel`, { method: 'POST' })
+}
+
+// ── Instructor Concepts ──
+
+export interface AddConceptResponse {
+  cell: HeatmapCell
+  students_affected: number
+  memories_matched: number
+}
+
+export async function addConcept(courseId: string, conceptName: string): Promise<AddConceptResponse> {
+  return apiFetch<AddConceptResponse>(`/api/v1/instructor/dashboard/${courseId}/concepts`, {
+    method: 'POST',
+    body: JSON.stringify({ concept_name: conceptName }),
+  })
+}
+
+
+// ── Integrations ──
+
+export interface IntegrationStatus {
+  google_connected: boolean
+  google_scopes: string[]
+  lms_type: string | null
+  lms_connected: boolean
+}
+
+export interface ExecuteActionResponse {
+  success: boolean
+  result: Record<string, unknown>
+  error: string | null
+}
+
+export interface MetaAction {
+  type: 'draft_email' | 'create_doc' | 'create_sheet' | 'create_excel' | 'lms_announcement' | 'calendar_event'
+  [key: string]: unknown
+}
+
+export async function getIntegrationStatus(): Promise<IntegrationStatus> {
+  return apiFetch<IntegrationStatus>('/api/v1/integrations/status')
+}
+
+export async function executeAction(
+  actionType: string,
+  payload: Record<string, unknown>,
+): Promise<ExecuteActionResponse> {
+  return apiFetch<ExecuteActionResponse>('/api/v1/integrations/execute', {
+    method: 'POST',
+    body: JSON.stringify({ action_type: actionType, payload }),
+  })
+}
+
+// ── Gradebook Sync ──
+
+export interface SpreadsheetInfo {
+  id: string
+  title: string
+  url: string
+  modified_time: string
+}
+
+export interface SpreadsheetData {
+  title: string
+  headers: string[]
+  rows: string[][]
+}
+
+export interface GradeItem {
+  id: string
+  name: string
+  category: string
+  grade_max: number
+}
+
+export interface ColumnMapping {
+  student_name_col: number
+  grade_columns: Record<string, number>
+}
+
+export interface ValidationIssue {
+  row: number
+  col: number
+  type: string
+  current: string
+  expected: string
+  suggestion: string
+}
+
+export interface ValidationResult {
+  valid: boolean
+  mappings: ColumnMapping | null
+  issues: ValidationIssue[]
+  preview: { student: string; student_lms_id: string; grades: { item: string; item_id: string; new: number }[] }[]
+  student_count: number
+}
+
+export interface SyncResult {
+  synced: number
+  failed: number
+  errors: { student: string; item_id: string; error: string }[]
+}
+
+export interface FixResult {
+  fixed_data: SpreadsheetData
+  changes: { row: number; col: number; old: string; new: string; reason: string }[]
+}
+
+export interface ExcelUploadResult extends SpreadsheetData {
+  upload_id: string
+  filename: string
+  sheet_names: string[]
+}
+
+export async function listGoogleSpreadsheets(): Promise<SpreadsheetInfo[]> {
+  return apiFetch<SpreadsheetInfo[]>('/api/v1/gradebook/sources/google')
+}
+
+export async function readGoogleSpreadsheet(spreadsheetId: string): Promise<SpreadsheetData> {
+  return apiFetch<SpreadsheetData>('/api/v1/gradebook/sources/google/read', {
+    method: 'POST',
+    body: JSON.stringify({ spreadsheet_id: spreadsheetId }),
+  })
+}
+
+export async function readGoogleSpreadsheetUrl(url: string): Promise<SpreadsheetData> {
+  return apiFetch<SpreadsheetData>('/api/v1/gradebook/sources/google/read-url', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  })
+}
+
+export async function uploadExcel(file: File): Promise<ExcelUploadResult> {
+  const token = getStoredToken()
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const res = await fetch('/api/v1/integrations/upload-excel', {
+    method: 'POST',
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+    body: formData,
+  })
+
+  if (res.status === 401) {
+    clearAuth()
+    window.location.reload()
+    throw new Error('Unauthorized')
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.detail || `Upload failed: ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function getGradeItems(courseId: string): Promise<GradeItem[]> {
+  return apiFetch<GradeItem[]>(`/api/v1/gradebook/destinations/${courseId}/grade-items`)
+}
+
+export async function validateGradebook(
+  sourceData: SpreadsheetData,
+  courseId: string,
+  gradeItemIds: string[],
+): Promise<ValidationResult> {
+  return apiFetch<ValidationResult>('/api/v1/gradebook/validate', {
+    method: 'POST',
+    body: JSON.stringify({ source_data: sourceData, course_id: courseId, grade_item_ids: gradeItemIds }),
+  })
+}
+
+export async function syncGradebook(
+  courseId: string,
+  mappings: ColumnMapping,
+  sourceData: SpreadsheetData,
+  skipRows: number[] = [],
+): Promise<SyncResult> {
+  return apiFetch<SyncResult>('/api/v1/gradebook/sync', {
+    method: 'POST',
+    body: JSON.stringify({ course_id: courseId, mappings, source_data: sourceData, skip_rows: skipRows }),
+  })
+}
+
+export async function fixGradebook(
+  sourceData: SpreadsheetData,
+  issues: ValidationIssue[],
+): Promise<FixResult> {
+  return apiFetch<FixResult>('/api/v1/gradebook/fix', {
+    method: 'POST',
+    body: JSON.stringify({ source_data: sourceData, issues }),
   })
 }

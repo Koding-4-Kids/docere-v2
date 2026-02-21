@@ -98,16 +98,18 @@ class LMSSyncService:
         # Pull latest data
         assignments = await self.lms.get_assignments(course.external_lms_id)
         submissions = await self.lms.get_submissions(course.external_lms_id)
+        enrollments = await self.lms.get_enrollments(course.external_lms_id)
         materials = await self.lms.get_course_materials(course.external_lms_id)
 
         sync_data = LMSFullSync(
             course=await self.lms.get_course(course.external_lms_id),
             assignments=assignments,
             submissions=submissions,
-            enrollments=[],
+            enrollments=enrollments,
             materials=materials,
         )
 
+        new_enrollments = await self._sync_enrollments(course, sync_data, course.lms_platform)
         new_assignments = await self._sync_assignments(course, sync_data)
         new_submissions, grade_changes = await self._sync_submissions(course, sync_data)
         new_materials, updated_materials = await self._sync_materials(course, sync_data)
@@ -117,6 +119,7 @@ class LMSSyncService:
 
         return (
             {
+                "new_enrollments": new_enrollments,
                 "new_assignments": new_assignments,
                 "updated_submissions": new_submissions,
                 "new_materials": new_materials,

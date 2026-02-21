@@ -91,26 +91,32 @@ class TeacherContextManager:
             if not content or len(content.strip()) < 50:
                 continue
 
-            # Compress via Q&A distillation for large materials
-            if len(content) > 3000:
+            # For assignments/exams, always store raw content so the agent
+            # can reference actual questions.  Only compress generic materials
+            # (e.g. lecture notes, pages) that are very large.
+            mat_type = material.get("type", "document")
+            if mat_type not in ("assign", "quiz") and len(content) > 6000:
                 compressed = await self._compress_material(
                     content=content,
                     title=material.get("title", ""),
-                    material_type=material.get("type", "document"),
+                    material_type=mat_type,
                 )
                 content = compressed
 
+            title = material.get("title", "")
             chunks = self._chunk_text(content, max_chars=2000)
             for i, chunk in enumerate(chunks):
-                embedding = await generate_embedding(chunk)
+                # Prepend title so the embedding captures which material this is
+                embed_text = f"{title}\n\n{chunk}" if title else chunk
+                embedding = await generate_embedding(embed_text)
                 await self.qdrant.upsert(
                     collection_name=collection,
                     point_id=str(uuid.uuid4()),
                     vector=embedding,
                     payload={
                         "course_id": course_id,
-                        "material_type": material.get("type", "document"),
-                        "title": material.get("title", ""),
+                        "material_type": mat_type,
+                        "title": title,
                         "content": chunk,
                     },
                 )
@@ -154,18 +160,20 @@ class TeacherContextManager:
                 filter_conditions={"title": title},
             )
 
-            # Compress large materials
-            if len(content) > 3000:
+            # Only compress non-assignment materials that are very large
+            mat_type = material.get("type", "document")
+            if mat_type not in ("assign", "quiz") and len(content) > 6000:
                 content = await self._compress_material(
                     content=content,
                     title=title,
-                    material_type=material.get("type", "document"),
+                    material_type=mat_type,
                 )
 
             # Re-embed
             chunks = self._chunk_text(content, max_chars=2000)
             for i, chunk in enumerate(chunks):
-                embedding = await generate_embedding(chunk)
+                embed_text = f"{title}\n\n{chunk}" if title else chunk
+                embedding = await generate_embedding(embed_text)
                 await self.qdrant.upsert(
                     collection_name=collection,
                     point_id=str(uuid.uuid4()),
@@ -192,33 +200,123 @@ class TeacherContextManager:
         course_id: str,
         query: str,
         max_chunks: int = 3,
+        assignment_id: str | None = None,
     ) -> str:
-        """Retrieve course materials relevant to a student's query."""
+        """Retrieve course materials relevant to a student's query.
+
+        Always includes a material index (titles of everything in the course)
+        so the agent knows what's available, plus detailed content for the
+        top matching chunks.
+
+        When assignment_id is provided, prioritizes assignment-type materials
+        so the student's current assignment content appears first.
+        """
         collection = f"{COLLECTION_PREFIX}_{course_id}"
+
+        # Build a material index from all points in the collection
+        material_index = await self._get_material_index(collection)
+
+        # Semantic search for detailed content
         query_embedding = await generate_embedding(query)
 
+        assignment_results: list[dict[str, object]] = []
+        general_results: list[dict[str, object]] = []
+
         try:
-            results = await self.qdrant.search(
+            # When an assignment is active, do a targeted search for assignment
+            # materials first so they appear at the top of context
+            if assignment_id:
+                assignment_results = await self.qdrant.search(
+                    collection_name=collection,
+                    query_vector=query_embedding,
+                    top_k=2,
+                    score_threshold=0.15,
+                    filter_conditions={"material_type": "assign"},
+                )
+
+            general_results = await self.qdrant.search(
                 collection_name=collection,
                 query_vector=query_embedding,
-                top_k=max_chunks,
-                score_threshold=0.1,
+                top_k=max_chunks + 2,
+                score_threshold=0.15,
             )
-        except Exception:
-            # Collection may not exist yet (no materials ingested for this course)
-            return ""
+        except Exception as e:
+            logger.warning(
+                "Teacher context search failed",
+                collection=collection,
+                error=str(e),
+            )
 
-        if not results:
-            return ""
+        # Merge: assignment-specific results first, then general (deduplicated by point ID)
+        seen_ids: set[str] = set()
+        merged: list[dict[str, object]] = []
+        for r in assignment_results + general_results:
+            point_id = r.get("id", "")
+            if point_id in seen_ids:
+                continue
+            seen_ids.add(point_id)
+            merged.append(r)
 
         context_parts = []
-        for r in results:
+
+        # Always include the material index so the agent knows what exists
+        if material_index:
+            context_parts.append(f"[Available Course Materials]\n{material_index}")
+
+        # Add detailed content — allow one extra slot when assignment is active
+        limit = max_chunks + 1 if assignment_id and assignment_results else max_chunks
+        for r in merged[:limit]:
             payload = r.get("payload", {})
             title = payload.get("title", "")
             content = payload.get("content", "")
             context_parts.append(f"[{title}]\n{content}")
 
         return "\n\n".join(context_parts)
+
+    async def _get_material_index(self, collection: str) -> str:
+        """Build a lightweight index of all materials in a collection.
+
+        Returns a bulleted list like:
+          - Assignment: Assignment 1: Variables and Data Types
+          - Assignment: Assignment 2: Loops and Conditionals
+          - Page: Week 1: Introduction to Python
+        """
+        try:
+            all_points = await self.qdrant.scroll(
+                collection_name=collection,
+                limit=100,
+                with_payload=True,
+                with_vectors=False,
+            )
+        except Exception:
+            return ""
+
+        # Deduplicate by title (multiple chunks share the same title)
+        seen_titles: dict[str, str] = {}  # title -> material_type
+        for point in all_points:
+            payload = point.get("payload", {})
+            title = payload.get("title", "")
+            mat_type = payload.get("material_type", "")
+            if title and title not in seen_titles:
+                seen_titles[title] = mat_type
+
+        if not seen_titles:
+            return ""
+
+        type_labels = {
+            "assign": "Assignment",
+            "quiz": "Quiz",
+            "page": "Page",
+            "resource": "Resource",
+            "forum": "Forum",
+            "syllabus": "Syllabus",
+        }
+        lines = []
+        for title, mat_type in seen_titles.items():
+            label = type_labels.get(mat_type, mat_type.title() if mat_type else "Material")
+            lines.append(f"- {label}: {title}")
+
+        return "\n".join(lines)
 
     async def _compress_material(
         self, content: str, title: str, material_type: str

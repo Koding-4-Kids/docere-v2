@@ -64,6 +64,75 @@ class CanvasAdapter(LMSAdapter):
                 params = None  # Only use params on first request
         return results
 
+    async def get_grade_items(self, course_id: str) -> list[dict]:
+        """Get assignment groups + assignments from Canvas.
+
+        Returns flattened list of assignments with their group as category.
+        """
+        data = await self._get_paginated(
+            f"/courses/{course_id}/assignment_groups",
+            {"include[]": "assignments"},
+        )
+        items: list[dict] = []
+        for group in data:
+            if not isinstance(group, dict):
+                continue
+            category = group.get("name", "Uncategorized")
+            for a in group.get("assignments", []):
+                if isinstance(a, dict):
+                    items.append({
+                        "id": str(a["id"]),
+                        "name": a.get("name", ""),
+                        "category": category,
+                        "grade_max": float(a.get("points_possible", 100) or 100),
+                    })
+        return items
+
+    async def save_grade(
+        self,
+        course_id: str,
+        assignment_id: str,
+        student_id: str,
+        grade: float,
+        feedback: str | None = None,
+    ) -> dict:
+        """Write a grade to Canvas via submission update."""
+        body: dict = {"submission": {"posted_grade": str(grade)}}
+        if feedback:
+            body["comment"] = {"text_comment": feedback}
+
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                f"{self.base_url}/api/v1/courses/{course_id}/assignments/{assignment_id}/submissions/{student_id}",
+                headers=self.headers,
+                json=body,
+            )
+            response.raise_for_status()
+        return {"success": True}
+
+    async def post_announcement(
+        self, course_id: str, title: str, message: str
+    ) -> dict:
+        """Post announcement via Canvas discussion topics API."""
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.base_url}/api/v1/courses/{course_id}/discussion_topics",
+                headers=self.headers,
+                json={
+                    "title": title,
+                    "message": message,
+                    "is_announcement": True,
+                    "published": True,
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        return {
+            "id": str(data.get("id", "")),
+            "url": data.get("html_url", ""),
+        }
+
     async def get_course(self, course_id: str) -> LMSCourse:
         """Get course details including syllabus body."""
         data = await self._get(f"/courses/{course_id}", {"include[]": "syllabus_body"})
@@ -132,6 +201,22 @@ class CanvasAdapter(LMSAdapter):
             )
             for e in data
             if isinstance(e, dict)
+        ]
+
+    async def get_user_courses(self, user_id: str) -> list[LMSCourse]:
+        """Get all courses a user is enrolled in via Canvas."""
+        data = await self._get_paginated(
+            f"/users/{user_id}/courses",
+            {"enrollment_state": "active"},
+        )
+        return [
+            LMSCourse(
+                external_id=str(c["id"]),
+                name=c.get("name", ""),
+                course_code=c.get("course_code", ""),
+            )
+            for c in data
+            if isinstance(c, dict)
         ]
 
     async def get_course_materials(self, course_id: str) -> list[LMSCourseMaterial]:

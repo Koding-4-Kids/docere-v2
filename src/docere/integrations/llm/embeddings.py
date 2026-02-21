@@ -1,4 +1,4 @@
-"""Embedding generation for semantic memory."""
+"""Embedding generation for semantic memory with retry."""
 
 import hashlib
 from collections import OrderedDict
@@ -7,8 +7,20 @@ import httpx
 import structlog
 
 from docere.config import settings
+from docere.core.resilience import CircuitBreaker, retry_async
 
 logger = structlog.get_logger()
+
+_embedding_breaker = CircuitBreaker(service="embedding", failure_threshold=5, recovery_timeout=30.0)
+
+_RETRYABLE_HTTP = (
+    httpx.ConnectError,
+    httpx.ReadTimeout,
+    httpx.ConnectTimeout,
+    httpx.HTTPStatusError,
+    ConnectionError,
+    TimeoutError,
+)
 
 
 class EmbeddingCache:
@@ -85,20 +97,25 @@ async def _voyage_embed(text: str) -> list[float]:
 
 
 async def _voyage_embed_batch(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings via Voyage AI batch API."""
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://api.voyageai.com/v1/embeddings",
-            headers={"Authorization": f"Bearer {settings.voyage_api_key}"},
-            json={
-                "input": texts,
-                "model": settings.embedding_model,
-            },
-            timeout=30.0,
-        )
-        response.raise_for_status()
-        data = response.json()
-        return [item["embedding"] for item in data["data"]]
+    """Generate embeddings via Voyage AI batch API (with retry)."""
+    async def _call():
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.voyageai.com/v1/embeddings",
+                headers={"Authorization": f"Bearer {settings.voyage_api_key}"},
+                json={
+                    "input": texts,
+                    "model": settings.embedding_model,
+                },
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            return [item["embedding"] for item in data["data"]]
+
+    return await _embedding_breaker.call(
+        lambda: retry_async(_call, max_retries=2, base_delay=0.5, retryable=_RETRYABLE_HTTP)
+    )
 
 
 async def _openai_embed(text: str) -> list[float]:
@@ -108,17 +125,23 @@ async def _openai_embed(text: str) -> list[float]:
 
 
 async def _openai_embed_batch(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings via OpenAI batch API."""
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://api.openai.com/v1/embeddings",
-            headers={"Authorization": f"Bearer {settings.openai_api_key}"},
-            json={
-                "input": texts,
-                "model": "text-embedding-3-small",
-            },
-            timeout=30.0,
-        )
-        response.raise_for_status()
-        data = response.json()
-        return [item["embedding"] for item in data["data"]]
+    """Generate embeddings via OpenAI batch API (with retry)."""
+    async def _call():
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.openai.com/v1/embeddings",
+                headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+                json={
+                    "input": texts,
+                    "model": "text-embedding-3-small",
+                },
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            return [item["embedding"] for item in data["data"]]
+
+    return await _embedding_breaker.call(
+        lambda: retry_async(_call, max_retries=2, base_delay=0.5, retryable=_RETRYABLE_HTTP)
+    )
+
