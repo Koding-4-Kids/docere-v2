@@ -7,17 +7,20 @@ After syncing grades, processes changes through:
 After syncing materials, embeds new/updated content into Qdrant.
 """
 
+import re
+
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.core.improvement.strategy_archive import StrategyArchive
+from docere.core.memory.concept_utils import normalize_concept
 from docere.core.memory.memory_layer import MemoryLayer
 from docere.core.memory.teacher_context import TeacherContextManager
 from docere.core.verification.outcome_tracker import OutcomeTracker
 from docere.integrations.llm.client import ClaudeClient
 from docere.integrations.vector_db.qdrant import QdrantStore
-from docere.models.course import Course, CourseMaterial
+from docere.models.course import Assignment, Course, CourseMaterial
 from docere.integrations.lms.canvas import CanvasAdapter
 from docere.integrations.lms.moodle import MoodleAdapter
 from docere.services.lms_sync_service import GradeChange, LMSSyncService
@@ -152,6 +155,80 @@ async def _embed_new_materials(
     return chunks
 
 
+_STOP_WORDS = {
+    "a", "an", "the", "and", "or", "of", "for", "in", "on", "to", "is", "it",
+    "at", "by", "with", "from", "as", "this", "that", "be", "are", "was",
+    "were", "been", "has", "have", "had", "do", "does", "did", "will",
+    "would", "could", "should", "may", "might", "can", "shall", "not", "no",
+    "but", "if", "so", "than", "then", "each", "every", "all", "any", "few",
+    "more", "most", "other", "some", "such", "only", "own", "same", "too",
+    "very", "just", "about", "above", "after", "before", "between", "into",
+    "through", "during", "up", "down", "out", "off", "over", "under",
+    "assignment", "quiz", "exam", "test", "homework", "hw", "lab", "project",
+    "problem", "set", "part", "section", "chapter", "unit", "week", "module",
+    "final", "midterm", "review", "practice", "graded", "extra", "credit",
+}
+
+# Cache to avoid repeated LLM calls for the same assignment
+_concept_cache: dict[str, list[str]] = {}
+
+CONCEPT_EXTRACT_PROMPT = """Extract 3-5 academic topic keywords from this assignment. Return ONLY a JSON array of lowercase strings.
+
+Title: {title}
+Description: {description}
+
+Example: ["derivatives", "chain rule", "implicit differentiation"]"""
+
+
+async def _extract_assignment_concepts(
+    assignment_id: str,
+    title: str,
+    description: str | None,
+    claude: ClaudeClient | None,
+) -> list[str]:
+    """Extract topic concepts from an assignment's title and description.
+
+    Uses Claude if available and the assignment has a description.
+    Falls back to splitting the title into meaningful words.
+    Results are cached per assignment_id.
+    """
+    if assignment_id in _concept_cache:
+        return _concept_cache[assignment_id]
+
+    concepts: list[str] = []
+
+    # Try Claude extraction if we have a description
+    if claude and description and len(description.strip()) > 20:
+        try:
+            import json
+            result = await claude.chat(
+                system_prompt="Extract academic topics. Respond with only a JSON array.",
+                messages=[{"role": "user", "content": CONCEPT_EXTRACT_PROMPT.format(
+                    title=title, description=description[:500],
+                )}],
+                max_tokens=100,
+                temperature=0.1,
+            )
+            json_start = result.find("[")
+            json_end = result.rfind("]") + 1
+            if json_start >= 0 and json_end > json_start:
+                concepts = json.loads(result[json_start:json_end])
+                concepts = [normalize_concept(c) for c in concepts if isinstance(c, str)]
+        except Exception:
+            logger.debug("Claude concept extraction failed, falling back to title", title=title)
+
+    # Fallback: extract meaningful words from the title
+    if not concepts:
+        words = re.split(r"[\s\-_:,/]+", title.lower())
+        concepts = [w for w in words if len(w) > 2 and w not in _STOP_WORDS and not w.isdigit()]
+
+    # Always include the full title for broader matching
+    concepts.append(normalize_concept(title))
+
+    _concept_cache[assignment_id] = concepts
+    return concepts
+
+
 async def _process_grade_changes(
     db: AsyncSession,
     changes: list[GradeChange],
@@ -163,7 +240,27 @@ async def _process_grade_changes(
     tracker = OutcomeTracker(db, strategy_archive=strategy_archive)
     total_linked = 0
 
+    # Pre-fetch assignment descriptions for concept extraction
+    assignment_ids = list({change.assignment_id for change in changes})
+    assignment_descs: dict[str, str | None] = {}
+    if assignment_ids:
+        result = await db.execute(
+            select(Assignment.id, Assignment.description).where(
+                Assignment.id.in_(assignment_ids)
+            )
+        )
+        for aid, desc in result.all():
+            assignment_descs[aid] = desc
+
     for change in changes:
+        # Extract real topic concepts from assignment
+        concepts = await _extract_assignment_concepts(
+            assignment_id=str(change.assignment_id),
+            title=change.assignment_title,
+            description=assignment_descs.get(change.assignment_id),
+            claude=claude,
+        )
+
         # 1. Link grade to recent tutoring interactions (backfill subsequent_performance)
         try:
             linked, _ids = await tracker.link_grade_to_interactions(
@@ -172,7 +269,7 @@ async def _process_grade_changes(
                 assignment_id=str(change.assignment_id),
                 score=change.score,
                 max_score=change.max_score,
-                concepts=[change.assignment_title],  # Use title as concept proxy
+                concepts=concepts,
             )
             total_linked += linked
         except Exception:
@@ -191,7 +288,7 @@ async def _process_grade_changes(
                     assignment_title=change.assignment_title,
                     score=change.score,
                     max_score=change.max_score,
-                    concepts=[change.assignment_title],
+                    concepts=concepts,
                 )
             except Exception:
                 logger.exception(

@@ -1,0 +1,11 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <ellipse id="petal-pair" cx="100" cy="100" rx="90" ry="22" />
+  </defs>
+  <g fill="#F15524" fill-rule="evenodd">
+    <use href="#petal-pair" transform="rotate(0 100 100)" />
+    <use href="#petal-pair" transform="rotate(45 100 100)" />
+    <use href="#petal-pair" transform="rotate(90 100 100)" />
+    <use href="#petal-pair" transform="rotate(135 100 100)" />
+  </g>
+</svg>

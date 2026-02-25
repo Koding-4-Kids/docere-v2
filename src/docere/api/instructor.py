@@ -18,6 +18,7 @@ from docere.integrations.vector_db.qdrant import QdrantStore
 from docere.models.calendar import InstructorCalendarToken
 from docere.models.course import Course, Enrollment
 from docere.models.memory import ConceptMastery, MemoryRecord, StudentProfile
+from docere.models.strategy import Strategy
 
 router = APIRouter()
 
@@ -830,4 +831,92 @@ async def add_concept(
         cell=cell,
         students_affected=students_affected,
         memories_matched=len(matching_records),
+    )
+
+
+# ── Strategy Evolution ──
+
+
+class StrategyInfo(BaseModel):
+    id: str
+    name: str
+    strategy_type: str
+    generation: int
+    is_active: bool
+    is_baseline: bool
+    total_uses: int
+    avg_score: float | None
+    success_rate: float | None
+    parent_strategy_id: str | None
+    created_at: str
+
+
+class EvolutionStatusResponse(BaseModel):
+    total_strategies: int
+    active_count: int
+    strategies: list[StrategyInfo]
+
+
+@router.get("/evolution/status", response_model=EvolutionStatusResponse)
+async def get_evolution_status(
+    _user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+) -> EvolutionStatusResponse:
+    """Return all strategies with scores, uses, generation, and lineage."""
+    result = await db.execute(
+        select(Strategy).order_by(Strategy.generation.asc(), Strategy.created_at.desc())
+    )
+    strategies = result.scalars().all()
+
+    items = [
+        StrategyInfo(
+            id=str(s.id),
+            name=s.name,
+            strategy_type=s.strategy_type,
+            generation=s.generation or 0,
+            is_active=s.is_active,
+            is_baseline=s.is_baseline,
+            total_uses=s.total_uses or 0,
+            avg_score=round(s.avg_score, 3) if s.avg_score is not None else None,
+            success_rate=round(s.success_rate, 3) if s.success_rate is not None else None,
+            parent_strategy_id=str(s.parent_strategy_id) if s.parent_strategy_id else None,
+            created_at=s.created_at.isoformat() if s.created_at else "",
+        )
+        for s in strategies
+    ]
+
+    return EvolutionStatusResponse(
+        total_strategies=len(items),
+        active_count=sum(1 for s in items if s.is_active),
+        strategies=items,
+    )
+
+
+class EvolutionTriggerResponse(BaseModel):
+    mutations: int
+    mutated_from: list[str]
+    pruned: int
+    pruned_names: list[str]
+    active_count: int
+
+
+@router.post("/evolution/trigger", response_model=EvolutionTriggerResponse)
+async def trigger_evolution(
+    _user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+    claude: ClaudeClient = Depends(get_claude),
+) -> EvolutionTriggerResponse:
+    """Manually trigger one strategy evolution cycle."""
+    from docere.core.improvement.strategy_evolver import StrategyEvolver
+
+    evolver = StrategyEvolver(db, claude)
+    summary = await evolver.evolve()
+    await db.commit()
+
+    return EvolutionTriggerResponse(
+        mutations=summary.get("mutations", 0),
+        mutated_from=summary.get("mutated_from", []),
+        pruned=summary.get("pruned", 0),
+        pruned_names=summary.get("pruned_names", []),
+        active_count=summary.get("active_count", 0),
     )

@@ -500,8 +500,10 @@ class MemoryLayer:
             overall_confusion = 0.5
             sentiment_arc = ""
 
-        # Collect all concepts from the conversation
-        all_concepts = list(set(key_struggles + breakthroughs))
+        # Collect all concepts from the conversation (normalized for matching)
+        all_concepts = list(set(
+            normalize_concept(c) for c in key_struggles + breakthroughs if c.strip()
+        ))
 
         # Build the full summary content for storage
         full_summary = summary_text
