@@ -37,6 +37,7 @@ dependencies = [
     "google-auth-oauthlib>=1.2.0",
     "cryptography>=42.0.0",
     "openpyxl>=3.1.0",
+    "fsrs>=4.0.0",
 ]
 
 [project.optional-dependencies]

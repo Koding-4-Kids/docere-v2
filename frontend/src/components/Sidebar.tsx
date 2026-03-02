@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageSquare, Sun, Moon, HelpCircle, Settings, LogOut, Plus, Trash2 } from 'lucide-react'
+import { MessageSquare, Sun, Moon, HelpCircle, Settings, LogOut, Plus, Trash2, Layers, Timer } from 'lucide-react'
 
 interface Conversation {
   id: string
@@ -18,6 +18,9 @@ interface SidebarProps {
   userEmail: string
   dark: boolean
   toggleTheme: () => void
+  onOpenFlashcards?: () => void
+  flashcardDueCount?: number
+  onOpenFocus?: () => void
 }
 
 function timeAgo(dateStr: string): string {
@@ -75,7 +78,7 @@ function Menu({ children, items }: { children: React.ReactNode; items: { name: s
   )
 }
 
-export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onLogout, userEmail, dark, toggleTheme }: SidebarProps) {
+export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onLogout, userEmail, dark, toggleTheme, onOpenFlashcards, flashcardDueCount, onOpenFocus }: SidebarProps) {
   const profileRef = useRef<HTMLButtonElement | null>(null)
   const [isProfileActive, setIsProfileActive] = useState(false)
 
@@ -245,6 +248,33 @@ export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, on
         {/* Footer nav */}
         <div className="pt-2 mt-2 border-t border-bg-300 pb-4">
           <ul className="text-sm font-medium space-y-0.5">
+            {onOpenFlashcards && (
+              <li>
+                <button
+                  onClick={onOpenFlashcards}
+                  className="flex items-center gap-x-2 text-text-300 p-2 rounded-lg hover:bg-bg-200 active:bg-bg-300 duration-150 w-full"
+                >
+                  <Layers className="w-5 h-5 text-purple-500" />
+                  Flashcards
+                  {(flashcardDueCount ?? 0) > 0 && (
+                    <span className="ml-auto px-1.5 py-0.5 rounded-full bg-accent text-white text-[10px] font-bold min-w-[20px] text-center">
+                      {flashcardDueCount}
+                    </span>
+                  )}
+                </button>
+              </li>
+            )}
+            {onOpenFocus && (
+              <li>
+                <button
+                  onClick={onOpenFocus}
+                  className="flex items-center gap-x-2 text-text-300 p-2 rounded-lg hover:bg-bg-200 active:bg-bg-300 duration-150 w-full"
+                >
+                  <Timer className="w-5 h-5 text-amber-500" />
+                  Focus Mode
+                </button>
+              </li>
+            )}
             <li>
               <a
                 href="#"

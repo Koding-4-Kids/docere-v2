@@ -9,7 +9,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import or_, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from docere.core.classroom_agent import ClassroomAgent, _mastery_label
+from docere.config import settings
+from docere.core.classroom_agent import ClassroomAgent, _confusion_label, _mastery_label
 from docere.core.knowledge_tracing import BKTParams, bkt_update, confusion_to_correct
 from docere.core.memory.concept_utils import normalize_concept
 from docere.dependencies import get_db, get_claude, get_qdrant, require_instructor

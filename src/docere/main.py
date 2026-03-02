@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import structlog
 
 from docere.config import settings
-from docere.api import auth, calendar, chat, courses, students, instructor, memory, analytics, lms, integrations, gradebook_sync
+from docere.api import auth, calendar, chat, courses, students, instructor, memory, analytics, lms, integrations, gradebook_sync, flashcards
 from docere.dependencies import engine, init_clients, get_qdrant, init_redis, shutdown_redis
 from docere.middleware.csp import CSPMiddleware
 from docere.middleware.rate_limit import RateLimitMiddleware
@@ -68,6 +68,7 @@ app.include_router(lms.router, prefix="/api/v1/lms", tags=["lms"])
 app.include_router(calendar.router, prefix="/api/v1/calendar", tags=["calendar"])
 app.include_router(integrations.router, prefix="/api/v1/integrations", tags=["integrations"])
 app.include_router(gradebook_sync.router, prefix="/api/v1/gradebook", tags=["gradebook"])
+app.include_router(flashcards.router, prefix="/api/v1/flashcards", tags=["flashcards"])
 
 
 @app.get("/health")

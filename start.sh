@@ -82,6 +82,7 @@ echo ""
 # -- Database migrations ----------------------------------------
 
 echo "  [2/4] MIGRATIONS || RUNNING"
+source "$DIR/.venv/bin/activate"
 if [ -f "$DIR/alembic.ini" ]; then
   python3 -m alembic upgrade head 2>&1 | while read -r line; do
     echo "  ---- $line"
@@ -98,6 +99,8 @@ echo "  [3/4] BACKEND || STARTING"
 echo "  ---- uvicorn on http://localhost:8000"
 
 mkdir -p "$DIR/.logs"
+
+source "$DIR/.venv/bin/activate"
 
 uvicorn docere.main:app --reload --host 0.0.0.0 --port 8000 \
   > "$DIR/.logs/backend.log" 2>&1 &
