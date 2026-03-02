@@ -346,6 +346,8 @@ class TutoringAgent:
             student_message=student_message,
             response_text=response_text,
             study_group=study_group,
+            artifact_data=artifact_data,
+            assistant_msg_id=str(assistant_msg.id),
         ))
 
         return AgentResponse(
@@ -367,6 +369,8 @@ class TutoringAgent:
         student_message: str,
         response_text: str,
         study_group: str | None,
+        artifact_data: dict | None = None,
+        assistant_msg_id: str | None = None,
     ) -> None:
         """Background post-processing: scoring, concept extraction, summarization.
 
@@ -413,7 +417,26 @@ class TutoringAgent:
                 except Exception as e:
                     logger.warning("Background concept extraction failed", error=str(e))
 
-                # 3. Summarize stale conversations
+                # 3. Persist flashcard artifacts to deck
+                if artifact_data and artifact_data.get("type") == "flashcards":
+                    try:
+                        from docere.services.flashcard_service import FlashcardService
+                        fc_svc = FlashcardService(db)
+                        raw_content = artifact_data.get("content", "[]")
+                        cards_json = json.loads(raw_content) if isinstance(raw_content, str) else raw_content
+                        added = await fc_svc.add_cards_from_artifact(
+                            student_id=student_id,
+                            course_id=course_id,
+                            cards_json=cards_json,
+                            source_message_id=assistant_msg_id,
+                            concepts=artifact_data.get("source_concepts", []),
+                        )
+                        if added:
+                            logger.info("Flashcards persisted", count=added, course_id=course_id)
+                    except Exception as e:
+                        logger.warning("Failed to persist flashcard artifact", error=str(e))
+
+                # 4. Summarize stale conversations
                 if study_group != "control":
                     try:
                         await bg_memory.summarize_stale_conversations(
@@ -632,14 +655,20 @@ class TutoringAgent:
             raw = match.group(1).strip()
             artifact = json.loads(raw)
 
-            # Validate required fields
-            if not all(k in artifact for k in ("type", "title", "content")):
+            # Validate required fields (title is optional)
+            if not all(k in artifact for k in ("type", "content")):
                 logger.warning("Artifact missing required fields", keys=list(artifact.keys()))
                 return response_text, None
+            if "title" not in artifact:
+                artifact["title"] = artifact["type"].replace("_", " ").title()
 
             if artifact["type"] not in ("notes", "flashcards", "study_guide", "slides"):
                 logger.warning("Unknown artifact type", type=artifact["type"])
                 return response_text, None
+
+            # Ensure content is always a string (LLM may return parsed JSON)
+            if not isinstance(artifact["content"], str):
+                artifact["content"] = json.dumps(artifact["content"])
 
             # Strip the artifact block from the chat text
             chat_text = response_text[:match.start()] + response_text[match.end():]

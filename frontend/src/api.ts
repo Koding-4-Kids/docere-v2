@@ -544,3 +544,59 @@ export async function fixGradebook(
     body: JSON.stringify({ source_data: sourceData, issues }),
   })
 }
+
+// ── Flashcard Spaced Repetition ──
+
+export interface FlashcardCard {
+  id: string
+  front: string
+  back: string
+  concepts: string[] | null
+  state: string
+  due_at: string
+  reps: number
+  lapses: number
+}
+
+export interface ReviewSession {
+  cards: FlashcardCard[]
+  total_due: number
+  deck_id: string
+}
+
+export interface ReviewResult {
+  card_id: string
+  new_state: string
+  new_due_at: string
+  scheduled_days: number
+}
+
+export interface DueCount {
+  course_id: string
+  due_count: number
+}
+
+export async function getReviewSession(courseId: string, limit = 20): Promise<ReviewSession> {
+  return apiFetch<ReviewSession>(`/api/v1/flashcards/courses/${courseId}/review?limit=${limit}`)
+}
+
+export async function reviewCard(
+  cardId: string,
+  rating: number,
+  reviewDurationMs?: number,
+): Promise<ReviewResult> {
+  return apiFetch<ReviewResult>(`/api/v1/flashcards/cards/${cardId}/review`, {
+    method: 'POST',
+    body: JSON.stringify({ rating, review_duration_ms: reviewDurationMs }),
+  })
+}
+
+export async function undoCardReview(cardId: string): Promise<ReviewResult> {
+  return apiFetch<ReviewResult>(`/api/v1/flashcards/cards/${cardId}/undo`, {
+    method: 'POST',
+  })
+}
+
+export async function getDueCounts(): Promise<DueCount[]> {
+  return apiFetch<DueCount[]>('/api/v1/flashcards/due-counts')
+}

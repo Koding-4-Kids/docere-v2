@@ -4,16 +4,25 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class StudyArtifact(BaseModel):
     """A study material artifact generated alongside a chat message."""
 
     type: Literal["notes", "flashcards", "study_guide", "slides"]
-    title: str
+    title: str = ""
     content: str
     source_concepts: list[str] = []
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def coerce_content_to_str(cls, v: object) -> str:
+        """Content may have been stored as a parsed list/dict — re-serialize."""
+        if not isinstance(v, str):
+            import json
+            return json.dumps(v)
+        return v
 
 
 class MeetingAction(BaseModel):
