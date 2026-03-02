@@ -303,6 +303,119 @@ export async function sendMessage(conversationId: string, content: string): Prom
   })
 }
 
+export async function sendMessageStream(conversationId: string, content: string, 
+  onToken: (text: string) => void, 
+  onError?: (message: string) => void,
+): Promise<AgentMessageResponse> {
+  const token = getStoredToken()
+  const res = await fetch(`/api/v1/chat/conversations/${conversationId}/messages/stream`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'text/event-stream',
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ content }),
+  })
+
+  if (res.status === 401) {
+    clearAuth()
+    window.location.reload()
+    throw new Error('Unauthorized')
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error((body as { detail?: string }).detail || `API error ${res.status}`)
+  }
+
+  // Extract content type
+  const contentType = res.headers.get('content-type') || ''
+
+  // Fallback if the backend still returns JSON
+  if (!contentType.includes('text/event-stream')) {
+    const finalResponse = await res.json() as AgentMessageResponse
+    return finalResponse
+  }
+
+  if (!res.body) {
+    throw new Error('Streaming response body unavailable')
+  }
+
+  const decoder = new TextDecoder()
+  const reader = res.body.getReader()
+  let buffer = ''
+  let finalResponse: AgentMessageResponse | null = null
+
+  // Handle the events.
+  const handleSseEvent = (rawEvent: string): void => {
+    let eventType = 'message'
+    const dataLines: string[] = []
+
+    for (const line of rawEvent.split('\n')) {
+      if (line.startsWith('event:')) {
+        eventType = line.slice(6).trim()
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trim())
+      }
+    }
+    if (!dataLines.length) return
+
+    let payload: unknown
+    try {
+      payload = JSON.parse(dataLines.join('\n'))
+    } catch {
+      return
+    }
+
+    if (eventType === 'token') {
+      const text = (payload as { text?: string }).text
+      if (typeof text === 'string') onToken(text)
+      return
+    }
+
+    if (eventType === 'final') {
+      finalResponse = payload as AgentMessageResponse
+      return
+    }
+
+    if (eventType === 'error') {
+      const detail = (payload as { detail?: string }).detail || 'Streaming failed'
+      onError?.(detail)
+      throw new Error(detail)
+    }
+  }
+
+  // Read the stream and handle the events
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
+
+    let boundary = buffer.indexOf('\n\n')
+    while (boundary !== -1) {
+      const rawEvent = buffer.slice(0, boundary)
+      buffer = buffer.slice(boundary + 2)
+      if (rawEvent.trim()) {
+        handleSseEvent(rawEvent)
+      }
+      boundary = buffer.indexOf('\n\n')
+    }
+  }
+
+  // Handle the final chunk
+  buffer += decoder.decode().replace(/\r\n/g, '\n')
+
+  if (buffer.trim()) {
+    handleSseEvent(buffer)
+  }
+
+  if (!finalResponse) {
+    throw new Error('Streaming ended before final response')
+  }
+
+  return finalResponse
+}
+
 // ── Calendar / Meetings ──
 
 export interface TimeSlot {

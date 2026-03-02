@@ -12,7 +12,7 @@ import { useAuth } from '../AuthContext'
 import { Pencil, BookOpen, Code, Lightbulb, FileText } from 'lucide-react'
 import { MeetingScheduler } from '../components/MeetingScheduler'
 import * as api from '../api'
-import type { StudyArtifact, MeetingAction, Widget } from '../api'
+import type { StudyArtifact, MeetingAction, Widget, AgentMessageResponse } from '../api'
 
 interface LocalMessage {
   id: string
@@ -224,6 +224,78 @@ export function ChatPage() {
     }
 
     try {
+      const streamAssistantIntoConversation = async (conversationId: string) => {
+        const tempMessageId = crypto.randomUUID()
+      
+        setConversations(prev =>
+          prev.map(c =>
+            c.id === conversationId
+              ? {
+                  ...c,
+                  messages: [...c.messages, { id: tempMessageId, role: 'assistant', content: '' }],
+                  lastMessageAt: new Date().toISOString(),
+                }
+              : c
+          )
+        )
+      
+        setIsLoading(true)
+        const onToken = (text: string) => {
+          setConversations(prev =>
+            prev.map(c =>
+              c.id === conversationId
+                ? {
+                    ...c,
+                    messages: c.messages.map(m =>
+                      m.id === tempMessageId ? { ...m, content: `${m.content}${text}` } : m
+                    ),
+                  }
+                : c
+            )
+          )
+        }
+      
+        try {
+          const response: AgentMessageResponse = await api.sendMessageStream(conversationId, content, onToken)
+          const artifact = response.message.artifact || null
+          const action = response.message.action || null
+          const widgets = response.message.widgets || null
+      
+          // replace temp message with final assistant message
+          setConversations(prev =>
+            prev.map(c =>
+              c.id === conversationId
+                ? {
+                    ...c,
+                    messages: c.messages.map(m =>
+                      m.id === tempMessageId
+                        ? { id: response.message.id, role: 'assistant', content: response.message.content, artifact, action, widgets }
+                        : m
+                    ),
+                  }
+                : c
+            )
+          )
+          if (artifact) {
+            openArtifact(artifact)
+          } else if (isStudyRequest) {
+            closePanel()
+          }
+        } catch (err) {
+          // rollback optimistic assistant placeholder
+          setConversations(prev =>
+            prev.map(c =>
+              c.id === conversationId
+                ? { ...c, messages: c.messages.filter(m => m.id !== tempMessageId) }
+                : c
+            )
+          )
+          throw err
+        } finally {
+          setIsLoading(false)
+        }
+      }
+
       // If no active conversation, create one via API
       if (!activeConvId) {
         const serverConv = await api.createConversation(courseId, content.slice(0, 50))
@@ -238,34 +310,7 @@ export function ChatPage() {
         }
         setConversations(prev => [newConv, ...prev])
         setActiveConvId(serverConv.id)
-
-        setIsLoading(true)
-        const response = await api.sendMessage(serverConv.id, content)
-        const artifact = response.message.artifact || null
-        const action = response.message.action || null
-        const widgets = response.message.widgets || null
-
-        setConversations(prev =>
-          prev.map(c =>
-            c.id === serverConv.id
-              ? {
-                  ...c,
-                  messages: [
-                    ...c.messages,
-                    { id: response.message.id, role: 'assistant', content: response.message.content, artifact, action, widgets },
-                  ],
-                }
-              : c
-          )
-        )
-        setIsLoading(false)
-
-        // Handle artifact result
-        if (artifact) {
-          openArtifact(artifact)
-        } else if (isStudyRequest) {
-          closePanel()
-        }
+        await streamAssistantIntoConversation(serverConv.id)
         return
       }
 
@@ -279,34 +324,7 @@ export function ChatPage() {
         )
       )
 
-      // Send to API and get AI response
-      setIsLoading(true)
-      const response = await api.sendMessage(activeConvId, content)
-      const artifact = response.message.artifact || null
-      const action = response.message.action || null
-      const widgets = response.message.widgets || null
-
-      setConversations(prev =>
-        prev.map(c =>
-          c.id === activeConvId
-            ? {
-                ...c,
-                messages: [
-                  ...c.messages,
-                  { id: response.message.id, role: 'assistant', content: response.message.content, artifact, action, widgets },
-                ],
-              }
-            : c
-        )
-      )
-      setIsLoading(false)
-
-      // Handle artifact result
-      if (artifact) {
-        openArtifact(artifact)
-      } else if (isStudyRequest) {
-        closePanel()
-      }
+      await streamAssistantIntoConversation(activeConvId)
     } catch (err) {
       setIsLoading(false)
       setIsGeneratingArtifact(false)

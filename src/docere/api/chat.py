@@ -1,8 +1,11 @@
 """Chat/tutoring conversation endpoints."""
 
+import asyncio
+import json
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -25,6 +28,11 @@ from docere.schemas.chat import (
 )
 
 router = APIRouter()
+
+
+def _sse_event(event: str, payload: dict) -> str:
+    """Format one SSE event message."""
+    return f"event: {event}\ndata: {json.dumps(payload)}\n\n"
 
 
 @router.post("/conversations", response_model=ConversationResponse)
@@ -211,4 +219,126 @@ async def send_message(
         ),
         strategy_used=agent_response.strategy_used,
         memory_context_tokens=agent_response.memory_context_size,
+    )
+
+
+@router.post("/conversations/{conversation_id}/messages/stream")
+async def send_message_stream(
+    conversation_id: uuid.UUID,
+    request: SendMessageRequest,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+    qdrant: QdrantStore = Depends(get_qdrant),
+    claude: ClaudeClient = Depends(get_claude),
+) -> StreamingResponse:
+    """Send a message and stream token + final events over SSE."""
+    result = await db.execute(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.student_id == user_id,
+        )
+    )
+    conversation = result.scalar_one_or_none()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    agent = TutoringAgent(db=db, qdrant=qdrant, claude=claude)
+    token_queue: asyncio.Queue[str] = asyncio.Queue()
+
+    async def on_token(text: str) -> None:
+        await token_queue.put(text)
+
+    async def event_stream():
+        task: asyncio.Task | None = None
+        try:
+            task = asyncio.create_task(
+                agent.handle_message(
+                    conversation_id=str(conversation_id),
+                    student_message=request.content,
+                    student_id=str(user_id),
+                    course_id=str(conversation.course_id),
+                    assignment_id=str(conversation.assignment_id) if conversation.assignment_id else None,
+                    study_group=conversation.study_group,
+                    on_token=on_token,
+                )
+            )
+
+            while True:
+                # Stop when the task is done and the token queue is empty
+                if task.done() and token_queue.empty():
+                    break
+                try:
+                    # Retrieve from token queue
+                    token = await asyncio.wait_for(token_queue.get(), timeout=0.1)
+                    yield _sse_event("token", {"text": token})
+                except asyncio.TimeoutError:
+                    continue
+
+            agent_response = await task
+
+            # Fetch the persisted assistant message
+            msg_result = await db.execute(
+                select(Message)
+                .where(
+                    Message.conversation_id == conversation_id,
+                    Message.role == "assistant",
+                )
+                .order_by(Message.created_at.desc())
+                .limit(1)
+            )
+            assistant_msg = msg_result.scalar_one()
+
+            # Extract artifact and action from message metadata if present
+            artifact = None
+            action = None
+            metadata = assistant_msg.metadata_ or {}
+
+            artifact_data = metadata.get("artifact")
+            if artifact_data and isinstance(artifact_data, dict):
+                try:
+                    artifact = StudyArtifact(**artifact_data)
+                except Exception:
+                    artifact = None
+
+            action_data = metadata.get("action")
+            if action_data and isinstance(action_data, dict):
+                try:
+                    action = MeetingAction(**action_data)
+                except Exception:
+                    action = None
+
+            widgets_data = metadata.get("widgets")
+            widgets = widgets_data if isinstance(widgets_data, list) else None
+
+            final_response = AgentMessageResponse(
+                message=MessageResponse(
+                    id=assistant_msg.id,
+                    role=assistant_msg.role,
+                    content=assistant_msg.content,
+                    model_used=assistant_msg.model_used,
+                    token_count=assistant_msg.token_count,
+                    created_at=assistant_msg.created_at,
+                    artifact=artifact,
+                    action=action,
+                    widgets=widgets,
+                ),
+                strategy_used=agent_response.strategy_used,
+                memory_context_tokens=agent_response.memory_context_size,
+            )
+            yield _sse_event("final", final_response.model_dump(mode="json"))
+        # Cancel the task if the client disconnects
+        except asyncio.CancelledError:
+            if task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except Exception:
+                    pass
+            raise
+        except Exception as e:
+            yield _sse_event("error", {"detail": str(e)})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
     )

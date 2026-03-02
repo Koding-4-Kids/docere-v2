@@ -1,5 +1,6 @@
 """LLM client wrapper — supports OpenAI and Anthropic with retry and circuit breaker."""
 
+from collections.abc import AsyncIterator
 import structlog
 
 from docere.config import settings
@@ -91,6 +92,25 @@ class ClaudeClient:
             )
         )
 
+    async def chat_stream(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        max_tokens: int = 2048,
+        temperature: float = 0.7,
+    ) -> AsyncIterator[str]:
+        if self.provider == "openai":
+            async for chunk in self._chat_openai_with_stream_fallback(
+                system_prompt, messages, model, max_tokens, temperature
+            ):
+                yield chunk
+        else:
+            async for chunk in self._chat_anthropic_with_stream_fallback(
+                system_prompt, messages, model, max_tokens, temperature
+            ):
+                yield chunk
+
     async def _chat_openai(
         self,
         system_prompt: str,
@@ -106,7 +126,7 @@ class ClaudeClient:
             temperature=temperature,
             messages=openai_messages,
         )
-        return response.choices[0].message.content
+        return response.choices[0].message.content or ""
 
     async def _chat_anthropic(
         self,
@@ -123,7 +143,112 @@ class ClaudeClient:
             system=system_prompt,
             messages=messages,
         )
-        return response.content[0].text
+        return "".join(
+            getattr(block, "text", "") for block in response.content if getattr(block, "text", None)
+        )
+
+    async def _chat_openai_with_stream_fallback(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        model: str | None,
+        max_tokens: int,
+        temperature: float,
+    ) -> AsyncIterator[str]:
+        emitted = False
+        try:
+            async for chunk in self._stream_chat_openai(
+                system_prompt, messages, model, max_tokens, temperature
+            ):
+                if chunk:
+                    emitted = True
+                    yield chunk
+            if emitted:
+                return
+            logger.warning("OpenAI stream returned empty text; falling back")
+        except Exception as e:
+            if emitted:
+                logger.warning("OpenAI streaming interrupted after partial output", error=str(e))
+                return
+            logger.warning("OpenAI streaming failed; falling back to non-stream", error=str(e))
+        fallback = await self._chat_openai(system_prompt, messages, model, max_tokens, temperature)
+        if fallback:
+            yield fallback
+
+    async def _chat_anthropic_with_stream_fallback(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        model: str | None,
+        max_tokens: int,
+        temperature: float,
+    ) -> AsyncIterator[str]:
+        emitted = False
+        try:
+            async for chunk in self._stream_chat_anthropic(
+                system_prompt, messages, model, max_tokens, temperature
+            ):
+                if chunk:
+                    emitted = True
+                    yield chunk
+            if emitted:
+                return
+            logger.warning("Anthropic stream returned empty text; falling back")
+        except Exception as e:
+            if emitted:
+                logger.warning("Anthropic streaming interrupted after partial output", error=str(e))
+                return
+            logger.warning("Anthropic streaming failed; falling back to non-stream", error=str(e))
+        fallback = await self._chat_anthropic(system_prompt, messages, model, max_tokens, temperature)
+        if fallback:
+            yield fallback
+
+    async def _stream_chat_openai(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        model: str | None,
+        max_tokens: int,
+        temperature: float,
+    ) -> AsyncIterator[str]:
+        openai_messages = [{"role": "system", "content": system_prompt}] + messages
+        stream = await self.openai_client.chat.completions.create(
+            model=model or self.default_model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            messages=openai_messages,
+            stream=True,
+        )
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta_text = chunk.choices[0].delta.content
+            if delta_text:
+                yield delta_text
+
+    async def _stream_chat_anthropic(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        model: str | None,
+        max_tokens: int,
+        temperature: float,
+    ) -> AsyncIterator[str]:
+        stream = await self.anthropic_client.messages.create(
+            model=model or self.default_model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system=system_prompt,
+            messages=messages,
+            stream=True,
+        )
+        async for event in stream:
+            if getattr(event, "type", None) != "content_block_delta":
+                continue
+            delta = getattr(event, "delta", None)
+            delta_text = getattr(delta, "text", None)
+            if delta_text:
+                yield delta_text
 
     async def judge(
         self,

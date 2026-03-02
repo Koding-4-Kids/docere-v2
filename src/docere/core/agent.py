@@ -13,6 +13,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from collections.abc import Awaitable, Callable
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -182,6 +183,7 @@ class TutoringAgent:
         course_id: str,
         assignment_id: str | None = None,
         study_group: str | None = None,
+        on_token: Callable[[str], Awaitable[None]] | None = None,
     ) -> AgentResponse:
         """Process a student message and generate a tutoring response.
 
@@ -257,12 +259,29 @@ class TutoringAgent:
 
         # ── THE LLM call — this is what the user is waiting for ──
         conversation_messages.append({"role": "user", "content": student_message})
-        response_text = await self.claude.chat(
-            system_prompt=system_prompt,
-            messages=conversation_messages,
-            max_tokens=2048,
-            temperature=0.7,
-        )
+        parts = []
+        response_text = ""
+        try:
+            # Attempt streaming LLM call
+            async for chunk in self.claude.chat_stream(
+                system_prompt=system_prompt,
+                messages=conversation_messages,
+                max_tokens=2048,
+                temperature=0.7,
+            ):
+                parts.append(chunk)
+                if on_token and chunk:
+                    await on_token(chunk)
+            response_text = "".join(parts)
+        except Exception as e:
+            logger.error("LLM call failed, falling back to non-streaming", error=str(e))
+            # Attempt non-streaming LLM call
+            response_text = await self.claude.chat(
+                system_prompt=system_prompt,
+                messages=conversation_messages,
+                max_tokens=2048,
+                temperature=0.7,
+            )
 
         # ── Extract artifact, action, and widgets if present ──
         chat_text, artifact_data = self._extract_artifact(response_text)
