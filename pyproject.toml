@@ -38,6 +38,8 @@ dependencies = [
     "cryptography>=42.0.0",
     "openpyxl>=3.1.0",
     "fsrs>=4.0.0",
+    "langgraph>=0.2.0",
+    "langchain-anthropic>=0.3.0",
 ]
 
 [project.optional-dependencies]

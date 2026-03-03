@@ -909,16 +909,20 @@ Docere v2 is designed for rigorous empirical evaluation via a three-arm ablation
 - [x] Database models and schema
 - [x] Chat API endpoints
 - [x] Frontend skeleton (React + TypeScript)
-- [ ] JWT authentication
-- [ ] Instructor dashboard & analytics API
-- [ ] At-risk student alerts
-- [ ] Canvas/Moodle adapter implementation
-- [ ] Database migrations (Alembic)
+- [x] JWT authentication
+- [x] Instructor dashboard & analytics API
+- [x] At-risk student alerts
+- [x] LangGraph agent upgrade (tutoring + classroom graphs)
+- [x] All 18 backend endpoint stubs filled
+- [x] Canvas/Moodle webhook receivers
+- [x] Database migrations (Alembic)
+- [x] Rate limiting & production security
+- [x] Anonymized data export for research
+- [x] CI/CD pipeline (GitHub Actions)
 - [ ] Background task scheduling (ARQ)
 - [ ] Frontend ↔ API integration
 - [ ] LTI 1.3 launch flow
-- [ ] Rate limiting & production security
-- [ ] Anonymized data export for research
+- [ ] SSE streaming for tutoring responses
 
 ---
 

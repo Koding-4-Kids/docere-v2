@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -84,18 +84,104 @@ async def _discover_lms_courses(db: AsyncSession, user: User) -> None:
         )
 
 
-@router.get("/{course_id}")
-async def get_course(course_id: str) -> dict[str, str]:
+class CourseDetailResponse(BaseModel):
+    id: str
+    name: str
+    course_code: str | None = None
+    term: str | None = None
+    syllabus_text: str | None = None
+    lms_platform: str | None = None
+    student_count: int = 0
+    material_count: int = 0
+    assignment_count: int = 0
+    last_synced_at: str | None = None
+
+
+@router.get("/{course_id}", response_model=CourseDetailResponse)
+async def get_course(
+    course_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> CourseDetailResponse:
     """Get course details including syllabus and materials."""
-    # TODO: Return course with auto-pulled LMS content
-    return {"status": "not_implemented"}
+    from sqlalchemy import func
+
+    course = await db.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Counts
+    student_count_r = await db.execute(
+        select(func.count(Enrollment.id)).where(
+            Enrollment.course_id == course_id,
+            Enrollment.lms_role == "student",
+        )
+    )
+    material_count_r = await db.execute(
+        select(func.count(CourseMaterial.id)).where(
+            CourseMaterial.course_id == course_id,
+        )
+    )
+    from docere.models.course import Assignment
+
+    assignment_count_r = await db.execute(
+        select(func.count(Assignment.id)).where(
+            Assignment.course_id == course_id,
+        )
+    )
+
+    return CourseDetailResponse(
+        id=str(course.id),
+        name=course.name,
+        course_code=course.course_code,
+        term=course.term,
+        syllabus_text=course.syllabus_text,
+        lms_platform=course.lms_platform,
+        student_count=student_count_r.scalar() or 0,
+        material_count=material_count_r.scalar() or 0,
+        assignment_count=assignment_count_r.scalar() or 0,
+        last_synced_at=(
+            course.last_synced_at.isoformat()
+            if course.last_synced_at
+            else None
+        ),
+    )
 
 
-@router.post("/{course_id}/sync")
-async def trigger_sync(course_id: str) -> dict[str, str]:
+class SyncResponse(BaseModel):
+    status: str
+    message: str
+
+
+@router.post("/{course_id}/sync", response_model=SyncResponse)
+async def trigger_sync(
+    course_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> SyncResponse:
     """Manually trigger LMS sync for a course."""
-    # TODO: Queue LMS sync task
-    return {"status": "not_implemented"}
+    course = await db.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    if not course.external_lms_id or not course.lms_platform:
+        return SyncResponse(
+            status="skipped",
+            message="Course is not linked to an LMS",
+        )
+
+    try:
+        from docere.services.lms_sync_service import LMSSyncService
+
+        sync_svc = LMSSyncService(db)
+        await sync_svc.full_sync(course)
+        await db.commit()
+        return SyncResponse(status="ok", message="Sync completed")
+    except Exception as e:
+        logger.warning("LMS sync failed", error=str(e))
+        return SyncResponse(
+            status="error", message=f"Sync failed: {e}"
+        )
 
 
 class MaterialResponse(BaseModel):
@@ -125,8 +211,46 @@ async def list_assignments(
     return list(result.scalars().all())
 
 
-@router.post("/{course_id}/materials")
-async def add_supplementary_material(course_id: str) -> dict[str, str]:
-    """Optional: add supplementary materials not in the LMS."""
-    # TODO: Accept and embed supplementary materials
-    return {"status": "not_implemented"}
+class UploadMaterialResponse(BaseModel):
+    id: str
+    title: str | None = None
+    material_type: str
+    status: str
+
+
+@router.post(
+    "/{course_id}/materials",
+    response_model=UploadMaterialResponse,
+)
+async def add_supplementary_material(
+    course_id: uuid.UUID,
+    title: str | None = None,
+    material_type: str = "supplement",
+    content: str = "",
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> UploadMaterialResponse:
+    """Add supplementary materials not in the LMS."""
+    course = await db.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    import hashlib
+
+    material = CourseMaterial(
+        course_id=course_id,
+        material_type=material_type,
+        title=title,
+        content=content,
+        content_hash=hashlib.sha256(content.encode()).hexdigest(),
+    )
+    db.add(material)
+    await db.commit()
+    await db.refresh(material)
+
+    return UploadMaterialResponse(
+        id=str(material.id),
+        title=material.title,
+        material_type=material.material_type,
+        status="created",
+    )
