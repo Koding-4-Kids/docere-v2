@@ -74,21 +74,23 @@ export function MeetingScheduler({ courseId, conversationId, action, onClose, on
   }
 
   return (
-    <div className="w-[400px] border-l border-bg-300 bg-bg-100 flex flex-col animate-slide-in-right">
+    <div className="fixed inset-0 z-50 flex flex-col bg-bg-100 animate-slide-in-right md:relative md:inset-auto md:z-auto md:w-[400px] md:border-l md:border-bg-300">
       {/* Header */}
       <div className="px-5 py-4 border-b border-bg-300 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
             <Calendar className="w-4 h-4 text-accent" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-sm font-medium text-text-100">Schedule Meeting</h2>
             <p className="text-[10px] text-text-400">Pick a time that works for you</p>
           </div>
         </div>
         <button
+          type="button"
           onClick={onClose}
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-text-400 hover:text-text-200 hover:bg-bg-200 transition-all"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-400 hover:text-text-200 hover:bg-bg-200 transition-all shrink-0"
+          aria-label="Close"
         >
           <X className="w-4 h-4" />
         </button>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageSquare, Sun, Moon, HelpCircle, Settings, LogOut, Plus, Trash2 } from 'lucide-react'
+import { MessageSquare, Sun, Moon, Monitor, Settings, LogOut, X, Plus, Trash2 } from 'lucide-react'
 
 interface Conversation {
   id: string
@@ -8,6 +8,8 @@ interface Conversation {
   lastMessageAt: string
 }
 
+export type ThemeMode = 'light' | 'dark' | 'system'
+
 interface SidebarProps {
   conversations: Conversation[]
   activeId: string | null
@@ -15,9 +17,12 @@ interface SidebarProps {
   onNew: () => void
   onDelete: (id: string) => void
   onLogout: () => void
+  userName: string
   userEmail: string
-  dark: boolean
-  toggleTheme: () => void
+  themeMode: ThemeMode
+  setThemeMode: (mode: ThemeMode) => void
+  isOpen?: boolean
+  onClose?: () => void
 }
 
 function timeAgo(dateStr: string): string {
@@ -75,18 +80,18 @@ function Menu({ children, items }: { children: React.ReactNode; items: { name: s
   )
 }
 
-export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onLogout, userEmail, dark, toggleTheme }: SidebarProps) {
-  const profileRef = useRef<HTMLButtonElement | null>(null)
-  const [isProfileActive, setIsProfileActive] = useState(false)
+export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onLogout, userName, userEmail, themeMode, setThemeMode, isOpen = false, onClose }: SidebarProps) {
+  const profileRef = useRef<HTMLDivElement | null>(null)
+  const [profileOpen, setProfileOpen] = useState(false)
 
   useEffect(() => {
-    const handleProfile = (e: MouseEvent) => {
+    const handleClick = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setIsProfileActive(false)
+        setProfileOpen(false)
       }
     }
-    document.addEventListener('click', handleProfile)
-    return () => document.removeEventListener('click', handleProfile)
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
   }, [])
 
   // Group conversations by course
@@ -96,59 +101,34 @@ export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, on
     return acc
   }, {})
 
+  const initial = userName.charAt(0).toUpperCase()
+
   return (
-    <nav className="w-80 h-screen flex-shrink-0 border-r border-bg-300 bg-bg-100 flex flex-col">
+    <>
+      {/* Backdrop: mobile only, when sidebar is open (click to close) */}
+      <div
+        aria-hidden
+        className={`fixed inset-0 bg-black/40 z-40 transition-opacity duration-200 md:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={onClose}
+      />
+
+      {/* Sidebar: mobile = overlay drawer; desktop (md+) = in flow, always visible */}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 w-80 max-w-[85vw] transition-transform duration-200 ease-out md:relative md:inset-auto md:z-auto md:max-w-none md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <nav className="w-full h-screen md:h-full flex-shrink-0 border-r border-bg-300 bg-bg-100 flex flex-col">
       <div className="flex flex-col h-full px-4">
-        {/* Header: Logo + Profile */}
-        <div className="h-20 flex items-center pl-2">
-          <div className="w-full flex items-center gap-x-4">
-            <img src="/docere-logo.png" alt="Docere" className="h-8 object-contain" />
-
-            <div className="relative flex-1 text-right">
-              <button
-                ref={profileRef}
-                className="p-1.5 rounded-md text-text-400 hover:bg-bg-200 active:bg-bg-300"
-                onClick={() => setIsProfileActive(v => !v)}
-                aria-haspopup="menu"
-                aria-expanded={isProfileActive}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                  <path
-                    fillRule="evenodd"
-                    d="M10 3a.75.75 0 01.55.24l3.25 3.5a.75.75 0 11-1.1 1.02L10 4.852 7.3 7.76a.75.75 0 01-1.1-1.02l3.25-3.5A.75.75 0 0110 3zm-3.76 9.2a.75.75 0 011.06.04l2.7 2.908 2.7-2.908a.75.75 0 111.1 1.02l-3.25 3.5a.75.75 0 01-1.1 0l-3.25-3.5a.75.75 0 01.04-1.06z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-
-              {isProfileActive && (
-                <div
-                  role="menu"
-                  className="absolute z-10 top-12 right-0 w-64 rounded-lg bg-bg-0 shadow-md border border-bg-300 text-sm text-text-300"
-                >
-                  <div className="p-2 text-left">
-                    <span className="block text-text-400 p-2">{userEmail}</span>
-                    <button
-                      onClick={toggleTheme}
-                      className="flex items-center gap-2 w-full p-2 text-left rounded-md hover:bg-bg-200 active:bg-bg-300 duration-150"
-                      role="menuitem"
-                    >
-                      {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                      {dark ? 'Light mode' : 'Dark mode'}
-                    </button>
-                    <button
-                      onClick={onLogout}
-                      className="flex items-center gap-2 w-full p-2 text-left rounded-md hover:bg-bg-200 active:bg-bg-300 duration-150"
-                      role="menuitem"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Logout
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* Header: Logo + X to close (mobile only) */}
+        <div className="h-14 flex items-center justify-between shrink-0">
+          <img src="/docere-logo.png" alt="Docere" className="h-7 object-contain" />
+          <button
+            type="button"
+            onClick={() => onClose?.()}
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-400 hover:text-text-200 hover:bg-bg-200 transition-colors md:hidden"
+            aria-label="Close menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* New Chat Button */}
@@ -242,30 +222,85 @@ export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, on
           </ul>
         </div>
 
-        {/* Footer nav */}
-        <div className="pt-2 mt-2 border-t border-bg-300 pb-4">
-          <ul className="text-sm font-medium space-y-0.5">
-            <li>
-              <a
-                href="#"
-                className="flex items-center gap-x-2 text-text-300 p-2 rounded-lg hover:bg-bg-200 active:bg-bg-300 duration-150"
-              >
-                <HelpCircle className="w-5 h-5 text-text-400" />
-                Help
-              </a>
-            </li>
-            <li>
-              <a
-                href="#"
-                className="flex items-center gap-x-2 text-text-300 p-2 rounded-lg hover:bg-bg-200 active:bg-bg-300 duration-150"
-              >
-                <Settings className="w-5 h-5 text-text-400" />
-                Settings
-              </a>
-            </li>
-          </ul>
+        {/* Footer: user profile — click opens popup (Settings, theme, Log out) */}
+        <div className="pt-2 mt-auto border-t border-bg-300 pb-4 relative" ref={profileRef}>
+          <button
+            type="button"
+            onClick={() => setProfileOpen(v => !v)}
+            className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-bg-200 active:bg-bg-300 duration-150 text-left"
+            aria-haspopup="menu"
+            aria-expanded={profileOpen}
+          >
+            <div className="w-9 h-9 rounded-full bg-accent/20 flex items-center justify-center shrink-0 text-accent font-medium text-sm">
+              {initial}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-text-200 truncate">{userName}</p>
+              <p className="text-xs text-text-500 truncate">{userEmail}</p>
+            </div>
+          </button>
+
+          {profileOpen && (
+            <div
+              role="menu"
+              className="absolute bottom-full left-0 right-0 mb-1 rounded-lg bg-bg-0 shadow-md border border-bg-300 text-sm text-text-300 overflow-hidden"
+            >
+              <div className="p-2">
+                <button
+                  onClick={() => setProfileOpen(false)}
+                  className="flex items-center gap-2 w-full p-2.5 text-left rounded-md hover:bg-bg-200 active:bg-bg-300 duration-150"
+                  role="menuitem"
+                >
+                  <Settings className="w-4 h-4 text-text-400" />
+                  Settings
+                </button>
+                <div className="px-2.5 py-1.5">
+                  <p className="text-[11px] uppercase tracking-wider text-text-500 mb-1.5">System preference</p>
+                  <div className="flex flex-col gap-0.5">
+                    <button
+                      onClick={() => { setThemeMode('light'); setProfileOpen(false) }}
+                      className={`flex items-center gap-2 w-full p-2 text-left rounded-md duration-150 ${themeMode === 'light' ? 'bg-bg-200 text-text-100' : 'hover:bg-bg-200 text-text-300'}`}
+                      role="menuitemradio"
+                      aria-checked={themeMode === 'light'}
+                    >
+                      <Sun className="w-4 h-4" />
+                      Light
+                    </button>
+                    <button
+                      onClick={() => { setThemeMode('dark'); setProfileOpen(false) }}
+                      className={`flex items-center gap-2 w-full p-2 text-left rounded-md duration-150 ${themeMode === 'dark' ? 'bg-bg-200 text-text-100' : 'hover:bg-bg-200 text-text-300'}`}
+                      role="menuitemradio"
+                      aria-checked={themeMode === 'dark'}
+                    >
+                      <Moon className="w-4 h-4" />
+                      Dark
+                    </button>
+                    <button
+                      onClick={() => { setThemeMode('system'); setProfileOpen(false) }}
+                      className={`flex items-center gap-2 w-full p-2 text-left rounded-md duration-150 ${themeMode === 'system' ? 'bg-bg-200 text-text-100' : 'hover:bg-bg-200 text-text-300'}`}
+                      role="menuitemradio"
+                      aria-checked={themeMode === 'system'}
+                    >
+                      <Monitor className="w-4 h-4" />
+                      System
+                    </button>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setProfileOpen(false); onLogout() }}
+                  className="flex items-center gap-2 w-full p-2.5 text-left rounded-md hover:bg-bg-200 active:bg-bg-300 duration-150 text-text-300"
+                  role="menuitem"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Log out
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </nav>
+        </nav>
+      </div>
+    </>
   )
 }

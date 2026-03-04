@@ -43,12 +43,12 @@ export function CourseSelector({ courses, userName, onSelect }: CourseSelectorPr
       <p className="text-text-400 mb-8">What class are we working on today?</p>
 
       {/* Course Buttons */}
-      <div className="flex flex-wrap justify-center gap-3 max-w-lg">
+      <div className="flex flex-col gap-3 max-w-lg mx-auto w-full px-4 md:px-0 md:flex-row md:flex-wrap md:justify-center">
         {courses.map(course => (
           <button
             key={course.id}
             onClick={() => onSelect(course.id)}
-            className="px-5 py-3 rounded-xl border border-bg-300 bg-bg-0 hover:bg-bg-200 hover:border-accent/50 transition-all text-left group"
+            className="w-full md:w-auto px-5 py-3 rounded-xl border border-bg-300 bg-bg-0 hover:bg-bg-200 hover:border-accent/50 transition-all text-left group"
           >
             <p className="text-sm font-medium text-text-200 group-hover:text-accent transition-colors">
               {course.name}
