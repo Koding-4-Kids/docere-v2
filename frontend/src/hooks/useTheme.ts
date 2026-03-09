@@ -41,5 +41,14 @@ export function useTheme() {
     setThemeModeState(mode)
   }
 
-  return { dark, themeMode, setThemeMode, toggle: () => setThemeModeState(m => (m === 'dark' ? 'light' : 'dark')) }
+  return {
+    dark,
+    themeMode,
+    setThemeMode,
+    toggle: () =>
+      setThemeModeState(prevMode => {
+        const isCurrentlyDark = prevMode === 'system' ? dark : prevMode === 'dark'
+        return isCurrentlyDark ? 'light' : 'dark'
+      }),
+  }
 }

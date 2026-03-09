@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { MessageSquare, Sun, Moon, Monitor, Settings, LogOut, X, Plus, Trash2 } from 'lucide-react'
+import type { ThemeMode } from '../hooks/useTheme'
 
 interface Conversation {
   id: string
@@ -7,8 +8,6 @@ interface Conversation {
   courseName: string
   lastMessageAt: string
 }
-
-export type ThemeMode = 'light' | 'dark' | 'system'
 
 interface SidebarProps {
   conversations: Conversation[]
