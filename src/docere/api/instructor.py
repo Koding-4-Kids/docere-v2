@@ -9,15 +9,18 @@ from pydantic import BaseModel, Field
 from sqlalchemy import or_, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from docere.core.classroom_agent import ClassroomAgent, _mastery_label
+from docere.config import settings
+from docere.core.classroom_agent import _confusion_label, _mastery_label
+from docere.core.graphs.classroom import run_classroom_graph
 from docere.core.knowledge_tracing import BKTParams, bkt_update, confusion_to_correct
 from docere.core.memory.concept_utils import normalize_concept
-from docere.dependencies import get_db, get_claude, get_qdrant, require_instructor
+from docere.dependencies import get_claude, get_db, get_qdrant, require_instructor
 from docere.integrations.llm.client import ClaudeClient
 from docere.integrations.vector_db.qdrant import QdrantStore
 from docere.models.calendar import InstructorCalendarToken
 from docere.models.course import Course, Enrollment
 from docere.models.memory import ConceptMastery, MemoryRecord, StudentProfile
+from docere.models.strategy import Strategy
 
 router = APIRouter()
 
@@ -593,39 +596,358 @@ async def meta_query(
     return MetaQueryResponse(answer=clean_text, course_summaries=course_summaries, actions=actions)
 
 
-@router.get("/alerts")
-async def get_alerts() -> dict[str, str]:
+class AlertResponse(BaseModel):
+    id: str
+    alert_type: str
+    severity: str
+    title: str | None = None
+    message: str
+    recommended_action: str | None = None
+    evidence: dict = {}
+    is_read: bool = False
+    is_resolved: bool = False
+    student_id: str | None = None
+    course_id: str
+    created_at: str
+    resolved_at: str | None = None
+
+
+@router.get("/alerts", response_model=list[AlertResponse])
+async def get_alerts(
+    course_id: uuid.UUID | None = None,
+    severity: str | None = None,
+    is_read: bool | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+) -> list[AlertResponse]:
     """Get alerts filterable by course, severity, read status."""
-    # TODO: Return paginated alerts
-    return {"status": "not_implemented"}
+    from docere.models.alert import Alert
+
+    query = select(Alert).where(Alert.instructor_id == user_id)
+    if course_id:
+        query = query.where(Alert.course_id == course_id)
+    if severity:
+        query = query.where(Alert.severity == severity)
+    if is_read is not None:
+        query = query.where(Alert.is_read == is_read)
+
+    query = query.order_by(Alert.created_at.desc()).offset(offset).limit(limit)
+    result = await db.execute(query)
+    alerts = result.scalars().all()
+
+    return [
+        AlertResponse(
+            id=str(a.id),
+            alert_type=a.alert_type,
+            severity=a.severity,
+            title=a.title,
+            message=a.message,
+            recommended_action=a.recommended_action,
+            evidence=a.evidence or {},
+            is_read=a.is_read,
+            is_resolved=a.is_resolved,
+            student_id=str(a.student_id) if a.student_id else None,
+            course_id=str(a.course_id),
+            created_at=a.created_at.isoformat(),
+            resolved_at=(
+                a.resolved_at.isoformat() if a.resolved_at else None
+            ),
+        )
+        for a in alerts
+    ]
 
 
-@router.patch("/alerts/{alert_id}")
-async def update_alert(alert_id: str) -> dict[str, str]:
+class UpdateAlertRequest(BaseModel):
+    is_read: bool | None = None
+    is_resolved: bool | None = None
+
+
+@router.patch("/alerts/{alert_id}", response_model=AlertResponse)
+async def update_alert(
+    alert_id: uuid.UUID,
+    request: UpdateAlertRequest,
+    user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+) -> AlertResponse:
     """Mark alert as read/resolved."""
-    # TODO: Update alert status
-    return {"status": "not_implemented"}
+    from docere.models.alert import Alert
+
+    result = await db.execute(
+        select(Alert).where(
+            Alert.id == alert_id,
+            Alert.instructor_id == user_id,
+        )
+    )
+    alert = result.scalar_one_or_none()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+
+    if request.is_read is not None:
+        alert.is_read = request.is_read
+    if request.is_resolved is not None:
+        alert.is_resolved = request.is_resolved
+        if request.is_resolved:
+            from datetime import UTC
+
+            alert.resolved_at = datetime.now(UTC)
+
+    await db.commit()
+    await db.refresh(alert)
+
+    return AlertResponse(
+        id=str(alert.id),
+        alert_type=alert.alert_type,
+        severity=alert.severity,
+        title=alert.title,
+        message=alert.message,
+        recommended_action=alert.recommended_action,
+        evidence=alert.evidence or {},
+        is_read=alert.is_read,
+        is_resolved=alert.is_resolved,
+        student_id=str(alert.student_id) if alert.student_id else None,
+        course_id=str(alert.course_id),
+        created_at=alert.created_at.isoformat(),
+        resolved_at=(
+            alert.resolved_at.isoformat() if alert.resolved_at else None
+        ),
+    )
 
 
-@router.get("/dashboard/{course_id}")
-async def get_dashboard(course_id: str) -> dict[str, str]:
+class DashboardResponse(BaseModel):
+    course_id: str
+    student_count: int
+    avg_grade: float | None = None
+    avg_confusion: float = 0.0
+    avg_interaction_score: float = 0.0
+    engagement_breakdown: dict[str, int] = {}
+    total_interactions: int = 0
+    top_struggling_concepts: list[dict] = []
+
+
+@router.get(
+    "/dashboard/{course_id}",
+    response_model=DashboardResponse,
+)
+async def get_dashboard(
+    course_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+) -> DashboardResponse:
     """Get aggregated class analytics for instructor dashboard."""
-    # TODO: Return class-wide metrics, engagement, performance overview
-    return {"status": "not_implemented"}
+    # Student count
+    count_result = await db.execute(
+        select(func.count(Enrollment.id)).where(
+            Enrollment.course_id == course_id,
+            Enrollment.lms_role == "student",
+        )
+    )
+    student_count = count_result.scalar() or 0
+
+    # Aggregate profile stats
+    profile_result = await db.execute(
+        select(
+            func.avg(StudentProfile.current_grade),
+            func.avg(StudentProfile.avg_confusion_score),
+            func.avg(StudentProfile.avg_interaction_score),
+            func.sum(StudentProfile.total_interactions),
+        ).where(StudentProfile.course_id == course_id)
+    )
+    row = profile_result.one()
+    avg_grade = round(float(row[0]), 1) if row[0] is not None else None
+    avg_confusion = round(float(row[1]), 2) if row[1] is not None else 0.0
+    avg_iscore = round(float(row[2]), 2) if row[2] is not None else 0.0
+    total_ints = int(row[3]) if row[3] is not None else 0
+
+    # Engagement breakdown
+    eng_result = await db.execute(
+        select(
+            StudentProfile.engagement_level,
+            func.count(StudentProfile.id),
+        )
+        .where(StudentProfile.course_id == course_id)
+        .group_by(StudentProfile.engagement_level)
+    )
+    engagement = {
+        r.engagement_level or "unknown": r[1]
+        for r in eng_result.all()
+    }
+
+    # Top struggling concepts
+    concept_result = await db.execute(
+        select(
+            ConceptMastery.concept_name,
+            func.avg(ConceptMastery.mastery_level).label("avg_m"),
+            func.sum(ConceptMastery.times_struggled).label("struggled"),
+            func.count(ConceptMastery.student_id.distinct()),
+        )
+        .where(ConceptMastery.course_id == course_id)
+        .group_by(ConceptMastery.concept_name)
+        .order_by(func.sum(ConceptMastery.times_struggled).desc())
+        .limit(10)
+    )
+    top_concepts = [
+        {
+            "concept": r.concept_name,
+            "avg_mastery": round(float(r.avg_m), 2),
+            "times_struggled": int(r.struggled),
+            "student_count": int(r[3]),
+        }
+        for r in concept_result.all()
+    ]
+
+    return DashboardResponse(
+        course_id=str(course_id),
+        student_count=student_count,
+        avg_grade=avg_grade,
+        avg_confusion=avg_confusion,
+        avg_interaction_score=avg_iscore,
+        engagement_breakdown=engagement,
+        total_interactions=total_ints,
+        top_struggling_concepts=top_concepts,
+    )
 
 
-@router.get("/dashboard/{course_id}/at-risk")
-async def get_at_risk_students(course_id: str) -> dict[str, str]:
+class AtRiskStudentResponse(BaseModel):
+    student_id: str
+    student_name: str
+    engagement_level: str
+    avg_confusion: float
+    current_grade: float | None = None
+    total_interactions: int = 0
+    last_interaction_at: str | None = None
+    risk_reasons: list[str] = []
+
+
+@router.get(
+    "/dashboard/{course_id}/at-risk",
+    response_model=list[AtRiskStudentResponse],
+)
+async def get_at_risk_students(
+    course_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+) -> list[AtRiskStudentResponse]:
     """Get list of at-risk students with evidence."""
-    # TODO: Return students flagged by analysis, with reasons and recommended actions
-    return {"status": "not_implemented"}
+    from docere.models.user import User
+
+    result = await db.execute(
+        select(User.id, User.name, StudentProfile)
+        .join(Enrollment, Enrollment.user_id == User.id)
+        .outerjoin(
+            StudentProfile,
+            (StudentProfile.student_id == User.id)
+            & (StudentProfile.course_id == course_id),
+        )
+        .where(
+            Enrollment.course_id == course_id,
+            Enrollment.lms_role == "student",
+            or_(
+                StudentProfile.engagement_level.in_(
+                    ["low", "inactive"]
+                ),
+                StudentProfile.avg_confusion_score > 0.6,
+                StudentProfile.current_grade < 60,
+                StudentProfile.id.is_(None),
+            ),
+        )
+    )
+    rows = result.all()
+
+    students: list[AtRiskStudentResponse] = []
+    for uid, uname, profile in rows:
+        reasons: list[str] = []
+        if not profile:
+            reasons.append("No activity recorded")
+        else:
+            if profile.engagement_level in ("low", "inactive"):
+                reasons.append(
+                    f"Low engagement ({profile.engagement_level})"
+                )
+            if profile.avg_confusion_score > 0.6:
+                reasons.append(
+                    f"High confusion ({profile.avg_confusion_score:.1%})"
+                )
+            if (
+                profile.current_grade is not None
+                and profile.current_grade < 60
+            ):
+                reasons.append(
+                    f"Low grade ({profile.current_grade:.0f}%)"
+                )
+        students.append(
+            AtRiskStudentResponse(
+                student_id=str(uid),
+                student_name=uname or "Unknown",
+                engagement_level=(
+                    profile.engagement_level if profile else "none"
+                ),
+                avg_confusion=(
+                    round(profile.avg_confusion_score, 2)
+                    if profile
+                    else 0.0
+                ),
+                current_grade=profile.current_grade if profile else None,
+                total_interactions=(
+                    profile.total_interactions if profile else 0
+                ),
+                last_interaction_at=(
+                    profile.last_interaction_at.isoformat()
+                    if profile and profile.last_interaction_at
+                    else None
+                ),
+                risk_reasons=reasons,
+            )
+        )
+    return students
 
 
-@router.get("/dashboard/{course_id}/patterns")
-async def get_class_patterns(course_id: str) -> dict[str, str]:
+class PatternItem(BaseModel):
+    concept: str
+    avg_mastery: float
+    mastery_label: str
+    times_struggled: int
+    student_count: int
+    times_practiced: int
+
+
+@router.get(
+    "/dashboard/{course_id}/patterns",
+    response_model=list[PatternItem],
+)
+async def get_class_patterns(
+    course_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+) -> list[PatternItem]:
     """Get class-wide struggle patterns."""
-    # TODO: Return common concepts students struggle with, trending issues
-    return {"status": "not_implemented"}
+    result = await db.execute(
+        select(
+            ConceptMastery.concept_name,
+            func.avg(ConceptMastery.mastery_level).label("avg_m"),
+            func.sum(ConceptMastery.times_struggled).label("struggled"),
+            func.count(
+                ConceptMastery.student_id.distinct()
+            ).label("cnt"),
+            func.sum(ConceptMastery.times_practiced).label("practiced"),
+        )
+        .where(ConceptMastery.course_id == course_id)
+        .group_by(ConceptMastery.concept_name)
+        .order_by(func.sum(ConceptMastery.times_struggled).desc())
+        .limit(30)
+    )
+    return [
+        PatternItem(
+            concept=r.concept_name,
+            avg_mastery=round(float(r.avg_m), 2),
+            mastery_label=_mastery_label(float(r.avg_m)),
+            times_struggled=int(r.struggled),
+            student_count=int(r.cnt),
+            times_practiced=int(r.practiced),
+        )
+        for r in result.all()
+    ]
 
 
 # ── Instructor Memory Query ──
@@ -665,13 +987,15 @@ async def query_memory_layer(
     claude: ClaudeClient = Depends(get_claude),
 ) -> InstructorQueryResponse:
     """Query the classroom agent about students via natural language."""
-    agent = ClassroomAgent(db=db, qdrant=qdrant, claude=claude)
     history = [
         {"role": t.get("role", "user"), "content": t.get("content", "")}
         for t in request.history[-10:]
     ]
     filters = request.source_filters.model_dump() if request.source_filters else None
-    response = await agent.answer(
+    response = await run_classroom_graph(
+        db=db,
+        qdrant=qdrant,
+        claude=claude,
         course_id=str(course_id),
         question=request.question,
         history=history,
@@ -830,4 +1154,92 @@ async def add_concept(
         cell=cell,
         students_affected=students_affected,
         memories_matched=len(matching_records),
+    )
+
+
+# ── Strategy Evolution ──
+
+
+class StrategyInfo(BaseModel):
+    id: str
+    name: str
+    strategy_type: str
+    generation: int
+    is_active: bool
+    is_baseline: bool
+    total_uses: int
+    avg_score: float | None
+    success_rate: float | None
+    parent_strategy_id: str | None
+    created_at: str
+
+
+class EvolutionStatusResponse(BaseModel):
+    total_strategies: int
+    active_count: int
+    strategies: list[StrategyInfo]
+
+
+@router.get("/evolution/status", response_model=EvolutionStatusResponse)
+async def get_evolution_status(
+    _user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+) -> EvolutionStatusResponse:
+    """Return all strategies with scores, uses, generation, and lineage."""
+    result = await db.execute(
+        select(Strategy).order_by(Strategy.generation.asc(), Strategy.created_at.desc())
+    )
+    strategies = result.scalars().all()
+
+    items = [
+        StrategyInfo(
+            id=str(s.id),
+            name=s.name,
+            strategy_type=s.strategy_type,
+            generation=s.generation or 0,
+            is_active=s.is_active,
+            is_baseline=s.is_baseline,
+            total_uses=s.total_uses or 0,
+            avg_score=round(s.avg_score, 3) if s.avg_score is not None else None,
+            success_rate=round(s.success_rate, 3) if s.success_rate is not None else None,
+            parent_strategy_id=str(s.parent_strategy_id) if s.parent_strategy_id else None,
+            created_at=s.created_at.isoformat() if s.created_at else "",
+        )
+        for s in strategies
+    ]
+
+    return EvolutionStatusResponse(
+        total_strategies=len(items),
+        active_count=sum(1 for s in items if s.is_active),
+        strategies=items,
+    )
+
+
+class EvolutionTriggerResponse(BaseModel):
+    mutations: int
+    mutated_from: list[str]
+    pruned: int
+    pruned_names: list[str]
+    active_count: int
+
+
+@router.post("/evolution/trigger", response_model=EvolutionTriggerResponse)
+async def trigger_evolution(
+    _user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+    claude: ClaudeClient = Depends(get_claude),
+) -> EvolutionTriggerResponse:
+    """Manually trigger one strategy evolution cycle."""
+    from docere.core.improvement.strategy_evolver import StrategyEvolver
+
+    evolver = StrategyEvolver(db, claude)
+    summary = await evolver.evolve()
+    await db.commit()
+
+    return EvolutionTriggerResponse(
+        mutations=summary.get("mutations", 0),
+        mutated_from=summary.get("mutated_from", []),
+        pruned=summary.get("pruned", 0),
+        pruned_names=summary.get("pruned_names", []),
+        active_count=summary.get("active_count", 0),
     )

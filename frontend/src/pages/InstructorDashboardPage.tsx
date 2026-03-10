@@ -802,7 +802,7 @@ export function InstructorDashboardPage() {
                       Edit
                     </button>
                   </div>
-                  <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                     {pinnedToolData.map(tool => {
                       const isComingSoon = tool.status === 'coming_soon'
                       const isGoogleTool = ['google_calendar', 'email', 'google_docs', 'google_sheets'].includes(tool.id)
@@ -820,26 +820,26 @@ export function InstructorDashboardPage() {
                           key={tool.id}
                           onClick={() => !isComingSoon && setActiveToolModal(tool.id)}
                           disabled={isComingSoon}
-                          className={`group flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all shrink-0 ${
+                          className={`group flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all ${
                             isComingSoon ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
                           }`}
                         >
-                          <div className="w-8 h-8 rounded-lg bg-white/[0.04] group-hover:bg-white/[0.08] flex items-center justify-center transition-all">
+                          <div className="w-8 h-8 rounded-lg bg-white/[0.04] group-hover:bg-white/[0.08] flex items-center justify-center transition-all shrink-0">
                             {tool.icon}
                           </div>
-                          <div className="text-left">
-                            <div className="text-[11px] text-white/50 group-hover:text-white/70 font-medium transition-colors leading-tight">{tool.name}</div>
+                          <div className="text-left min-w-0">
+                            <div className="text-[11px] text-white/50 group-hover:text-white/70 font-medium transition-colors leading-tight truncate">{tool.name}</div>
                             <div className="flex items-center gap-1 mt-0.5">
                               {isComingSoon ? (
                                 <span className="text-[9px] text-white/15">Coming soon</span>
                               ) : connected ? (
                                 <>
-                                  <span className="w-1 h-1 rounded-full bg-emerald-500/60" />
+                                  <span className="w-1 h-1 rounded-full bg-emerald-500/60 shrink-0" />
                                   <span className="text-[9px] text-white/20">Connected</span>
                                 </>
                               ) : (
                                 <>
-                                  <span className="w-1 h-1 rounded-full bg-amber-500/60" />
+                                  <span className="w-1 h-1 rounded-full bg-amber-500/60 shrink-0" />
                                   <span className="text-[9px] text-white/20">Not connected</span>
                                 </>
                               )}
@@ -854,7 +854,7 @@ export function InstructorDashboardPage() {
             )}
 
             {/* ── Empty dashboard prompt ── */}
-            {!editingDashboard && pinnedToolData.length === 0 && metaMessages.length === 0 && (
+            {!editingDashboard && pinnedToolData.length === 0 && (
               <div className="px-6 pt-5 pb-1">
                 <div className="max-w-2xl mx-auto">
                   <button

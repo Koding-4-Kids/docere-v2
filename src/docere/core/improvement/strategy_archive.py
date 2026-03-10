@@ -28,6 +28,18 @@ logger = structlog.get_logger()
 # Minimum observations in a context bucket before trusting its stats
 MIN_CONTEXT_OBS = 3
 
+_Z = 1.96  # 95% confidence
+
+
+def _wilson_ci_half_width(p: float, n: int) -> float:
+    """Wilson score interval half-width for a proportion p with n observations."""
+    if n < 1:
+        return 1.0
+    z2 = _Z * _Z
+    denom = 1 + z2 / n
+    spread = _Z * math.sqrt((p * (1 - p) + z2 / (4 * n)) / n) / denom
+    return spread
+
 
 @dataclass
 class StrategyContext:
@@ -262,6 +274,11 @@ class StrategyArchive:
                 old_success = strategy.success_rate or 0.0
                 strategy.success_rate = (old_success * (n - 1)) / n
 
+            # Wilson score interval half-width (95% CI)
+            strategy.confidence_interval = _wilson_ci_half_width(
+                strategy.success_rate or 0.0, n
+            )
+
             # Update context-specific stats
             if context:
                 ctx_key = context.key
@@ -312,5 +329,8 @@ class StrategyArchive:
         strategy = strategy_result.scalar_one_or_none()
         if strategy and strategy.total_uses:
             strategy.avg_score = (strategy.avg_score or 0.0) + delta / strategy.total_uses
+            strategy.confidence_interval = _wilson_ci_half_width(
+                strategy.success_rate or 0.0, strategy.total_uses
+            )
 
         await self.db.flush()

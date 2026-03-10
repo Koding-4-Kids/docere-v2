@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docere v2 — Team Sync</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #0a0a0f; color: #e8e8e8; overflow: hidden; }
+  .deck { width: 100vw; height: 100vh; position: relative; }
+  .slide { width: 100vw; height: 100vh; display: none; flex-direction: column; justify-content: center; padding: 8vh 10vw; position: absolute; top: 0; left: 0; }
+  .slide.active { display: flex; }
+  h1 { font-family: 'EB Garamond', Georgia, serif; font-size: 3.2rem; font-weight: 400; margin-bottom: 1.5rem; color: #fff; }
+  h2 { font-family: 'EB Garamond', Georgia, serif; font-size: 2.4rem; font-weight: 400; margin-bottom: 2rem; color: #fff; }
+  h3 { font-size: 1rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.15em; color: #F15524; margin-bottom: 1.5rem; }
+  p { font-size: 1.15rem; line-height: 1.7; color: #b0b0b0; max-width: 700px; margin-bottom: 1rem; }
+  .accent { color: #F15524; }
+  .dim { color: #666; }
+  ul { list-style: none; padding: 0; }
+  ul li { font-size: 1.1rem; line-height: 1.8; color: #c0c0c0; padding-left: 1.5rem; position: relative; margin-bottom: 0.5rem; }
+  ul li::before { content: '→'; position: absolute; left: 0; color: #F15524; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin-top: 1rem; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; margin-top: 1rem; }
+  .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 2rem; }
+  .card h4 { font-size: 1.1rem; color: #fff; margin-bottom: 0.75rem; }
+  .card p { font-size: 0.95rem; color: #999; }
+  .tag { display: inline-block; font-size: 0.7rem; padding: 0.25rem 0.75rem; border-radius: 20px; background: rgba(241,85,36,0.12); color: #F15524; border: 1px solid rgba(241,85,36,0.2); margin-right: 0.5rem; margin-bottom: 0.5rem; }
+  .flow { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .flow-step { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem 1.5rem; text-align: center; min-width: 140px; }
+  .flow-step .num { font-size: 1.8rem; font-weight: 700; color: #F15524; }
+  .flow-step .label { font-size: 0.85rem; color: #aaa; margin-top: 0.25rem; }
+  .flow-arrow { color: #333; font-size: 1.5rem; }
+  .nav { position: fixed; bottom: 2rem; right: 3rem; display: flex; gap: 0.75rem; z-index: 100; }
+  .nav button { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #999; width: 44px; height: 44px; border-radius: 12px; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .nav button:hover { background: rgba(255,255,255,0.12); color: #fff; }
+  .counter { position: fixed; bottom: 2.4rem; left: 3rem; font-size: 0.8rem; color: #444; z-index: 100; }
+  .formula { font-family: 'SF Mono', 'Fira Code', monospace; background: rgba(241,85,36,0.08); border: 1px solid rgba(241,85,36,0.15); border-radius: 8px; padding: 0.75rem 1.25rem; font-size: 0.95rem; color: #e0a090; display: inline-block; margin: 0.75rem 0; }
+  .small { font-size: 0.85rem; color: #666; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .slide.active > * { animation: fadeIn 0.4s ease-out both; }
+  .slide.active > *:nth-child(2) { animation-delay: 0.1s; }
+  .slide.active > *:nth-child(3) { animation-delay: 0.2s; }
+  .slide.active > *:nth-child(4) { animation-delay: 0.3s; }
+  .slide.active > *:nth-child(5) { animation-delay: 0.4s; }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- SLIDE 1: Title -->
+<div class="slide active">
+  <h3>Team Sync — Feb 2026</h3>
+  <h1>Docere v2</h1>
+  <p>Memory-augmented, self-improving AI tutor<br>integrated directly into the LMS</p>
+  <div style="margin-top: 2rem;">
+    <span class="tag">FastAPI</span>
+    <span class="tag">React</span>
+    <span class="tag">Qdrant</span>
+    <span class="tag">PostgreSQL</span>
+    <span class="tag">LTI 1.3</span>
+    <span class="tag">Google Calendar</span>
+  </div>
+</div>
+
+<!-- SLIDE 2: What it is -->
+<div class="slide">
+  <h3>The Product</h3>
+  <h2>An AI tutor that lives inside the classroom</h2>
+  <div class="grid2">
+    <div>
+      <ul>
+        <li>Plugs into Moodle/Canvas via LTI 1.3 — zero teacher setup</li>
+        <li>Auto-pulls syllabus, assignments, materials, grades</li>
+        <li>Remembers every student individually across sessions</li>
+        <li>Gets better at teaching over time</li>
+        <li>Schedules meetings when students need human help</li>
+      </ul>
+    </div>
+    <div>
+      <div class="card">
+        <h4>Why this matters</h4>
+        <p>Every other AI tutor is a standalone tool. Students have to paste their assignment in, explain the context, start from scratch each time. Docere already knows what they're working on, what they've struggled with, and what teaching approach works for them.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 3: The Core Loop -->
+<div class="slide">
+  <h3>Architecture</h3>
+  <h2>What happens when a student sends a message</h2>
+  <div class="flow">
+    <div class="flow-step"><div class="num">1</div><div class="label">Memory<br>Retrieval</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">2</div><div class="label">Strategy<br>Selection</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">3</div><div class="label">LLM<br>Call</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">4</div><div class="label">Response<br>Returned</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">5</div><div class="label">Verify &<br>Learn</div></div>
+  </div>
+  <p style="margin-top: 1.5rem;">Steps 1-4 happen in the request path (~2-3s). Step 5 is fire-and-forget — runs in the background so the student isn't waiting.</p>
+</div>
+
+<!-- SLIDE 4: Memory Layer -->
+<div class="slide">
+  <h3>Algorithm Deep Dive</h3>
+  <h2>Memory Layer — RAG with student context</h2>
+  <div class="grid2">
+    <div>
+      <p><strong style="color:#fff;">Three memory sources retrieved in parallel:</strong></p>
+      <ul>
+        <li><strong style="color:#ddd;">Teacher context</strong> — course materials embedded in Qdrant. Syllabus, assignments, lecture notes. Large docs get compressed via synthetic Q&A distillation (CARTRIDGES-inspired).</li>
+        <li><strong style="color:#ddd;">Student memory</strong> — past interactions, confusion events, breakthroughs. Semantic search to find relevant history for the current query.</li>
+        <li><strong style="color:#ddd;">Student profile</strong> — running aggregates: avg confusion score, engagement level, concept mastery map, interaction count.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="card">
+        <h4>Embedding Pipeline</h4>
+        <p>Voyage AI embeddings (1024-dim) → Qdrant vector DB with cosine similarity search. Score threshold 0.15 to catch vague follow-up queries. Results deduplicated by point ID, not title.</p>
+      </div>
+      <div class="card" style="margin-top:1rem;">
+        <h4>Token Budget</h4>
+        <p>Memory context is capped at 4000 tokens. Teacher context gets priority, then recent interactions, then older compressed summaries. Stale conversations auto-summarize after 50 messages.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 5: Strategy Selection -->
+<div class="slide">
+  <h3>Algorithm Deep Dive</h3>
+  <h2>Strategy Selection — UCB1 Multi-Armed Bandit</h2>
+  <p>We don't hardcode one teaching style. The system learns which strategy works best for each student context.</p>
+  <div class="formula">UCB1(s) = x̄(s) + c × √(ln(N) / n(s))</div>
+  <div class="grid2" style="margin-top: 1.5rem;">
+    <div>
+      <p><strong style="color:#fff;">How it works:</strong></p>
+      <ul>
+        <li><strong style="color:#ddd;">Context key</strong> — students are bucketed by confusion level (low/mid/high), experience (new/experienced), and interaction quality (poor/fair/good)</li>
+        <li><strong style="color:#ddd;">Exploration vs exploitation</strong> — UCB1 balances trying new strategies against using what's worked before</li>
+        <li><strong style="color:#ddd;">Strategy pruning</strong> — after 20+ uses, strategies scoring below 0.3 get removed. Top performers get evolved into new variants.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="card">
+        <h4>Current Strategies</h4>
+        <p><strong style="color:#ccc;">Socratic</strong> — asks guiding questions, never gives answers directly<br><br>
+        <strong style="color:#ccc;">Error-Focused</strong> — identifies misconceptions and addresses them head-on<br><br>
+        <strong style="color:#ccc;">Scaffolding</strong> — breaks problems into small steps, gradually reduces support<br><br>
+        <strong style="color:#ccc;">Analogy-Based</strong> — explains concepts through real-world comparisons</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 6: Verification Loop -->
+<div class="slide">
+  <h3>Algorithm Deep Dive</h3>
+  <h2>Process Verification — closing the feedback loop</h2>
+  <p>After each exchange, we score how effective it was. This is what makes the self-improvement loop possible.</p>
+  <div class="grid2" style="margin-top: 1rem;">
+    <div>
+      <div class="card">
+        <h4>Hybrid Scoring (70% LLM + 30% Heuristics)</h4>
+        <p><strong style="color:#ccc;">LLM-as-judge</strong> — Claude evaluates the interaction on four dimensions, looking at what the student said next as signal.<br><br>
+        <strong style="color:#ccc;">Heuristics</strong> — response time (fast followup = engaged), question presence, message length, sentiment shift.</p>
+      </div>
+    </div>
+    <div>
+      <p><strong style="color:#fff;">Four scoring dimensions:</strong></p>
+      <ul>
+        <li><strong style="color:#ddd;">Helpfulness (35%)</strong> — did the response move the student forward?</li>
+        <li><strong style="color:#ddd;">Clarity (25%)</strong> — was it easy to understand?</li>
+        <li><strong style="color:#ddd;">Understanding Δ (25%)</strong> — did confusion go down?</li>
+        <li><strong style="color:#ddd;">Engagement (15%)</strong> — did the student stay engaged?</li>
+      </ul>
+      <p class="small" style="margin-top: 1rem;">Scores feed back into UCB1 bandit → strategies that produce higher scores get selected more often → system improves.</p>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 7: Self-Improvement -->
+<div class="slide">
+  <h3>Algorithm Deep Dive</h3>
+  <h2>Self-Improvement — the system evolves</h2>
+  <div class="flow">
+    <div class="flow-step"><div class="num">→</div><div class="label">Interaction<br>Scored</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">→</div><div class="label">Strategy<br>Outcome<br>Recorded</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">→</div><div class="label">UCB1<br>Updates</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">→</div><div class="label">Low scorers<br>Pruned</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">→</div><div class="label">Top strategies<br>Evolved</div></div>
+  </div>
+  <div class="grid2" style="margin-top: 2rem;">
+    <div>
+      <ul>
+        <li>Scores are bucketed per strategy per student context</li>
+        <li>Strategies below 0.3 avg score after 20 uses → pruned</li>
+        <li>Top 3 strategies can be mutated into new variants</li>
+        <li>Grade outcomes (from LMS) are linked back to interactions within a 14-day window</li>
+      </ul>
+    </div>
+    <div>
+      <div class="card">
+        <h4>A/B Testing</h4>
+        <p>Three-group ablation study running:<br><br>
+        <strong style="color:#ccc;">Control</strong> — no memory, no verification<br>
+        <strong style="color:#ccc;">Treatment A</strong> — memory enabled<br>
+        <strong style="color:#ccc;">Treatment B</strong> — memory + verification + self-improvement<br><br>
+        Hash-based deterministic group assignment per student.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 8: Features Built -->
+<div class="slide">
+  <h3>Current State</h3>
+  <h2>What's built and working</h2>
+  <div class="grid3">
+    <div class="card">
+      <h4>LTI 1.3 + LMS Sync</h4>
+      <p>One-click launch from Moodle. Auto-pulls courses, assignments, materials, grades. PDF extraction. Teacher does nothing.</p>
+    </div>
+    <div class="card">
+      <h4>Memory System</h4>
+      <p>Per-student profiles, concept mastery tracking, semantic search over interaction history. Stale convos auto-summarize.</p>
+    </div>
+    <div class="card">
+      <h4>Study Materials</h4>
+      <p>Flashcards, slides, study guides, notes — generated in a side panel. 3D card flip, typewriter animations.</p>
+    </div>
+    <div class="card">
+      <h4>Meeting Scheduling</h4>
+      <p>Google Calendar OAuth. Agent detects struggling students, suggests meetings. Auto-generates context summary for instructor.</p>
+    </div>
+    <div class="card">
+      <h4>Instructor Dashboard</h4>
+      <p>3D force-directed student graph. Natural language queries over student memory. "Who's struggling with SQL?"</p>
+    </div>
+    <div class="card">
+      <h4>Self-Improvement</h4>
+      <p>UCB1 strategy bandit, process verification, concept extraction, confusion tracking. The system learns.</p>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 9: Intern Tasks -->
+<div class="slide">
+  <h3>What's Next</h3>
+  <h2>Intern assignments</h2>
+  <div class="grid3">
+    <div class="card">
+      <h4>Kevin <span class="dim">— Frontend</span></h4>
+      <p><strong style="color:#ccc;">#16</strong> Markdown rendering in chat<br><br>
+      <strong style="color:#ccc;">#19</strong> Response streaming (SSE) — token-by-token display</p>
+    </div>
+    <div class="card">
+      <h4>Christie <span class="dim">— Frontend</span></h4>
+      <p><strong style="color:#ccc;">#18</strong> Error boundary + toast notifications<br><br>
+      <strong style="color:#ccc;">#17</strong> Mobile responsive layout</p>
+    </div>
+    <div class="card">
+      <h4>Luke <span class="dim">— Research</span></h4>
+      <p><strong style="color:#ccc;">#22</strong> Tutoring quality rubric (literature review)<br><br>
+      <strong style="color:#ccc;">#21</strong> Statistical analysis for A/B framework<br><br>
+      <strong style="color:#ccc;">#20</strong> Analytics endpoints</p>
+    </div>
+  </div>
+  <p style="margin-top: 2rem;">All issues are on GitHub with detailed specs. Start with the first one listed — they're ordered by priority.</p>
+</div>
+
+<!-- SLIDE 10: End -->
+<div class="slide">
+  <h3>Docere v2</h3>
+  <h1>Questions?</h1>
+  <p>Every conversation builds on the last.<br>Every interaction makes the system better.<br>The teacher does nothing — it just works.</p>
+</div>
+
+</div>
+
+<!-- Navigation -->
+<div class="counter"><span id="current">1</span> / <span id="total"></span></div>
+<div class="nav">
+  <button onclick="prev()">←</button>
+  <button onclick="next()">→</button>
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+let idx = 0;
+document.getElementById('total').textContent = slides.length;
+function show(i) {
+  slides.forEach(s => s.classList.remove('active'));
+  slides[i].classList.add('active');
+  document.getElementById('current').textContent = i + 1;
+}
+function next() { if (idx < slides.length - 1) { idx++; show(idx); } }
+function prev() { if (idx > 0) { idx--; show(idx); } }
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+});
+</script>
+</body>
+</html>

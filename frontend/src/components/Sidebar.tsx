@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageSquare, Sun, Moon, Monitor, Settings, LogOut, X, Plus, Trash2 } from 'lucide-react'
-import type { ThemeMode } from '../hooks/useTheme'
+import { MessageSquare, Sun, Moon, HelpCircle, Settings, LogOut, Plus, Trash2, Layers, Timer } from 'lucide-react'
 
 interface Conversation {
   id: string
@@ -18,10 +17,11 @@ interface SidebarProps {
   onLogout: () => void
   userName: string
   userEmail: string
-  themeMode: ThemeMode
-  setThemeMode: (mode: ThemeMode) => void
-  isOpen?: boolean
-  onClose?: () => void
+  dark: boolean
+  toggleTheme: () => void
+  onOpenFlashcards?: () => void
+  flashcardDueCount?: number
+  onOpenFocus?: () => void
 }
 
 function timeAgo(dateStr: string): string {
@@ -79,9 +79,9 @@ function Menu({ children, items }: { children: React.ReactNode; items: { name: s
   )
 }
 
-export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onLogout, userName, userEmail, themeMode, setThemeMode, isOpen = false, onClose }: SidebarProps) {
-  const profileRef = useRef<HTMLDivElement | null>(null)
-  const [profileOpen, setProfileOpen] = useState(false)
+export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onLogout, userEmail, dark, toggleTheme, onOpenFlashcards, flashcardDueCount, onOpenFocus }: SidebarProps) {
+  const profileRef = useRef<HTMLButtonElement | null>(null)
+  const [isProfileActive, setIsProfileActive] = useState(false)
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -221,81 +221,55 @@ export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, on
           </ul>
         </div>
 
-        {/* Footer: user profile — click opens popup (Settings, theme, Log out) */}
-        <div className="pt-2 mt-auto border-t border-bg-300 pb-4 relative" ref={profileRef}>
-          <button
-            type="button"
-            onClick={() => setProfileOpen(v => !v)}
-            className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-bg-200 active:bg-bg-300 duration-150 text-left"
-            aria-haspopup="menu"
-            aria-expanded={profileOpen}
-          >
-            <div className="w-9 h-9 rounded-full bg-accent/20 flex items-center justify-center shrink-0 text-accent font-medium text-sm">
-              {initial}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-text-200 truncate">{userName}</p>
-              <p className="text-xs text-text-500 truncate">{userEmail}</p>
-            </div>
-          </button>
-
-          {profileOpen && (
-            <div
-              role="menu"
-              className="absolute bottom-full left-0 right-0 mb-1 rounded-lg bg-bg-0 shadow-md border border-bg-300 text-sm text-text-300 overflow-hidden"
-            >
-              <div className="p-2">
+        {/* Footer nav */}
+        <div className="pt-2 mt-2 border-t border-bg-300 pb-4">
+          <ul className="text-sm font-medium space-y-0.5">
+            {onOpenFlashcards && (
+              <li>
                 <button
-                  onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-2 w-full p-2.5 text-left rounded-md hover:bg-bg-200 active:bg-bg-300 duration-150"
-                  role="menuitem"
+                  onClick={onOpenFlashcards}
+                  className="flex items-center gap-x-2 text-text-300 p-2 rounded-lg hover:bg-bg-200 active:bg-bg-300 duration-150 w-full"
                 >
-                  <Settings className="w-4 h-4 text-text-400" />
-                  Settings
+                  <Layers className="w-5 h-5 text-purple-500" />
+                  Flashcards
+                  {(flashcardDueCount ?? 0) > 0 && (
+                    <span className="ml-auto px-1.5 py-0.5 rounded-full bg-accent text-white text-[10px] font-bold min-w-[20px] text-center">
+                      {flashcardDueCount}
+                    </span>
+                  )}
                 </button>
-                <div className="px-2.5 py-1.5">
-                  <p className="text-[11px] uppercase tracking-wider text-text-500 mb-1.5">System preference</p>
-                  <div className="flex flex-col gap-0.5">
-                    <button
-                      onClick={() => { setThemeMode('light'); setProfileOpen(false) }}
-                      className={`flex items-center gap-2 w-full p-2 text-left rounded-md duration-150 ${themeMode === 'light' ? 'bg-bg-200 text-text-100' : 'hover:bg-bg-200 text-text-300'}`}
-                      role="menuitemradio"
-                      aria-checked={themeMode === 'light'}
-                    >
-                      <Sun className="w-4 h-4" />
-                      Light
-                    </button>
-                    <button
-                      onClick={() => { setThemeMode('dark'); setProfileOpen(false) }}
-                      className={`flex items-center gap-2 w-full p-2 text-left rounded-md duration-150 ${themeMode === 'dark' ? 'bg-bg-200 text-text-100' : 'hover:bg-bg-200 text-text-300'}`}
-                      role="menuitemradio"
-                      aria-checked={themeMode === 'dark'}
-                    >
-                      <Moon className="w-4 h-4" />
-                      Dark
-                    </button>
-                    <button
-                      onClick={() => { setThemeMode('system'); setProfileOpen(false) }}
-                      className={`flex items-center gap-2 w-full p-2 text-left rounded-md duration-150 ${themeMode === 'system' ? 'bg-bg-200 text-text-100' : 'hover:bg-bg-200 text-text-300'}`}
-                      role="menuitemradio"
-                      aria-checked={themeMode === 'system'}
-                    >
-                      <Monitor className="w-4 h-4" />
-                      System
-                    </button>
-                  </div>
-                </div>
+              </li>
+            )}
+            {onOpenFocus && (
+              <li>
                 <button
-                  onClick={() => { setProfileOpen(false); onLogout() }}
-                  className="flex items-center gap-2 w-full p-2.5 text-left rounded-md hover:bg-bg-200 active:bg-bg-300 duration-150 text-text-300"
-                  role="menuitem"
+                  onClick={onOpenFocus}
+                  className="flex items-center gap-x-2 text-text-300 p-2 rounded-lg hover:bg-bg-200 active:bg-bg-300 duration-150 w-full"
                 >
-                  <LogOut className="w-4 h-4" />
-                  Log out
+                  <Timer className="w-5 h-5 text-amber-500" />
+                  Focus Mode
                 </button>
-              </div>
-            </div>
-          )}
+              </li>
+            )}
+            <li>
+              <a
+                href="#"
+                className="flex items-center gap-x-2 text-text-300 p-2 rounded-lg hover:bg-bg-200 active:bg-bg-300 duration-150"
+              >
+                <HelpCircle className="w-5 h-5 text-text-400" />
+                Help
+              </a>
+            </li>
+            <li>
+              <a
+                href="#"
+                className="flex items-center gap-x-2 text-text-300 p-2 rounded-lg hover:bg-bg-200 active:bg-bg-300 duration-150"
+              >
+                <Settings className="w-5 h-5 text-text-400" />
+                Settings
+              </a>
+            </li>
+          </ul>
         </div>
       </div>
         </nav>

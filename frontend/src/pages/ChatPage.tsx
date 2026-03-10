@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Sidebar } from '../components/Sidebar'
+import { FlashcardReview } from '../components/FlashcardReview'
+import { FocusPage } from './FocusPage'
+import { useFlashcardDueCounts } from '../hooks/useFlashcardDueCounts'
 import { CourseSelector } from '../components/CourseSelector'
 import { ClaudeChatInput, Icons } from '../components/ClaudeChatInput'
 import { MessageBubble } from '../components/MessageBubble'
@@ -68,8 +71,12 @@ export function ChatPage() {
   const [isMeetingPanelOpen, setIsMeetingPanelOpen] = useState(false)
   const [meetingAction, setMeetingAction] = useState<MeetingAction | null>(null)
 
-  // Mobile sidebar overlay
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  // Flashcard review state
+  const [isReviewMode, setIsReviewMode] = useState(false)
+
+  // Focus mode state
+  const [isFocusMode, setIsFocusMode] = useState(false)
+  const dueCounts = useFlashcardDueCounts()
 
   const activeConv = conversations.find(c => c.id === activeConvId)
 
@@ -308,13 +315,17 @@ export function ChatPage() {
     }
   }
 
+  // Flashcard helpers
+  const totalDueCards = Array.from(dueCounts.values()).reduce((a, b) => a + b, 0)
+  const reviewCourseId = activeConv?.courseId || selectedCourseId || (courses.length > 0 ? courses[0].id : null)
+
   // Determine what to show in the main area
   const showCourseSelector = !activeConvId && !selectedCourseId
   const showEmptyChat = !activeConvId && selectedCourseId
   const showChat = !!activeConvId
 
   return (
-    <div className="flex h-screen bg-bg-0 text-text-100">
+    <div className="flex h-screen bg-bg-0 text-text-100 relative overflow-hidden">
       {/* Sidebar */}
       <Sidebar
         conversations={conversations.map(c => ({
@@ -336,10 +347,11 @@ export function ChatPage() {
         onLogout={logout}
         userName={user?.name || user?.email || 'Student'}
         userEmail={user?.email || ''}
-        themeMode={themeMode}
-        setThemeMode={setThemeMode}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        dark={dark}
+        toggleTheme={toggle}
+        onOpenFlashcards={() => reviewCourseId && setIsReviewMode(true)}
+        flashcardDueCount={totalDueCards}
+        onOpenFocus={() => setIsFocusMode(true)}
       />
 
       {/* Main Content */}
@@ -513,6 +525,19 @@ export function ChatPage() {
           onClose={closeMeetingPanel}
           onBooked={closeMeetingPanel}
         />
+      )}
+
+      {/* Flashcard Review Overlay */}
+      {isReviewMode && reviewCourseId && (
+        <FlashcardReview
+          courseId={reviewCourseId}
+          onClose={() => setIsReviewMode(false)}
+        />
+      )}
+
+      {/* Focus Mode Overlay */}
+      {isFocusMode && (
+        <FocusPage onClose={() => setIsFocusMode(false)} />
       )}
     </div>
   )

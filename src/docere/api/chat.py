@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from docere.core.agent import TutoringAgent
+from docere.core.graphs.tutoring import run_tutoring_graph
 from docere.dependencies import get_claude, get_current_user_id, get_db, get_qdrant
 from docere.integrations.llm.client import ClaudeClient
 from docere.integrations.vector_db.qdrant import QdrantStore
@@ -150,10 +150,11 @@ async def send_message(
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    # Build agent and process message
-    agent = TutoringAgent(db=db, qdrant=qdrant, claude=claude)
-
-    agent_response = await agent.handle_message(
+    # Run the LangGraph tutoring pipeline
+    agent_response = await run_tutoring_graph(
+        db=db,
+        qdrant=qdrant,
+        claude=claude,
         conversation_id=str(conversation_id),
         student_message=request.content,
         student_id=str(user_id),
