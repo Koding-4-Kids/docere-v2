@@ -1,16 +1,54 @@
 import { useState, useEffect } from 'react'
 
+export type ThemeMode = 'light' | 'dark' | 'system'
+
+function getSystemDark(): boolean {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
 export function useTheme() {
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
+    const stored = localStorage.getItem('docere-theme')
+    if (stored === 'dark' || stored === 'light' || stored === 'system') return stored
+    return 'system'
+  })
+
   const [dark, setDark] = useState(() => {
     const stored = localStorage.getItem('docere-theme')
-    if (stored) return stored === 'dark'
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
+    if (stored === 'system') return getSystemDark()
+    if (stored === 'dark') return true
+    if (stored === 'light') return false
+    return getSystemDark()
   })
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-    localStorage.setItem('docere-theme', dark ? 'dark' : 'light')
-  }, [dark])
+    if (themeMode === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)')
+      const apply = () => setDark(getSystemDark())
+      apply()
+      mq.addEventListener('change', apply)
+      return () => mq.removeEventListener('change', apply)
+    }
+    setDark(themeMode === 'dark')
+  }, [themeMode])
 
-  return { dark, toggle: () => setDark(d => !d) }
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark)
+    localStorage.setItem('docere-theme', themeMode)
+  }, [dark, themeMode])
+
+  const setThemeMode = (mode: ThemeMode) => {
+    setThemeModeState(mode)
+  }
+
+  return {
+    dark,
+    themeMode,
+    setThemeMode,
+    toggle: () =>
+      setThemeModeState(prevMode => {
+        const isCurrentlyDark = prevMode === 'system' ? dark : prevMode === 'dark'
+        return isCurrentlyDark ? 'light' : 'dark'
+      }),
+  }
 }

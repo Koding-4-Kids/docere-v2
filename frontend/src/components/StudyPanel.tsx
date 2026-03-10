@@ -20,7 +20,7 @@ export function StudyPanel({ artifact, isGenerating, onClose }: StudyPanelProps)
   const meta = artifact ? TYPE_META[artifact.type] : null
 
   return (
-    <div className="w-[480px] shrink-0 border-l border-bg-300 bg-bg-100 flex flex-col animate-slide-in-right">
+    <div className="fixed inset-0 z-50 flex flex-col bg-bg-100 animate-slide-in-right md:relative md:inset-auto md:z-auto md:w-[480px] md:shrink-0 md:border-l md:border-bg-300">
       {/* Header */}
       <div className="px-4 py-3 border-b border-bg-300 flex items-center gap-3">
         {meta && (
@@ -29,19 +29,21 @@ export function StudyPanel({ artifact, isGenerating, onClose }: StudyPanelProps)
             {meta.label}
           </span>
         )}
-        <span className="text-sm font-medium text-text-200 truncate flex-1">
+        <span className="text-sm font-medium text-text-200 truncate flex-1 min-w-0">
           {artifact?.title || 'Study Materials'}
         </span>
         <button
+          type="button"
           onClick={onClose}
-          className="p-1 rounded-md hover:bg-bg-200 text-text-400 hover:text-text-200 transition-colors"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md hover:bg-bg-200 text-text-400 hover:text-text-200 transition-colors shrink-0"
+          aria-label="Close"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-5">
         {isGenerating && !artifact && (
           <div className="flex flex-col items-center justify-center h-full gap-3">
             <div className="flex gap-1.5">

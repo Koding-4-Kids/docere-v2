@@ -6,7 +6,7 @@ import { MessageBubble } from '../components/MessageBubble'
 import { StudyPanel } from '../components/StudyPanel'
 import { useTheme } from '../hooks/useTheme'
 import { useAuth } from '../AuthContext'
-import { Pencil, BookOpen, Code, Lightbulb, FileText } from 'lucide-react'
+import { Pencil, BookOpen, Code, Lightbulb, FileText, Menu, Sun, Moon } from 'lucide-react'
 import { MeetingScheduler } from '../components/MeetingScheduler'
 import * as api from '../api'
 import type { StudyArtifact, MeetingAction, Widget } from '../api'
@@ -46,7 +46,7 @@ const QUICK_ACTIONS = [
 const STUDY_KEYWORDS = /\b(flashcard|flash card|study guide|study notes|make me notes|create notes|make me slides|create slides|make me flashcards|create flashcards|generate notes|generate flashcards|generate slides|generate a study guide|study material)\b/i
 
 export function ChatPage() {
-  const { dark, toggle } = useTheme()
+  const { dark, themeMode, setThemeMode, toggle } = useTheme()
   const { user, logout } = useAuth()
   const [conversations, setConversations] = useState<LocalConversation[]>([])
   const [activeConvId, setActiveConvId] = useState<string | null>(null)
@@ -67,6 +67,9 @@ export function ChatPage() {
   // Meeting scheduler state
   const [isMeetingPanelOpen, setIsMeetingPanelOpen] = useState(false)
   const [meetingAction, setMeetingAction] = useState<MeetingAction | null>(null)
+
+  // Mobile sidebar overlay
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const activeConv = conversations.find(c => c.id === activeConvId)
 
@@ -321,20 +324,51 @@ export function ChatPage() {
           lastMessageAt: c.lastMessageAt,
         }))}
         activeId={activeConvId}
-        onSelect={setActiveConvId}
-        onNew={handleNewConversation}
+        onSelect={(id) => {
+          setActiveConvId(id)
+          setSidebarOpen(false)
+        }}
+        onNew={() => {
+          handleNewConversation()
+          setSidebarOpen(false)
+        }}
         onDelete={handleDeleteConversation}
         onLogout={logout}
+        userName={user?.name || user?.email || 'Student'}
         userEmail={user?.email || ''}
-        dark={dark}
-        toggleTheme={toggle}
+        themeMode={themeMode}
+        setThemeMode={setThemeMode}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        {/* Top bar: hamburger (mobile only) + logo + theme */}
+        <header className="flex h-14 shrink-0 items-center gap-3 px-4 border-b border-bg-300 bg-bg-100 z-30">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2 rounded-lg text-text-400 hover:text-text-200 hover:bg-bg-200 transition-colors md:hidden"
+            aria-label="Open menu"
+            aria-expanded={sidebarOpen}
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          <img src="/docere-logo.png" alt="Docere" className="h-7 object-contain flex-1 min-w-0" />
+          <button
+            type="button"
+            onClick={toggle}
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-400 hover:text-text-200 hover:bg-bg-200 transition-colors"
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+        </header>
+
         {/* Error banner */}
         {error && (
-          <div className="px-6 py-2 bg-red-500/10 border-b border-red-500/20 text-red-600 text-sm flex items-center justify-between">
+          <div className="px-4 md:px-6 py-2 bg-red-500/10 border-b border-red-500/20 text-red-600 text-sm flex items-center justify-between">
             <span>{error}</span>
             <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 ml-4">
               Dismiss
@@ -400,7 +434,7 @@ export function ChatPage() {
                 </div>
               </div>
             </div>
-            <div className="pb-4">
+            <div className="pb-4 px-4 md:px-6">
               <ClaudeChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
             </div>
           </div>
@@ -410,7 +444,7 @@ export function ChatPage() {
         {showChat && activeConv && (
           <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
-            <div className="px-6 py-3 border-b border-bg-300 flex items-center gap-2">
+            <div className="px-4 md:px-6 py-3 border-b border-bg-300 flex items-center gap-2">
               <span className="text-xs font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full">
                 {activeConv.courseName}
               </span>
@@ -418,7 +452,7 @@ export function ChatPage() {
             </div>
 
             {/* Messages */}
-            <div ref={messagesContainerRef} onScroll={handleMessagesScroll} className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+            <div ref={messagesContainerRef} onScroll={handleMessagesScroll} className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-6 py-4">
               <div className="max-w-2xl mx-auto">
                 {activeConv.messages.map(msg => (
                   <MessageBubble
@@ -454,7 +488,7 @@ export function ChatPage() {
             </div>
 
             {/* Input */}
-            <div className="pb-4">
+            <div className="pb-4 px-4 md:px-6">
               <ClaudeChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
             </div>
           </div>
