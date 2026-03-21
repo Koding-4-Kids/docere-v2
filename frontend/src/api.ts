@@ -201,7 +201,7 @@ export function clearAuth(): void {
 
 // ── Fetch wrapper ──
 
-async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function apiFetch<T>(path: string, options: RequestInit = {}, retries = 2): Promise<T> {
   const token = getStoredToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -217,6 +217,14 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     clearAuth()
     window.location.reload()
     throw new Error('Unauthorized')
+  }
+
+  // Retry on rate limit with exponential backoff
+  if (res.status === 429 && retries > 0) {
+    const retryAfter = Number(res.headers.get('X-RateLimit-Reset') || '2')
+    const delay = Math.min(retryAfter * 1000, 5000)
+    await new Promise(r => setTimeout(r, delay))
+    return apiFetch<T>(path, options, retries - 1)
   }
 
   if (!res.ok) {
@@ -301,6 +309,93 @@ export async function sendMessage(conversationId: string, content: string): Prom
     method: 'POST',
     body: JSON.stringify({ content }),
   })
+}
+
+export interface StreamDoneMeta {
+  message_id: string
+  artifact: StudyArtifact | null
+  action: MeetingAction | null
+  widgets: Widget[]
+  strategy_used: string | null
+}
+
+/**
+ * Stream a message response via SSE (POST with auth headers).
+ * Uses fetch + ReadableStream instead of EventSource (which only supports GET).
+ */
+export async function streamMessage(
+  conversationId: string,
+  content: string,
+  onToken: (text: string) => void,
+  onDone: (meta: StreamDoneMeta) => void,
+  onError: (err: string) => void,
+): Promise<void> {
+  const token = getStoredToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const res = await fetch(`/api/v1/chat/conversations/${conversationId}/messages/stream`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ content }),
+  })
+
+  if (res.status === 401) {
+    clearAuth()
+    window.location.reload()
+    throw new Error('Unauthorized')
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    onError(body.detail || `API error ${res.status}`)
+    return
+  }
+
+  const reader = res.body?.getReader()
+  if (!reader) {
+    onError('No response body')
+    return
+  }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    // Keep the last (possibly incomplete) line in the buffer
+    buffer = lines.pop() || ''
+
+    let currentEvent = ''
+    for (const line of lines) {
+      if (line.startsWith('event: ')) {
+        currentEvent = line.slice(7).trim()
+      } else if (line.startsWith('data: ')) {
+        const data = line.slice(6)
+        try {
+          const parsed = JSON.parse(data)
+          if (currentEvent === 'token') {
+            onToken(parsed.text)
+          } else if (currentEvent === 'done') {
+            onDone(parsed as StreamDoneMeta)
+          } else if (currentEvent === 'error') {
+            onError(parsed.detail || 'Stream error')
+          }
+        } catch {
+          // Ignore malformed JSON lines
+        }
+        currentEvent = ''
+      }
+    }
+  }
 }
 
 // ── Calendar / Meetings ──
@@ -543,6 +638,26 @@ export async function fixGradebook(
     method: 'POST',
     body: JSON.stringify({ source_data: sourceData, issues }),
   })
+}
+
+export async function downloadFixedExcel(sourceData: SpreadsheetData): Promise<void> {
+  const token = getStoredToken()
+  const res = await fetch('/api/v1/gradebook/download-excel', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(sourceData),
+  })
+  if (!res.ok) throw new Error('Download failed')
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${(sourceData.title || 'Gradebook').replace(/ /g, '_')}.xlsx`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // ── Flashcard Spaced Repetition ──

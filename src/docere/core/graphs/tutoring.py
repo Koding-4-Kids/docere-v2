@@ -11,6 +11,7 @@ Graph flow:
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import Any
 
@@ -135,6 +136,91 @@ async def run_tutoring_graph(
         action=final_state.get("action"),
         widgets=final_state.get("widgets") or None,
     )
+
+
+async def stream_tutoring_graph(
+    *,
+    db: AsyncSession,
+    qdrant: QdrantStore,
+    claude: ClaudeClient,
+    conversation_id: str,
+    student_message: str,
+    student_id: str,
+    course_id: str,
+    assignment_id: str | None = None,
+    study_group: str | None = None,
+) -> AsyncGenerator[dict[str, Any], None]:
+    """Stream the tutoring graph, yielding token chunks then a final done event.
+
+    Yields dicts with an "event" key:
+      {"event": "token", "text": "..."}
+      {"event": "done", "message_id": "...", "artifact": ..., "action": ..., ...}
+      {"event": "error", "detail": "..."}
+    """
+    state: dict[str, Any] = {
+        "student_id": student_id,
+        "course_id": course_id,
+        "conversation_id": conversation_id,
+        "message": student_message,
+        "assignment_id": assignment_id,
+        "study_group": study_group,
+        "_db": db,
+        "_qdrant": qdrant,
+        "_claude": claude,
+    }
+
+    try:
+        # ── Pre-LLM nodes (fast, ~100ms total) ──
+        state.update(await load_context(state))
+        state.update(await select_strategy(state))
+        state.update(build_prompt(state))
+
+        # ── Stream LLM response ──
+        history = state.get("history", [])
+        messages = [*history, {"role": "user", "content": student_message}]
+        full_text_parts: list[str] = []
+
+        async for chunk in claude.stream(
+            system_prompt=state["system_prompt"],
+            messages=messages,
+            max_tokens=2048,
+            temperature=0.7,
+        ):
+            full_text_parts.append(chunk)
+            yield {"event": "token", "text": chunk}
+
+        response_text = "".join(full_text_parts)
+        state["response_text"] = response_text
+
+        # ── Post-LLM nodes on the full text ──
+        state.update(parse_output(state))
+        state.update(await persist_messages(state))
+
+        strategy = state.get("strategy")
+        memory_ctx = state.get("memory_context")
+
+        logger.info(
+            "Streaming tutoring graph completed",
+            conversation_id=conversation_id,
+            strategy=strategy.name if strategy else None,
+            memory_tokens=memory_ctx.total_tokens if memory_ctx else 0,
+        )
+
+        yield {
+            "event": "done",
+            "message_id": state.get("assistant_msg_id"),
+            "artifact": state.get("artifact"),
+            "action": state.get("action"),
+            "widgets": state.get("widgets") or [],
+            "strategy_used": strategy.name if strategy else None,
+        }
+
+        # Fire-and-forget background tasks
+        asyncio.create_task(_run_background(state))
+
+    except Exception as e:
+        logger.error("Streaming tutoring graph failed", error=str(e))
+        yield {"event": "error", "detail": str(e)}
 
 
 async def _run_background(state: dict[str, Any]) -> None:

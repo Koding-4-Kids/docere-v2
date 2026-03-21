@@ -20,6 +20,7 @@ import {
   validateGradebook,
   syncGradebook,
   fixGradebook,
+  downloadFixedExcel,
 } from '../api'
 
 type Step = 'source' | 'destination' | 'validation' | 'sync'
@@ -606,13 +607,22 @@ function ValidationStep({ result, sourceData, courseId, onSync, onFix, onBack }:
           </div>
         )}
 
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="w-full py-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 text-[13px] font-medium hover:bg-emerald-500/25 transition-colors disabled:opacity-40"
-        >
-          {syncing ? 'Syncing to gradebook...' : 'Sync to Gradebook'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="flex-1 py-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 text-[13px] font-medium hover:bg-emerald-500/25 transition-colors disabled:opacity-40"
+          >
+            {syncing ? 'Syncing to gradebook...' : 'Sync to Gradebook'}
+          </button>
+          <button
+            onClick={() => downloadFixedExcel({ ...sourceData, rows: editableRows })}
+            className="py-2.5 px-4 rounded-xl bg-white/[0.04] text-white/40 text-[13px] font-medium hover:bg-white/[0.08] hover:text-white/60 transition-colors"
+            title="Download the validated spreadsheet as .xlsx"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+        </div>
       </div>
     )
   }
@@ -697,6 +707,13 @@ function ValidationStep({ result, sourceData, courseId, onSync, onFix, onBack }:
           className="flex-1 py-2.5 rounded-xl bg-white/[0.04] text-white/40 text-[12px] font-medium hover:bg-white/[0.08] hover:text-white/60 transition-colors"
         >
           Fix Manually & Retry
+        </button>
+        <button
+          onClick={() => downloadFixedExcel({ ...sourceData, rows: editableRows })}
+          className="py-2.5 px-3 rounded-xl bg-white/[0.04] text-white/30 hover:bg-white/[0.08] hover:text-white/50 transition-colors"
+          title="Download current spreadsheet as .xlsx"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
       </div>
     </div>

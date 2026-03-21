@@ -8,6 +8,11 @@ from typing import Any, TypedDict
 class TutoringState(TypedDict, total=False):
     """State for the tutoring agent graph."""
 
+    # ── Injected dependencies (passed through graph, not serialized) ──
+    _db: Any  # AsyncSession
+    _qdrant: Any  # QdrantStore
+    _claude: Any  # ClaudeClient
+
     # ── Input (set by caller) ──
     student_id: str
     course_id: str
@@ -48,11 +53,17 @@ class TutoringState(TypedDict, total=False):
 class ClassroomState(TypedDict, total=False):
     """State for the classroom agent graph."""
 
+    # ── Injected dependencies (passed through graph, not serialized) ──
+    _db: Any  # AsyncSession
+    _qdrant: Any  # QdrantStore
+    _claude: Any  # ClaudeClient
+
     # ── Input ──
     course_id: str
     question: str
     history: list[dict[str, str]]
     source_filters: dict[str, bool]
+    integration_instructions: str
 
     # ── Data ──
     context: Any  # ClassroomContext

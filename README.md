@@ -2,9 +2,9 @@
 
 **A memory-augmented, self-improving learning agent for LMS integration.**
 
-Docere v2 is an intelligent tutoring system that goes beyond standard LLM chatbots. It maintains persistent semantic memory of each student's learning journey, adaptively selects teaching strategies using multi-armed bandit algorithms, and scores every interaction for educational effectiveness — then uses those scores to evolve its own strategies over time.
+Docere started as a coding education platform built in response to Minnesota's low computer science participation rate. Fewer than half of high schools offered CS courses. What began as a tutoring tool for coding quickly grew into a full intelligent learning agent that integrates directly with LMS platforms like Canvas and Moodle via LTI 1.3.
 
-Built for integration with Canvas and Moodle via LTI 1.3, Docere requires zero manual setup from teachers. Course materials, assignments, grades, and rosters are auto-pulled from the LMS and embedded into a vector database for semantic retrieval during tutoring sessions.
+Unlike raw LLMs like ChatGPT or Claude, Docere doesn't just answer questions. It remembers each student's learning history, adaptively picks teaching strategies using bandit algorithms, and scores its own interactions to improve over time. Course materials, grades, and rosters are auto-pulled from the LMS so teachers set up nothing. Because Docere lives inside the LMS rather than beside it, it sees what students are actually working on: their assignments, grades, deadlines, and course materials. Every response is grounded in real classroom context, not generic knowledge. The more it teaches, the better it gets, and so do the students.
 
 > **Authors:** Youdahe Asfaw, Kofi Osei, Guarionex Salivia
 > **Institution:** Gustavus Adolphus College
@@ -919,10 +919,14 @@ Docere v2 is designed for rigorous empirical evaluation via a three-arm ablation
 - [x] Rate limiting & production security
 - [x] Anonymized data export for research
 - [x] CI/CD pipeline (GitHub Actions)
+- [x] Frontend ↔ API integration
+- [x] LTI 1.3 launch flow
+- [x] SSE streaming for tutoring responses
+- [x] Gradebook sync (Excel / Google Sheets → LMS)
+- [x] Google Calendar integration (OAuth)
+- [x] Flashcard spaced repetition (FSRS)
+- [x] Classroom agent (instructor meta-queries)
 - [ ] Background task scheduling (ARQ)
-- [ ] Frontend ↔ API integration
-- [ ] LTI 1.3 launch flow
-- [ ] SSE streaming for tutoring responses
 
 ---
 

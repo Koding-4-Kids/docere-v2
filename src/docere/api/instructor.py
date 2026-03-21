@@ -359,22 +359,36 @@ When generating meeting prep or reports, use clear sections but plain language."
 INTEGRATION_ACTIONS_PROMPT = """
 ## Available Actions
 
-You can suggest actions for the instructor to execute. When an action is appropriate,
-include an action block at the END of your response (after your conversational text).
+You can execute actions for the instructor. When the instructor asks you to do something
+that matches an available action below, you MUST include an action block at the END of your response.
 
-IMPORTANT RULES:
-- Only suggest actions for CONNECTED integrations listed below.
-- NEVER auto-execute. Always explain what the action will do first.
-- Include your conversational response BEFORE the action block.
-- Only include ONE action block per response.
-- Only suggest an action when the instructor explicitly asks for one (e.g. "email", "create a doc", "post announcement").
+Today's date is {today}.
+
+CRITICAL RULES:
+- You MUST include the ```action block in EVERY response where the instructor asks for an action. Do NOT just describe what you will do — actually output the block. If you say "I'll send an email" but don't include the action block, NOTHING happens.
+- This applies to EVERY action request, not just the first one. Even if you sent an action in a previous message, each new request needs its own action block.
+- Write a brief 1-2 sentence confirmation BEFORE the action block.
+- If the instructor provides enough info, generate the action immediately. Do NOT ask for information they already gave you.
+- If critical info is truly missing, ask ONE clarifying question.
+- For calendar events: default to reasonable times if not specified. Calculate dates from today.
+- The action block uses triple backticks — this is an EXCEPTION to the "no markdown" rule.
+- Only ONE action block per response.
+- For emails: use the student data you have in context (grades, concepts, engagement, struggles) to write a SPECIFIC, personalized email body. NEVER write vague generic emails. Reference actual concepts, actual grades, actual struggles from the data above.
 
 {available_actions}
 
-Action block format — include at the end of your response when appropriate:
+Action block format — you MUST output this, not just describe it:
 
 ```action
 {{"type": "action_type", ...payload fields...}}
+```
+
+Example — instructor says "email amanuel about his recursion struggles":
+
+Here's a personalized email to Amanuel about his recursion progress.
+
+```action
+{{"type": "draft_email", "to": "Amanuel", "course_id": "abc-123", "subject": "Checking in on Recursion", "body": "<p>Hi Amanuel,</p><p>I noticed you've been working hard on recursion — that's one of the trickiest topics in the course. Your persistence is great to see.</p><p>One thing that might help: focus on identifying the base case first before thinking about the recursive step. For factorial, the base case is factorial(0) = 1. Once that clicks, the rest follows.</p><p>I have office hours this Thursday if you want to walk through it together.</p><p>Best,<br/>Professor Smith</p>"}}
 ```
 """
 
@@ -385,6 +399,7 @@ def _build_integration_prompt(
     lms_connected: bool,
     lms_type: str | None,
     course_context: list[tuple[str, str, str]],
+    instructor_name: str = "",
 ) -> str:
     """Build the integration instructions section for the system prompt.
 
@@ -395,7 +410,12 @@ def _build_integration_prompt(
     if google_connected:
         if "gmail" in google_scopes:
             available.append(
-                '- **draft_email**: Send email. Payload: {"type": "draft_email", "to": ["email@example.com"], "subject": "Subject", "body": "HTML body"}'
+                '- **draft_email**: Send email to students. For "to", use a group target string — NOT individual email addresses. '
+                'Valid targets: "all_students", "struggling_students" (high confusion or low engagement), '
+                '"low_engagement" (low/inactive engagement), "at_risk" (failing grade < 70). '
+                'You can also use specific student names like "John Smith, Jane Doe". '
+                'Include "course_id" so the system knows which roster to pull from. '
+                'Payload: {"type": "draft_email", "to": "all_students", "course_id": "COURSE_UUID", "subject": "Subject", "body": "HTML body"}'
             )
         if "docs" in google_scopes or "documents" in google_scopes:
             available.append(
@@ -406,7 +426,7 @@ def _build_integration_prompt(
                 '- **create_sheet**: Create a Google Sheet. Payload: {"type": "create_sheet", "title": "Title", "headers": ["Col1", "Col2"], "rows": [["val1", "val2"]]}'
             )
         available.append(
-            '- **calendar_event**: Create a calendar event. Payload: {"type": "calendar_event", "summary": "Event", "description": "Details", "start": "2026-02-20T14:00:00", "end": "2026-02-20T15:00:00"}'
+            '- **calendar_event**: Create a Google Calendar event. Payload: {"type": "calendar_event", "summary": "Event Title", "description": "Details", "start": "YYYY-MM-DDTHH:MM:SS", "end": "YYYY-MM-DDTHH:MM:SS", "attendee_email": "optional@email.com"}'
         )
 
     if lms_connected and lms_type and course_context:
@@ -425,8 +445,23 @@ def _build_integration_prompt(
     if not available:
         return ""
 
+    # Add course ID reference so LLM can use them in payloads
+    course_ref_lines = []
+    for name, ext_id, internal_id in course_context:
+        course_ref_lines.append(f'- "{name}": course_id="{internal_id}"')
+
+    from datetime import date
     actions_text = "\n".join(available)
-    return INTEGRATION_ACTIONS_PROMPT.format(available_actions=actions_text)
+    course_ref = "\n".join(course_ref_lines) if course_ref_lines else ""
+    prompt = INTEGRATION_ACTIONS_PROMPT.format(
+        available_actions=actions_text,
+        today=date.today().isoformat(),
+    )
+    if course_ref:
+        prompt += f"\n\nCourse IDs for use in action payloads:\n{course_ref}"
+    if instructor_name:
+        prompt += f"\n\nThe instructor's name is {instructor_name}. Use this name when signing off emails or referencing the instructor — NEVER use placeholder text like '[Your Name]'."
+    return prompt
 
 
 @router.post("/meta/query", response_model=MetaQueryResponse)
@@ -565,12 +600,18 @@ async def meta_query(
         (c.name, course_lms_ids.get(str(c.id), ""), str(c.id))
         for c in courses
     ]
+
+    # Fetch instructor name
+    instructor_user = await db.get(User, user_id)
+    instructor_name = instructor_user.name if instructor_user else ""
+
     integration_instructions = _build_integration_prompt(
         google_connected=google_connected,
         google_scopes=google_scopes,
         lms_connected=lms_connected,
         lms_type=lms_type,
         course_context=course_context,
+        instructor_name=instructor_name,
     )
 
     # 7. Build system prompt with cross-classroom context
@@ -971,10 +1012,17 @@ class SourceRefResponse(BaseModel):
     detail: str | None = None
 
 
+class SwitchCourseSignal(BaseModel):
+    course_id: str
+    course_name: str
+
+
 class InstructorQueryResponse(BaseModel):
     answer: str
     widgets: list[dict] = []
     sources: list[SourceRefResponse] = []
+    actions: list[dict] = []
+    switch_course: SwitchCourseSignal | None = None
 
 
 @router.post("/dashboard/{course_id}/query", response_model=InstructorQueryResponse)
@@ -987,6 +1035,61 @@ async def query_memory_layer(
     claude: ClaudeClient = Depends(get_claude),
 ) -> InstructorQueryResponse:
     """Query the classroom agent about students via natural language."""
+    from docere.core.action_parser import extract_actions
+
+    # ── Detect course-switch intent ──
+    # Fetch all instructor's courses to check if the question references a different one
+    all_courses_result = await db.execute(
+        select(Course)
+        .join(Enrollment, Enrollment.course_id == Course.id)
+        .where(Enrollment.user_id == user_id, Enrollment.lms_role.in_(["teacher", "instructor", "editingteacher"]))
+    )
+    all_courses = all_courses_result.scalars().all()
+    question_lower = request.question.lower()
+    for c in all_courses:
+        if str(c.id) == str(course_id):
+            continue  # skip the current course
+        # Check if any significant word from the course name appears in the question
+        course_words = [w for w in c.name.lower().split() if len(w) > 2]
+        if any(w in question_lower for w in course_words):
+            return InstructorQueryResponse(
+                answer=f"Switching you to **{c.name}**...",
+                switch_course=SwitchCourseSignal(course_id=str(c.id), course_name=c.name),
+            )
+
+    # Check integration status so the agent knows what actions are available
+    token_result = await db.execute(
+        select(InstructorCalendarToken).where(
+            InstructorCalendarToken.instructor_id == user_id,
+            InstructorCalendarToken.is_active == True,  # noqa: E712
+        )
+    )
+    google_token = token_result.scalar_one_or_none()
+    google_connected = google_token is not None
+    google_scopes = google_token.scopes if google_token else ""
+
+    lms_connected = bool(settings.moodle_base_url and settings.moodle_api_token) or \
+                    bool(settings.canvas_base_url and settings.canvas_api_token)
+    lms_type = "moodle" if settings.moodle_base_url else ("canvas" if settings.canvas_base_url else None)
+
+    # Get course info for LMS announcement context
+    course = await db.get(Course, course_id)
+    course_context = [(course.name, course.external_lms_id or "", str(course_id))] if course else []
+
+    # Fetch instructor name
+    from docere.models.user import User
+    instructor_user = await db.get(User, user_id)
+    instructor_name = instructor_user.name if instructor_user else ""
+
+    integration_instructions = _build_integration_prompt(
+        google_connected=google_connected,
+        google_scopes=google_scopes,
+        lms_connected=lms_connected,
+        lms_type=lms_type,
+        course_context=course_context,
+        instructor_name=instructor_name,
+    )
+
     history = [
         {"role": t.get("role", "user"), "content": t.get("content", "")}
         for t in request.history[-10:]
@@ -1000,9 +1103,14 @@ async def query_memory_layer(
         question=request.question,
         history=history,
         source_filters=filters,
+        integration_instructions=integration_instructions,
     )
+
+    # Parse action blocks from the LLM response
+    clean_text, actions = extract_actions(response.text)
+
     return InstructorQueryResponse(
-        answer=response.text,
+        answer=clean_text,
         widgets=response.widgets,
         sources=[
             SourceRefResponse(
@@ -1013,6 +1121,7 @@ async def query_memory_layer(
             )
             for s in response.sources
         ],
+        actions=actions,
     )
 
 

@@ -12,11 +12,19 @@ from docere.middleware.rate_limit import (
 
 
 class TestClassifyTier:
-    def test_chat_endpoint_is_llm_tier(self):
-        assert _classify_tier("/api/v1/chat/send") == TIER_LLM
+    def test_post_messages_is_llm_tier(self):
+        assert _classify_tier("/api/v1/chat/conversations/123/messages", "POST") == TIER_LLM
+
+    def test_get_messages_is_read_tier(self):
+        # GET requests on chat paths should NOT be LLM tier
+        assert _classify_tier("/api/v1/chat/conversations/123/messages", "GET") == TIER_READ
+
+    def test_get_chat_conversations_is_read_tier(self):
+        # Listing conversations is a read operation
+        assert _classify_tier("/api/v1/chat/conversations", "GET") == TIER_READ
 
     def test_instructor_query_is_llm_tier(self):
-        assert _classify_tier("/api/v1/instructor/dashboard/123/query") == TIER_LLM
+        assert _classify_tier("/api/v1/instructor/dashboard/123/query", "POST") == TIER_LLM
 
     def test_auth_endpoint_is_auth_tier(self):
         assert _classify_tier("/api/v1/auth/login") == TIER_AUTH
@@ -39,7 +47,7 @@ class TestClassifyTier:
 
 class TestPathTier:
     def test_llm_tier_name(self):
-        assert path_tier("/api/v1/chat/send") == "llm"
+        assert path_tier("/api/v1/chat/conversations/123/messages") == "llm"
 
     def test_auth_tier_name(self):
         assert path_tier("/api/v1/auth/login") == "auth"

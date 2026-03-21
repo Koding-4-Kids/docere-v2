@@ -48,6 +48,15 @@ export function CalendarSetup({ courseId }: CalendarSetupProps) {
       .then(r => r.ok ? r.json() : [])
       .then(setOfficeHours)
       .catch(() => {})
+
+    // Listen for OAuth popup result
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'google-oauth-callback') {
+        setConnected(e.data.status === 'success')
+      }
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
   }, [courseId])
 
   const handleConnectCalendar = () => {

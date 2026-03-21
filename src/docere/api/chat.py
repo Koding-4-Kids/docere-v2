@@ -1,13 +1,15 @@
 """Chat/tutoring conversation endpoints."""
 
+import json
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from docere.core.graphs.tutoring import run_tutoring_graph
+from docere.core.graphs.tutoring import run_tutoring_graph, stream_tutoring_graph
 from docere.dependencies import get_claude, get_current_user_id, get_db, get_qdrant
 from docere.integrations.llm.client import ClaudeClient
 from docere.integrations.vector_db.qdrant import QdrantStore
@@ -211,4 +213,58 @@ async def send_message(
         ),
         strategy_used=agent_response.strategy_used,
         memory_context_tokens=agent_response.memory_context_size,
+    )
+
+
+@router.post(
+    "/conversations/{conversation_id}/messages/stream",
+)
+async def stream_message(
+    conversation_id: uuid.UUID,
+    request: SendMessageRequest,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+    qdrant: QdrantStore = Depends(get_qdrant),
+    claude: ClaudeClient = Depends(get_claude),
+) -> StreamingResponse:
+    """Stream an AI response via Server-Sent Events.
+
+    SSE event types:
+      - token: {"text": "..."} — incremental LLM output
+      - done:  {"message_id": "...", "artifact": ..., ...} — final metadata
+      - error: {"detail": "..."} — stream-level error
+    """
+    # Verify conversation exists and belongs to student
+    result = await db.execute(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.student_id == user_id,
+        )
+    )
+    conversation = result.scalar_one_or_none()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    async def _event_generator():
+        async for event in stream_tutoring_graph(
+            db=db,
+            qdrant=qdrant,
+            claude=claude,
+            conversation_id=str(conversation_id),
+            student_message=request.content,
+            student_id=str(user_id),
+            course_id=str(conversation.course_id),
+            assignment_id=str(conversation.assignment_id) if conversation.assignment_id else None,
+            study_group=conversation.study_group,
+        ):
+            event_type = event.pop("event")
+            yield f"event: {event_type}\ndata: {json.dumps(event)}\n\n"
+
+    return StreamingResponse(
+        _event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
     )

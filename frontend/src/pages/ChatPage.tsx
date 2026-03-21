@@ -12,7 +12,7 @@ import { useAuth } from '../AuthContext'
 import { Pencil, BookOpen, Code, Lightbulb, FileText } from 'lucide-react'
 import { MeetingScheduler } from '../components/MeetingScheduler'
 import * as api from '../api'
-import type { StudyArtifact, MeetingAction, Widget } from '../api'
+import type { StudyArtifact, MeetingAction, Widget, StreamDoneMeta } from '../api'
 
 interface LocalMessage {
   id: string
@@ -224,10 +224,10 @@ export function ChatPage() {
     }
 
     try {
-      // If no active conversation, create one via API
-      if (!activeConvId) {
+      // Ensure we have a conversation
+      let convId = activeConvId
+      if (!convId) {
         const serverConv = await api.createConversation(courseId, content.slice(0, 50))
-
         const newConv: LocalConversation = {
           id: serverConv.id,
           title: content.slice(0, 50),
@@ -238,75 +238,125 @@ export function ChatPage() {
         }
         setConversations(prev => [newConv, ...prev])
         setActiveConvId(serverConv.id)
-
-        setIsLoading(true)
-        const response = await api.sendMessage(serverConv.id, content)
-        const artifact = response.message.artifact || null
-        const action = response.message.action || null
-        const widgets = response.message.widgets || null
-
+        convId = serverConv.id
+      } else {
+        // Add user message to existing conversation immediately (optimistic)
+        const tempUserMsg: LocalMessage = { id: crypto.randomUUID(), role: 'user', content }
         setConversations(prev =>
           prev.map(c =>
-            c.id === serverConv.id
-              ? {
-                  ...c,
-                  messages: [
-                    ...c.messages,
-                    { id: response.message.id, role: 'assistant', content: response.message.content, artifact, action, widgets },
-                  ],
-                }
+            c.id === convId
+              ? { ...c, messages: [...c.messages, tempUserMsg], lastMessageAt: new Date().toISOString() }
               : c
           )
         )
-        setIsLoading(false)
-
-        // Handle artifact result
-        if (artifact) {
-          openArtifact(artifact)
-        } else if (isStudyRequest) {
-          closePanel()
-        }
-        return
       }
 
-      // Add user message to existing conversation immediately (optimistic)
-      const tempUserMsg: LocalMessage = { id: crypto.randomUUID(), role: 'user', content }
+      // Add an empty assistant message placeholder for streaming
+      const placeholderId = crypto.randomUUID()
       setConversations(prev =>
         prev.map(c =>
-          c.id === activeConvId
-            ? { ...c, messages: [...c.messages, tempUserMsg], lastMessageAt: new Date().toISOString() }
+          c.id === convId
+            ? { ...c, messages: [...c.messages, { id: placeholderId, role: 'assistant' as const, content: '' }] }
             : c
         )
       )
-
-      // Send to API and get AI response
       setIsLoading(true)
-      const response = await api.sendMessage(activeConvId, content)
-      const artifact = response.message.artifact || null
-      const action = response.message.action || null
-      const widgets = response.message.widgets || null
 
-      setConversations(prev =>
-        prev.map(c =>
-          c.id === activeConvId
-            ? {
-                ...c,
-                messages: [
-                  ...c.messages,
-                  { id: response.message.id, role: 'assistant', content: response.message.content, artifact, action, widgets },
-                ],
-              }
-            : c
-        )
+      const targetConvId = convId
+
+      await api.streamMessage(
+        targetConvId,
+        content,
+        // onToken — append chunk to the streaming placeholder
+        (text: string) => {
+          setConversations(prev =>
+            prev.map(c =>
+              c.id === targetConvId
+                ? {
+                    ...c,
+                    messages: c.messages.map(m =>
+                      m.id === placeholderId ? { ...m, content: m.content + text } : m
+                    ),
+                  }
+                : c
+            )
+          )
+        },
+        // onDone — finalize with real ID, artifact, action, widgets
+        (meta: StreamDoneMeta) => {
+          setConversations(prev =>
+            prev.map(c =>
+              c.id === targetConvId
+                ? {
+                    ...c,
+                    messages: c.messages.map(m =>
+                      m.id === placeholderId
+                        ? { ...m, id: meta.message_id || placeholderId, artifact: meta.artifact, action: meta.action, widgets: meta.widgets }
+                        : m
+                    ),
+                  }
+                : c
+            )
+          )
+          setIsLoading(false)
+
+          // Handle artifact result
+          if (meta.artifact) {
+            openArtifact(meta.artifact)
+          } else if (isStudyRequest) {
+            closePanel()
+          }
+
+          // Handle meeting action
+          if (meta.action?.type === 'meeting_suggestion') {
+            openMeetingScheduler(meta.action)
+          }
+        },
+        // onError — fall back to non-streaming endpoint
+        async (errMsg: string) => {
+          // Remove the placeholder
+          setConversations(prev =>
+            prev.map(c =>
+              c.id === targetConvId
+                ? { ...c, messages: c.messages.filter(m => m.id !== placeholderId) }
+                : c
+            )
+          )
+
+          try {
+            const response = await api.sendMessage(targetConvId, content)
+            const artifact = response.message.artifact || null
+            const action = response.message.action || null
+            const widgets = response.message.widgets || null
+
+            setConversations(prev =>
+              prev.map(c =>
+                c.id === targetConvId
+                  ? {
+                      ...c,
+                      messages: [
+                        ...c.messages,
+                        { id: response.message.id, role: 'assistant' as const, content: response.message.content, artifact, action, widgets },
+                      ],
+                    }
+                  : c
+              )
+            )
+            setIsLoading(false)
+
+            if (artifact) {
+              openArtifact(artifact)
+            } else if (isStudyRequest) {
+              closePanel()
+            }
+          } catch (fallbackErr) {
+            setIsLoading(false)
+            setIsGeneratingArtifact(false)
+            if (isStudyRequest) closePanel()
+            setError(errMsg)
+          }
+        },
       )
-      setIsLoading(false)
-
-      // Handle artifact result
-      if (artifact) {
-        openArtifact(artifact)
-      } else if (isStudyRequest) {
-        closePanel()
-      }
     } catch (err) {
       setIsLoading(false)
       setIsGeneratingArtifact(false)

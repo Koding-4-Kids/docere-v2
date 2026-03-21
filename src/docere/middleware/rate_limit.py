@@ -1,8 +1,8 @@
 """Rate limiting middleware using Redis sliding window.
 
 Three tiers:
-  - LLM endpoints (/chat, /instructor/dashboard/.../query): 20 req/min per user
-  - Read endpoints (/courses, /students, /instructor): 60 req/min per user
+  - LLM endpoints (POST to /chat/.../messages, /query): 20 req/min per user
+  - Read endpoints (everything else): 60 req/min per user
   - Auth endpoints (/auth): 10 req/min per IP (prevents brute force)
 
 Keyed by user ID (from JWT) when authenticated, IP address otherwise.
@@ -11,19 +11,16 @@ Keyed by user ID (from JWT) when authenticated, IP address otherwise.
 import time
 
 import jwt
+import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-import structlog
 
 from docere.config import settings
 
 logger = structlog.get_logger()
 
 # ── Tier definitions ──
-
-# Paths containing these substrings get LLM-tier limits (expensive operations)
-_LLM_PATHS = ("/chat/", "/query")
 
 # Auth paths get IP-based limits (brute force protection)
 _AUTH_PATHS = ("/auth/",)
@@ -34,14 +31,18 @@ TIER_READ = (60, 60)
 TIER_AUTH = (10, 60)
 
 
-def _classify_tier(path: str) -> tuple[int, int]:
-    """Determine rate limit tier from request path."""
+def _classify_tier(path: str, method: str = "GET") -> tuple[int, int]:
+    """Determine rate limit tier from request path and method.
+
+    Only POST requests that trigger LLM calls get the strict LLM tier.
+    GET requests on /chat/ (list conversations, get history) use the read tier.
+    """
     for p in _AUTH_PATHS:
         if p in path:
             return TIER_AUTH
-    for p in _LLM_PATHS:
-        if p in path:
-            return TIER_LLM
+    # LLM tier: only expensive POST endpoints that invoke Claude
+    if method == "POST" and ("/messages" in path or "/query" in path):
+        return TIER_LLM
     return TIER_READ
 
 
@@ -80,7 +81,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Determine tier
-        max_requests, window = _classify_tier(path)
+        max_requests, window = _classify_tier(path, request.method)
 
         # Determine identifier
         is_auth_path = any(p in path for p in _AUTH_PATHS)
@@ -141,7 +142,6 @@ def path_tier(path: str) -> str:
     for p in _AUTH_PATHS:
         if p in path:
             return "auth"
-    for p in _LLM_PATHS:
-        if p in path:
-            return "llm"
+    if "/messages" in path or "/query" in path:
+        return "llm"
     return "read"

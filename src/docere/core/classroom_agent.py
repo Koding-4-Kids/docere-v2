@@ -143,12 +143,13 @@ You will receive structured summaries from individual student analyses.
 Synthesize them into a clear, actionable answer that any teacher can immediately understand.
 
 Guidelines:
-- Keep your ENTIRE response under 4-6 sentences. Be brief — teachers are busy.
+- Keep your conversational text under 4-6 sentences. Be brief — teachers are busy.
 - Mention student names but don't write a paragraph about each one. Group similar students together.
 - End with one concrete suggestion the teacher can act on today.
-- NEVER use markdown formatting. No **, no ### headers, no bullet lists. Write in plain conversational sentences.
+- NEVER use markdown formatting in your conversational text. No **, no ### headers, no bullet lists. Write in plain conversational sentences.
 - NEVER use raw numbers, decimals, or percentages. Say "struggling with recursion" not "confusion 0.72".
   Say "most of the class" not "74%". Use teacher-friendly language throughout.
+- EXCEPTION: If an Available Actions section is present and the instructor asks you to DO something (send email, create doc, schedule event), you MUST include the ```action block after your conversational text. This is the only allowed use of markdown.
 
 Example of a good response:
 "David and Tyler are both nearly checked out — minimal engagement and confused on the basics. Carlos is similar but shows flashes of understanding with conditionals. Raj is actually trying but hitting a wall on recursion and sorting. All four need help with foundational concepts. I'd suggest pulling them into a small group session focused on variables and data types before they fall further behind."
@@ -678,6 +679,7 @@ class ClassroomAgent:
         context: ClassroomContext,
         history: list[dict[str, str]],
         sources: list[SourceRef] | None = None,
+        integration_instructions: str = "",
     ) -> ClassroomResponse:
         """Answer simple meta questions from aggregate data only."""
         with_profiles = [s for s in context.student_roster if s["profile"]]
@@ -713,12 +715,14 @@ class ClassroomAgent:
             f"Class: {roster_summary}\n\n"
             f"Top concepts by struggle:\n{chr(10).join(concept_lines) or 'No concept data yet.'}"
         )
+        if integration_instructions:
+            system_prompt += f"\n\n{integration_instructions}"
 
         messages = [*history[-10:], {"role": "user", "content": question}]
         text = await self.claude.chat(
             system_prompt=system_prompt,
             messages=messages,
-            max_tokens=300,
+            max_tokens=1200,
             temperature=0.4,
         )
 
@@ -733,20 +737,32 @@ class ClassroomAgent:
         context: ClassroomContext,
         history: list[dict[str, str]],
         sources: list[SourceRef] | None = None,
+        integration_instructions: str = "",
     ) -> ClassroomResponse:
         """Synthesize summaries into a final answer — the only LLM call for non-meta queries."""
         summary_blocks = []
         for s in summaries:
-            mastery_str = ", ".join(
-                f"{c} ({_mastery_label(l)})" for c, l in list(s.concept_mastery.items())[:5]
+            # Show weak concepts first (most actionable), then strong
+            weak_concepts = sorted(
+                [(c, l) for c, l in s.concept_mastery.items() if l < 0.45],
+                key=lambda x: x[1],
             )
+            strong_concepts = [(c, l) for c, l in s.concept_mastery.items() if l >= 0.65]
+            weak_str = ", ".join(f"{c} ({_mastery_label(l)})" for c, l in weak_concepts[:6])
+            strong_str = ", ".join(f"{c} ({_mastery_label(l)})" for c, l in strong_concepts[:4])
+
+            grade_str = _grade_label(s.current_grade)
+            if s.current_grade is not None:
+                grade_str += f" ({s.current_grade:.1f}%)"
+
             block = (
                 f"### {s.student_name}\n"
                 f"Profile: {s.profile_summary}\n"
                 f"Engagement: {s.engagement_level} | "
                 f"Comfort level: {_confusion_label(s.avg_confusion)} | "
-                f"Grade: {_grade_label(s.current_grade)}\n"
-                f"Key concepts: {mastery_str or 'none tracked'}\n"
+                f"Grade: {grade_str}\n"
+                f"Struggling with: {weak_str or 'none'}\n"
+                f"Strong in: {strong_str or 'none'}\n"
                 f"Findings:\n"
                 + "\n".join(f"- {f}" for f in s.key_findings)
             )
@@ -774,12 +790,14 @@ class ClassroomAgent:
             f"## Individual Student Analyses\n"
             f"{chr(10).join(summary_blocks) if summary_blocks else 'No student data available.'}"
         )
+        if integration_instructions:
+            system_prompt += f"\n\n{integration_instructions}"
 
         messages = [*history[-10:], {"role": "user", "content": question}]
         text = await self.claude.chat(
             system_prompt=system_prompt,
             messages=messages,
-            max_tokens=400,
+            max_tokens=1200,
             temperature=0.4,
         )
 

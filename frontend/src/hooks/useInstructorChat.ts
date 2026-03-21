@@ -1,11 +1,18 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import type { InstructorWidget, SourceRef, SourceFilters } from '../api'
+import type { InstructorWidget, MetaAction, SourceRef, SourceFilters } from '../api'
+
+export interface SwitchCourseSignal {
+  course_id: string
+  course_name: string
+}
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   widgets?: InstructorWidget[]
   sources?: SourceRef[]
+  actions?: MetaAction[]
+  switch_course?: SwitchCourseSignal | null
 }
 
 interface TaggedStudent {
@@ -69,6 +76,8 @@ export function useInstructorChat(courseId: string) {
         content: data.answer,
         widgets: data.widgets || [],
         sources: data.sources || [],
+        actions: data.actions || [],
+        switch_course: data.switch_course || null,
       }])
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Failed to get a response. Please try again.' }])
