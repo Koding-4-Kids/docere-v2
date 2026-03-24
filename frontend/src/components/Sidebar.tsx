@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { MessageSquare, HelpCircle, Settings, Plus, Trash2, Layers, Timer, X } from 'lucide-react'
 
 interface Conversation {
@@ -81,28 +81,24 @@ function Menu({ children, items }: { children: React.ReactNode; items: { name: s
   )
 }
 
-export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onLogout, userName, userEmail, dark, toggleTheme, isOpen = false, onClose, onOpenFlashcards, flashcardDueCount, onOpenFocus }: SidebarProps) {
-  const profileRef = useRef<HTMLButtonElement | null>(null)
-  const [isProfileActive, setIsProfileActive] = useState(false)
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setIsProfileActive(false)
-      }
-    }
-    document.addEventListener('click', handleClick)
-    return () => document.removeEventListener('click', handleClick)
-  }, [])
-
+export function Sidebar({
+  conversations,
+  activeId,
+  onSelect,
+  onNew,
+  onDelete,
+  isOpen = false,
+  onClose,
+  onOpenFlashcards,
+  flashcardDueCount,
+  onOpenFocus,
+}: SidebarProps) {
   // Group conversations by course
   const courseGroups = conversations.reduce<Record<string, Conversation[]>>((acc, conv) => {
     if (!acc[conv.courseName]) acc[conv.courseName] = []
     acc[conv.courseName].push(conv)
     return acc
   }, {})
-
-  const initial = (userName || 'S').charAt(0).toUpperCase()
 
   return (
     <>

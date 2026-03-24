@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- force-graph callbacks + d3-mutated node shapes */
 import { useRef, useCallback, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react'
 import ForceGraph3D from 'react-force-graph-3d'
 import type { ForceGraphMethods } from 'react-force-graph-3d'
@@ -94,7 +95,7 @@ function sentimentIcon(sentiment: string | null | undefined): string {
 
 export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
   function ConceptGraph3D({ nodes, edges, width, height, filter = 'all', topology = 'student', onStudentClick }, ref) {
-    const fgRef = useRef<ForceGraphMethods | undefined>()
+    const fgRef = useRef<ForceGraphMethods | undefined>(undefined)
     // d3-force mutates these node objects in-place, adding x/y/z positions
     const nodesRef = useRef<any[]>([])
 
@@ -231,17 +232,6 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
       }
     }, [onStudentClick])
 
-    if (nodes.length === 0) {
-      return (
-        <div
-          className="flex items-center justify-center text-text-500 text-sm"
-          style={{ width, height }}
-        >
-          No data yet — students need to start chatting
-        </div>
-      )
-    }
-
     // Custom 3D objects per node type + topology
     const renderNode = useCallback((node: any) => {
       // ── Concept hub nodes (octahedron + label) ──
@@ -274,7 +264,7 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
         label.backgroundColor = 'rgba(0,0,0,0.7)'
         label.padding = [2, 4]
         label.borderRadius = 3
-        label.position.y = 11
+        ;(label as unknown as { position: { y: number } }).position.y = 11
         group.add(label)
 
         return group
@@ -314,7 +304,7 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
         label.backgroundColor = 'rgba(0,0,0,0.6)'
         label.padding = [1.5, 3]
         label.borderRadius = 2
-        label.position.y = radius + 5
+        ;(label as unknown as { position: { y: number } }).position.y = radius + 5
         group.add(label)
 
         return group
@@ -330,6 +320,17 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
       })
       return new THREE.Mesh(geo, mat)
     }, [topology, isDistributed])
+
+    if (nodes.length === 0) {
+      return (
+        <div
+          className="flex items-center justify-center text-text-500 text-sm"
+          style={{ width, height }}
+        >
+          No data yet — students need to start chatting
+        </div>
+      )
+    }
 
     return (
       <ForceGraph3D

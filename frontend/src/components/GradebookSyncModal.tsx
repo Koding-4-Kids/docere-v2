@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type {
   Course,
   IntegrationStatus,
@@ -9,7 +9,6 @@ import type {
   ValidationIssue,
   SyncResult,
   FixResult,
-  ColumnMapping,
 } from '../api'
 import {
   listGoogleSpreadsheets,
@@ -21,6 +20,10 @@ import {
   syncGradebook,
   fixGradebook,
 } from '../api'
+
+function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e)
+}
 
 type Step = 'source' | 'destination' | 'validation' | 'sync'
 
@@ -113,10 +116,10 @@ function SourceStep({ source, onSelect, integrationStatus }: {
       setLoading(true)
       listGoogleSpreadsheets()
         .then(setSpreadsheets)
-        .catch(e => setError(e.message))
+        .catch(e => setError(errorMessage(e)))
         .finally(() => setLoading(false))
     }
-  }, [tab, googleConnected])
+  }, [tab, googleConnected, hasSheetScopes])
 
   const handleSheetClick = async (sheet: SpreadsheetInfo) => {
     setLoading(true)
@@ -124,8 +127,8 @@ function SourceStep({ source, onSelect, integrationStatus }: {
     try {
       const data = await readGoogleSpreadsheet(sheet.id)
       onSelect(data)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError(errorMessage(e))
     } finally {
       setLoading(false)
     }
@@ -138,8 +141,8 @@ function SourceStep({ source, onSelect, integrationStatus }: {
     try {
       const data = await readGoogleSpreadsheetUrl(urlInput.trim())
       onSelect(data)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError(errorMessage(e))
     } finally {
       setLoading(false)
     }
@@ -153,8 +156,8 @@ function SourceStep({ source, onSelect, integrationStatus }: {
     try {
       const result = await uploadExcel(file)
       onSelect({ title: result.filename, headers: result.headers, rows: result.rows })
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(errorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -172,8 +175,8 @@ function SourceStep({ source, onSelect, integrationStatus }: {
     try {
       const result = await uploadExcel(file)
       onSelect({ title: result.filename, headers: result.headers, rows: result.rows })
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(errorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -348,7 +351,7 @@ function DestinationStep({ courses, sourceData, onValidate }: {
         setGradeItems(items)
         setSelectedItems(new Set(items.map(i => i.id)))
       })
-      .catch(e => setError(e.message))
+      .catch(e => setError(errorMessage(e)))
       .finally(() => setLoading(false))
   }, [selectedCourse])
 
@@ -368,8 +371,8 @@ function DestinationStep({ courses, sourceData, onValidate }: {
     try {
       const result = await validateGradebook(sourceData, selectedCourse, [...selectedItems])
       onValidate(selectedCourse, [...selectedItems], result)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError(errorMessage(e))
     } finally {
       setValidating(false)
     }
@@ -511,8 +514,8 @@ function ValidationStep({ result, sourceData, courseId, onSync, onFix, onBack }:
         { ...sourceData, rows: editableRows },
       )
       onSync(syncResult)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError(errorMessage(e))
     } finally {
       setSyncing(false)
     }
@@ -527,8 +530,8 @@ function ValidationStep({ result, sourceData, courseId, onSync, onFix, onBack }:
         result.issues,
       )
       onFix(fixResult)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError(errorMessage(e))
     } finally {
       setFixing(false)
     }

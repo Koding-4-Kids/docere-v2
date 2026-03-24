@@ -209,7 +209,8 @@ export function ChatPage() {
     setIsMeetingPanelOpen(false)
   }
 
-  const handleSendMessage = async (content: string, _files?: File[]) => {
+  const handleSendMessage = async (content: string, files?: File[]) => {
+    void files // reserved for future attachment upload
     if (!selectedCourseId && !activeConv) return
     shouldAutoScroll.current = true
 

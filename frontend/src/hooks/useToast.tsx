@@ -60,12 +60,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     })
   }, [toasts, removeToast])
 
+  /* eslint-disable react-hooks/exhaustive-deps -- unmount: clear timeout map (ref is not a DOM node) */
   useEffect(() => {
     return () => {
       timersRef.current.forEach(timer => clearTimeout(timer))
       timersRef.current.clear()
     }
   }, [])
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const value: ToastContextValue = { addToast }
 

@@ -71,19 +71,19 @@ function ActionPreview({ action }: { action: MetaAction }) {
     case 'draft_email':
       return (
         <div className="space-y-1.5 text-[12px]">
-          {action.to && (
+          {Boolean(action.to) && (
             <div className="flex gap-2">
               <span className="text-white/25 shrink-0">To:</span>
               <span className="text-white/60">{(action.to as string[]).join(', ')}</span>
             </div>
           )}
-          {action.subject && (
+          {Boolean(action.subject) && (
             <div className="flex gap-2">
               <span className="text-white/25 shrink-0">Subject:</span>
               <span className="text-white/60">{action.subject as string}</span>
             </div>
           )}
-          {action.body && (
+          {Boolean(action.body) && (
             <div className="text-white/40 text-[11px] mt-1 line-clamp-3 leading-relaxed">
               {(action.body as string).replace(/<[^>]*>/g, '').slice(0, 200)}
             </div>
@@ -95,7 +95,7 @@ function ActionPreview({ action }: { action: MetaAction }) {
       return (
         <div className="space-y-1.5 text-[12px]">
           <div className="text-white/60 font-medium">{action.title as string}</div>
-          {action.content && (
+          {Boolean(action.content) && (
             <div className="text-white/35 text-[11px] line-clamp-3 leading-relaxed">
               {(action.content as string).slice(0, 200)}...
             </div>
@@ -107,7 +107,7 @@ function ActionPreview({ action }: { action: MetaAction }) {
       return (
         <div className="space-y-1.5 text-[12px]">
           <div className="text-white/60 font-medium">{action.title as string}</div>
-          {action.headers && (
+          {Boolean(action.headers) && (
             <div className="overflow-x-auto">
               <table className="text-[10px] text-white/40 border-collapse">
                 <thead>
@@ -141,7 +141,7 @@ function ActionPreview({ action }: { action: MetaAction }) {
       return (
         <div className="space-y-1.5 text-[12px]">
           <div className="text-white/60 font-medium">{action.title as string}</div>
-          {action.headers && (
+          {Boolean(action.headers) && (
             <div className="overflow-x-auto">
               <table className="text-[10px] text-white/40 border-collapse">
                 <thead>
@@ -175,7 +175,7 @@ function ActionPreview({ action }: { action: MetaAction }) {
       return (
         <div className="space-y-1.5 text-[12px]">
           <div className="text-white/60 font-medium">{action.title as string}</div>
-          {action.message && (
+          {Boolean(action.message) && (
             <div className="text-white/35 text-[11px] line-clamp-3 leading-relaxed">
               {(action.message as string).replace(/<[^>]*>/g, '').slice(0, 200)}
             </div>
@@ -187,12 +187,12 @@ function ActionPreview({ action }: { action: MetaAction }) {
       return (
         <div className="space-y-1.5 text-[12px]">
           <div className="text-white/60 font-medium">{action.summary as string}</div>
-          {action.start && (
+          {Boolean(action.start) && (
             <div className="text-white/35 text-[11px]">
               {new Date(action.start as string).toLocaleString()} — {new Date(action.end as string).toLocaleTimeString()}
             </div>
           )}
-          {action.attendee_email && (
+          {Boolean(action.attendee_email) && (
             <div className="text-white/30 text-[11px]">With: {action.attendee_email as string}</div>
           )}
         </div>
@@ -276,7 +276,7 @@ export function ActionCard({ action, onDismiss }: Props) {
 
       {state === 'done' && result?.result && (
         <div className="px-3.5 pb-3">
-          {(result.result.url as string) && (
+          {Boolean(result.result.url) && (
             <a
               href={result.result.url as string}
               target="_blank"

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, RotateCcw, Check, Undo2 } from 'lucide-react'
 import { Icons } from './ClaudeChatInput'
 import * as api from '../api'
-import type { FlashcardCard, ReviewSession } from '../api'
+import type { ReviewSession } from '../api'
 
 interface FlashcardReviewProps {
   courseId: string
