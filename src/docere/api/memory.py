@@ -107,11 +107,7 @@ async def get_my_concepts(
             mastery_label=_label(c.mastery_level),
             times_practiced=c.times_practiced,
             times_struggled=c.times_struggled,
-            last_practiced_at=(
-                c.last_practiced_at.isoformat()
-                if c.last_practiced_at
-                else None
-            ),
+            last_practiced_at=(c.last_practiced_at.isoformat() if c.last_practiced_at else None),
         )
         for c in result.scalars().all()
     ]
@@ -167,20 +163,12 @@ async def get_my_stats(
     concept_count = concept_count_result.scalar() or 0
 
     return MyStatsResponse(
-        total_interactions=(
-            profile.total_interactions if profile else 0
-        ),
+        total_interactions=(profile.total_interactions if profile else 0),
         total_messages=profile.total_messages if profile else 0,
-        avg_confusion=(
-            round(profile.avg_confusion_score, 2) if profile else 0.0
-        ),
-        engagement_level=(
-            profile.engagement_level if profile else "unknown"
-        ),
+        avg_confusion=(round(profile.avg_confusion_score, 2) if profile else 0.0),
+        engagement_level=(profile.engagement_level if profile else "unknown"),
         current_grade=profile.current_grade if profile else None,
         memory_count=mem_count,
         concept_count=concept_count,
-        avg_interaction_score=(
-            round(profile.avg_interaction_score, 2) if profile else 0.0
-        ),
+        avg_interaction_score=(round(profile.avg_interaction_score, 2) if profile else 0.0),
     )

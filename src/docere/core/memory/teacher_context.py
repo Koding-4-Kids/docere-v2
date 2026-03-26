@@ -318,9 +318,7 @@ class TeacherContextManager:
 
         return "\n".join(lines)
 
-    async def _compress_material(
-        self, content: str, title: str, material_type: str
-    ) -> str:
+    async def _compress_material(self, content: str, title: str, material_type: str) -> str:
         """Compress material via CARTRIDGES-inspired synthetic Q&A distillation."""
         prompt = COMPRESS_PROMPT.format(
             material_type=material_type,

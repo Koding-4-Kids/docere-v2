@@ -1,7 +1,6 @@
 """Heuristic interaction scoring (no LLM calls needed)."""
 
 import re
-import math
 
 
 class HeuristicScorer:
@@ -33,7 +32,7 @@ class HeuristicScorer:
         ratio = len(response) / max(question_length, 1)
         ratio_score = 1.0 if 1.5 <= ratio <= 8.0 else 0.7
 
-        score = (length_score * 0.5 + ratio_score * 0.35 + example_bonus)
+        score = length_score * 0.5 + ratio_score * 0.35 + example_bonus
         return max(0.0, min(1.0, score))
 
     def score_engagement_from_timing(

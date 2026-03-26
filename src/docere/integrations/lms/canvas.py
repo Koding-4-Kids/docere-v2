@@ -80,12 +80,14 @@ class CanvasAdapter(LMSAdapter):
             category = group.get("name", "Uncategorized")
             for a in group.get("assignments", []):
                 if isinstance(a, dict):
-                    items.append({
-                        "id": str(a["id"]),
-                        "name": a.get("name", ""),
-                        "category": category,
-                        "grade_max": float(a.get("points_possible", 100) or 100),
-                    })
+                    items.append(
+                        {
+                            "id": str(a["id"]),
+                            "name": a.get("name", ""),
+                            "category": category,
+                            "grade_max": float(a.get("points_possible", 100) or 100),
+                        }
+                    )
         return items
 
     async def save_grade(
@@ -110,9 +112,7 @@ class CanvasAdapter(LMSAdapter):
             response.raise_for_status()
         return {"success": True}
 
-    async def post_announcement(
-        self, course_id: str, title: str, message: str
-    ) -> dict:
+    async def post_announcement(self, course_id: str, title: str, message: str) -> dict:
         """Post announcement via Canvas discussion topics API."""
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -155,7 +155,9 @@ class CanvasAdapter(LMSAdapter):
                 description=a.get("description"),
                 due_at=a.get("due_at"),
                 points_possible=a.get("points_possible"),
-                assignment_type=a.get("submission_types", [None])[0] if a.get("submission_types") else None,
+                assignment_type=a.get("submission_types", [None])[0]
+                if a.get("submission_types")
+                else None,
             )
             for a in data
             if isinstance(a, dict)

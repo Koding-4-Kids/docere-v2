@@ -41,12 +41,16 @@ class GoogleSheetsService:
         def _create():
             sheets_service = build("sheets", "v4", credentials=creds, static_discovery=False)
 
-            spreadsheet = sheets_service.spreadsheets().create(
-                body={
-                    "properties": {"title": title},
-                    "sheets": [{"properties": {"title": sheet_name}}],
-                }
-            ).execute()
+            spreadsheet = (
+                sheets_service.spreadsheets()
+                .create(
+                    body={
+                        "properties": {"title": title},
+                        "sheets": [{"properties": {"title": sheet_name}}],
+                    }
+                )
+                .execute()
+            )
 
             spreadsheet_id = spreadsheet["spreadsheetId"]
 
@@ -86,12 +90,16 @@ class GoogleSheetsService:
 
         def _list():
             drive_service = build("drive", "v3", credentials=creds, static_discovery=False)
-            results = drive_service.files().list(
-                q="mimeType='application/vnd.google-apps.spreadsheet'",
-                fields="files(id,name,modifiedTime)",
-                orderBy="modifiedTime desc",
-                pageSize=50,
-            ).execute()
+            results = (
+                drive_service.files()
+                .list(
+                    q="mimeType='application/vnd.google-apps.spreadsheet'",
+                    fields="files(id,name,modifiedTime)",
+                    orderBy="modifiedTime desc",
+                    pageSize=50,
+                )
+                .execute()
+            )
             files = results.get("files", [])
             return [
                 {
@@ -124,17 +132,26 @@ class GoogleSheetsService:
             sheets_service = build("sheets", "v4", credentials=creds, static_discovery=False)
 
             # Get spreadsheet title
-            meta = sheets_service.spreadsheets().get(
-                spreadsheetId=spreadsheet_id,
-                fields="properties.title",
-            ).execute()
+            meta = (
+                sheets_service.spreadsheets()
+                .get(
+                    spreadsheetId=spreadsheet_id,
+                    fields="properties.title",
+                )
+                .execute()
+            )
             title = meta.get("properties", {}).get("title", "Untitled")
 
             # Read all values
-            result = sheets_service.spreadsheets().values().get(
-                spreadsheetId=spreadsheet_id,
-                range=range_name,
-            ).execute()
+            result = (
+                sheets_service.spreadsheets()
+                .values()
+                .get(
+                    spreadsheetId=spreadsheet_id,
+                    range=range_name,
+                )
+                .execute()
+            )
             values = result.get("values", [])
 
             if not values:

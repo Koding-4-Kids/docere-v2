@@ -8,12 +8,12 @@ Tasks:
 Run with: arq docere.worker.WorkerSettings
 """
 
+import structlog
 from arq import cron
 from arq.connections import RedisSettings
-import structlog
 
 from docere.config import settings
-from docere.dependencies import async_session, init_clients, get_qdrant, get_claude
+from docere.dependencies import async_session, get_claude, get_qdrant, init_clients
 
 logger = structlog.get_logger()
 
@@ -96,12 +96,14 @@ async def run_lti_course_sync(
     After sync, embeds all materials + syllabus into Qdrant.
     """
     import uuid
+
     from sqlalchemy import select
+
     from docere.core.memory.teacher_context import TeacherContextManager
     from docere.models.course import CourseMaterial
     from docere.models.lti_platform import LTIPlatform
-    from docere.services.lti_service import create_adapter
     from docere.services.lms_sync_service import LMSSyncService
+    from docere.services.lti_service import create_adapter
 
     async with async_session() as db:
         platform = await db.get(LTIPlatform, uuid.UUID(platform_id))
@@ -180,11 +182,12 @@ async def run_lti_material_sync(
     new/updated materials afterward.
     """
     import uuid
-    from docere.models.lti_platform import LTIPlatform
-    from docere.services.lti_service import create_adapter
-    from docere.services.lms_sync_service import LMSSyncService
-    from docere.tasks.lms_sync import _embed_new_materials
+
     from docere.models.course import Course
+    from docere.models.lti_platform import LTIPlatform
+    from docere.services.lms_sync_service import LMSSyncService
+    from docere.services.lti_service import create_adapter
+    from docere.tasks.lms_sync import _embed_new_materials
 
     new_count = 0
     updated_count = 0
@@ -205,7 +208,8 @@ async def run_lti_material_sync(
             return {"error": "course_not_found"}
 
         # Pull and sync materials only
-        from docere.integrations.lms.base import LMSFullSync, LMSCourse
+        from docere.integrations.lms.base import LMSCourse, LMSFullSync
+
         materials = await adapter.get_course_materials(external_course_id)
         sync_data = LMSFullSync(
             course=LMSCourse(
@@ -221,9 +225,7 @@ async def run_lti_material_sync(
         # Embed new/updated materials
         if new_count > 0 or updated_count > 0:
             try:
-                embedded = await _embed_new_materials(
-                    db, course, get_qdrant(), get_claude()
-                )
+                embedded = await _embed_new_materials(db, course, get_qdrant(), get_claude())
                 await db.commit()
             except Exception:
                 logger.exception("Failed to embed materials after sync")

@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.dependencies import get_current_user_id, get_db, require_instructor
 from docere.models.calendar import MeetingRequest, OfficeHours
-from docere.models.course import Enrollment
 from docere.models.memory import StudentProfile
 from docere.schemas.calendar import (
     BookMeetingRequest,
@@ -56,9 +55,12 @@ async def oauth_callback(
     try:
         gcal = GoogleCalendarService(db)
         await gcal.handle_oauth_callback(code=code, instructor_id=state)
-        return OAuthCallbackResponse(connected=True, message="Google Calendar connected successfully")
+        return OAuthCallbackResponse(
+            connected=True, message="Google Calendar connected successfully"
+        )
     except Exception as e:
         import structlog
+
         structlog.get_logger().error("OAuth callback failed", error=str(e), state=state)
         raise HTTPException(status_code=500, detail=f"Failed to connect calendar: {e}")
 
@@ -94,9 +96,7 @@ async def disconnect_calendar(
     from docere.models.calendar import InstructorCalendarToken
 
     result = await db.execute(
-        select(InstructorCalendarToken).where(
-            InstructorCalendarToken.instructor_id == user_id
-        )
+        select(InstructorCalendarToken).where(InstructorCalendarToken.instructor_id == user_id)
     )
     token = result.scalar_one_or_none()
     if token:
@@ -250,14 +250,16 @@ async def list_meetings(
     from sqlalchemy import or_
 
     result = await db.execute(
-        select(MeetingRequest).where(
+        select(MeetingRequest)
+        .where(
             MeetingRequest.course_id == course_id,
             or_(
                 MeetingRequest.student_id == user_id,
                 MeetingRequest.instructor_id == user_id,
             ),
             MeetingRequest.status != "cancelled",
-        ).order_by(MeetingRequest.scheduled_start)
+        )
+        .order_by(MeetingRequest.scheduled_start)
     )
     return list(result.scalars().all())
 

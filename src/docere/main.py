@@ -1,15 +1,28 @@
 """FastAPI application entry point."""
 
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import structlog
 
+from docere.api import (
+    analytics,
+    auth,
+    calendar,
+    chat,
+    courses,
+    flashcards,
+    gradebook_sync,
+    instructor,
+    integrations,
+    lms,
+    memory,
+    students,
+)
 from docere.config import settings
-from docere.api import auth, calendar, chat, courses, students, instructor, memory, analytics, lms, integrations, gradebook_sync, flashcards
-from docere.dependencies import engine, init_clients, get_qdrant, init_redis, shutdown_redis
+from docere.dependencies import engine, get_qdrant, init_clients, init_redis, shutdown_redis
 from docere.middleware.csp import CSPMiddleware
 from docere.middleware.rate_limit import RateLimitMiddleware
 

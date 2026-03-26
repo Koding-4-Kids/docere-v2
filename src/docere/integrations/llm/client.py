@@ -16,6 +16,7 @@ _RETRYABLE_ANTHROPIC: tuple[type[Exception], ...] = ()
 
 try:
     import openai
+
     _RETRYABLE_OPENAI = (
         openai.APITimeoutError,
         openai.APIConnectionError,
@@ -27,6 +28,7 @@ except ImportError:
 
 try:
     import anthropic
+
     _RETRYABLE_ANTHROPIC = (
         anthropic.APITimeoutError,
         anthropic.APIConnectionError,
@@ -50,6 +52,7 @@ class ClaudeClient:
 
         if self.provider == "openai":
             import openai
+
             self.openai_client = openai.AsyncOpenAI(
                 api_key=settings.openai_api_key,
                 timeout=30.0,
@@ -59,6 +62,7 @@ class ClaudeClient:
             logger.info("LLM client initialized", provider="openai", model=self.default_model)
         else:
             import anthropic
+
             self.anthropic_client = anthropic.AsyncAnthropic(
                 api_key=settings.anthropic_api_key,
                 timeout=30.0,
@@ -77,9 +81,13 @@ class ClaudeClient:
     ) -> str:
         """Send a chat message with retry and circuit breaker protection."""
         if self.provider == "openai":
-            call = lambda: self._chat_openai(system_prompt, messages, model, max_tokens, temperature)
+
+            def call():
+                return self._chat_openai(system_prompt, messages, model, max_tokens, temperature)
         else:
-            call = lambda: self._chat_anthropic(system_prompt, messages, model, max_tokens, temperature)
+
+            def call():
+                return self._chat_anthropic(system_prompt, messages, model, max_tokens, temperature)
 
         return await self.breaker.call(
             lambda: retry_async(

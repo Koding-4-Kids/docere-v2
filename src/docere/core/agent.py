@@ -12,11 +12,11 @@ import asyncio
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.config import settings
 from docere.core.improvement.strategy_archive import StrategyArchive, StrategyContext
@@ -202,9 +202,7 @@ class TutoringAgent:
         async def _load_assignment() -> Assignment | None:
             if not assignment_id:
                 return None
-            r = await self.db.execute(
-                select(Assignment).where(Assignment.id == assignment_id)
-            )
+            r = await self.db.execute(select(Assignment).where(Assignment.id == assignment_id))
             return r.scalar_one_or_none()
 
         async def _load_memory() -> MemoryContext:
@@ -251,7 +249,10 @@ class TutoringAgent:
         suggest_meeting = self._should_suggest_meeting(profile, student_message)
 
         system_prompt = self._build_system_prompt(
-            memory_ctx, strategy, assignment, profile=profile,
+            memory_ctx,
+            strategy,
+            assignment,
+            profile=profile,
             suggest_meeting=suggest_meeting,
         )
 
@@ -277,9 +278,11 @@ class TutoringAgent:
                 struggle_concepts = profile.top_confused_concepts or []
             elif profile:
                 # Fall back to extracting from memory context
-                struggle_concepts = [
-                    c for c in (memory_ctx.concepts or [])
-                ] if hasattr(memory_ctx, "concepts") else []
+                struggle_concepts = (
+                    [c for c in (memory_ctx.concepts or [])]
+                    if hasattr(memory_ctx, "concepts")
+                    else []
+                )
 
             action_data = {
                 "type": "meeting_suggestion",
@@ -289,7 +292,7 @@ class TutoringAgent:
             logger.info("Force-injected meeting action for explicit request")
 
         # ── Persist messages + return immediately ──
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         student_msg = Message(
             conversation_id=conversation_id,
@@ -339,16 +342,18 @@ class TutoringAgent:
 
         # ── Fire-and-forget: all non-critical work runs AFTER response ──
         # These don't block the user — they run in the background.
-        asyncio.create_task(self._post_process(
-            conversation_id=conversation_id,
-            student_id=student_id,
-            course_id=course_id,
-            student_message=student_message,
-            response_text=response_text,
-            study_group=study_group,
-            artifact_data=artifact_data,
-            assistant_msg_id=str(assistant_msg.id),
-        ))
+        asyncio.create_task(
+            self._post_process(
+                conversation_id=conversation_id,
+                student_id=student_id,
+                course_id=course_id,
+                student_message=student_message,
+                response_text=response_text,
+                study_group=study_group,
+                artifact_data=artifact_data,
+                assistant_msg_id=str(assistant_msg.id),
+            )
+        )
 
         return AgentResponse(
             content=chat_text,
@@ -421,9 +426,12 @@ class TutoringAgent:
                 if artifact_data and artifact_data.get("type") == "flashcards":
                     try:
                         from docere.services.flashcard_service import FlashcardService
+
                         fc_svc = FlashcardService(db)
                         raw_content = artifact_data.get("content", "[]")
-                        cards_json = json.loads(raw_content) if isinstance(raw_content, str) else raw_content
+                        cards_json = (
+                            json.loads(raw_content) if isinstance(raw_content, str) else raw_content
+                        )
                         added = await fc_svc.add_cards_from_artifact(
                             student_id=student_id,
                             course_id=course_id,
@@ -489,7 +497,7 @@ class TutoringAgent:
         if not prev_student:
             return
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         time_delta = int((now - prev_assistant.created_at).total_seconds())
 
         verification = await bg_verifier.score_interaction(
@@ -507,18 +515,16 @@ class TutoringAgent:
         if profile:
             n = profile.total_interactions or 1
             old_avg = profile.avg_interaction_score or 0.0
-            profile.avg_interaction_score = (
-                (old_avg * (n - 1) + verification.composite_score) / n
-            )
+            profile.avg_interaction_score = (old_avg * (n - 1) + verification.composite_score) / n
 
         # If a strategy was used, record the outcome for the bandit
         metadata = prev_assistant.metadata_ or {}
         strategy_id = metadata.get("strategy_id")
         if strategy_id:
             mem_result = await db.execute(
-                select(MemoryRecord.concepts).where(
-                    MemoryRecord.source_message_id == prev_assistant.id
-                ).limit(1)
+                select(MemoryRecord.concepts)
+                .where(MemoryRecord.source_message_id == prev_assistant.id)
+                .limit(1)
             )
             concepts = mem_result.scalar_one_or_none() or []
 
@@ -592,18 +598,12 @@ class TutoringAgent:
         # Score-based prompt adaptation (reads from profile, no extra DB queries)
         if profile:
             adaptations = []
-            if (
-                (profile.avg_interaction_score or 0) < 0.4
-                and profile.total_interactions >= 3
-            ):
+            if (profile.avg_interaction_score or 0) < 0.4 and profile.total_interactions >= 3:
                 adaptations.append(
                     "Previous approaches haven't been effective with this student. "
                     "Try a completely different angle than what might have been tried before."
                 )
-            if (
-                profile.avg_confusion_score > 0.6
-                and profile.engagement_level != "high"
-            ):
+            if profile.avg_confusion_score > 0.6 and profile.engagement_level != "high":
                 adaptations.append(
                     "This student is frequently confused. Use very short, concrete "
                     "examples. Avoid abstract explanations."
@@ -671,7 +671,7 @@ class TutoringAgent:
                 artifact["content"] = json.dumps(artifact["content"])
 
             # Strip the artifact block from the chat text
-            chat_text = response_text[:match.start()] + response_text[match.end():]
+            chat_text = response_text[: match.start()] + response_text[match.end() :]
             chat_text = chat_text.strip()
 
             return chat_text, artifact
@@ -702,7 +702,7 @@ class TutoringAgent:
             if "reason" not in action:
                 return response_text, None
 
-            chat_text = response_text[:match.start()] + response_text[match.end():]
+            chat_text = response_text[: match.start()] + response_text[match.end() :]
             return chat_text.strip(), action
 
         except (json.JSONDecodeError, KeyError) as e:
@@ -727,7 +727,7 @@ class TutoringAgent:
                 if "type" not in widget:
                     continue
                 widgets.insert(0, widget)
-                clean = clean[:match.start()] + clean[match.end():]
+                clean = clean[: match.start()] + clean[match.end() :]
             except (json.JSONDecodeError, KeyError) as e:
                 logger.warning("Failed to parse widget block", error=str(e))
 
@@ -767,7 +767,4 @@ class TutoringAgent:
         )
         messages = list(reversed(result.scalars().all()))
 
-        return [
-            {"role": msg.role, "content": msg.content}
-            for msg in messages
-        ]
+        return [{"role": msg.role, "content": msg.content} for msg in messages]

@@ -1,13 +1,12 @@
 """Availability computation and meeting booking."""
 
-from datetime import datetime, timedelta, timezone, time as dt_time
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import structlog
-from sqlalchemy import select, and_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from docere.config import settings
 from docere.models.calendar import MeetingRequest, OfficeHours
 from docere.models.course import Enrollment
 from docere.models.user import User
@@ -45,7 +44,7 @@ class AvailabilityService:
         if not instructor_enrollments:
             return []
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         end_date = now + timedelta(days=days_ahead)
         all_slots = []
 
@@ -65,9 +64,7 @@ class AvailabilityService:
                 continue
 
             # Generate candidate slots from office hours
-            candidates = self._generate_slots_from_office_hours(
-                office_hours, now, end_date
-            )
+            candidates = self._generate_slots_from_office_hours(office_hours, now, end_date)
 
             # Subtract Google Calendar busy times
             try:
@@ -127,9 +124,7 @@ class AvailabilityService:
         student_email = student_row.email if student_row else None
         student_name = student_row.name if student_row else "Student"
 
-        instructor_result = await self.db.execute(
-            select(User.name).where(User.id == instructor_id)
-        )
+        instructor_result = await self.db.execute(select(User.name).where(User.id == instructor_id))
         instructor_row = instructor_result.one_or_none()
         instructor_name = instructor_row.name if instructor_row else "Instructor"
 
@@ -224,12 +219,20 @@ class AvailabilityService:
                 end_h, end_m = map(int, oh.end_time.split(":"))
 
                 slot_start = datetime(
-                    current_date.year, current_date.month, current_date.day,
-                    start_h, start_m, tzinfo=tz,
+                    current_date.year,
+                    current_date.month,
+                    current_date.day,
+                    start_h,
+                    start_m,
+                    tzinfo=tz,
                 )
                 block_end = datetime(
-                    current_date.year, current_date.month, current_date.day,
-                    end_h, end_m, tzinfo=tz,
+                    current_date.year,
+                    current_date.month,
+                    current_date.day,
+                    end_h,
+                    end_m,
+                    tzinfo=tz,
                 )
                 duration = timedelta(minutes=oh.slot_duration_minutes)
 
@@ -237,10 +240,12 @@ class AvailabilityService:
                     slot_end = slot_start + duration
                     # Only include future slots
                     if slot_start > start:
-                        slots.append({
-                            "start": slot_start.astimezone(timezone.utc).isoformat(),
-                            "end": slot_end.astimezone(timezone.utc).isoformat(),
-                        })
+                        slots.append(
+                            {
+                                "start": slot_start.astimezone(UTC).isoformat(),
+                                "end": slot_end.astimezone(UTC).isoformat(),
+                            }
+                        )
                     slot_start = slot_end
 
             current_date += timedelta(days=1)
@@ -267,10 +272,7 @@ class AvailabilityService:
             s_start = datetime.fromisoformat(slot["start"])
             s_end = datetime.fromisoformat(slot["end"])
 
-            overlaps = any(
-                s_start < b_end and s_end > b_start
-                for b_start, b_end in busy_ranges
-            )
+            overlaps = any(s_start < b_end and s_end > b_start for b_start, b_end in busy_ranges)
             if not overlaps:
                 available.append(slot)
 
