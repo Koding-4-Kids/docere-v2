@@ -3,6 +3,7 @@
 import uuid
 from collections import defaultdict
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -1229,10 +1230,12 @@ async def trigger_evolution(
     summary = await evolver.evolve()
     await db.commit()
 
+    mut = summary.get("mutated_from") or []
+    pruned_names = summary.get("pruned_names") or []
     return EvolutionTriggerResponse(
-        mutations=summary.get("mutations", 0),
-        mutated_from=summary.get("mutated_from", []),
-        pruned=summary.get("pruned", 0),
-        pruned_names=summary.get("pruned_names", []),
-        active_count=summary.get("active_count", 0),
+        mutations=int(cast(Any, summary.get("mutations", 0))),
+        mutated_from=[str(x) for x in mut] if isinstance(mut, list) else [],
+        pruned=int(cast(Any, summary.get("pruned", 0))),
+        pruned_names=[str(x) for x in pruned_names] if isinstance(pruned_names, list) else [],
+        active_count=int(cast(Any, summary.get("active_count", 0))),
     )
