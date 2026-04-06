@@ -124,7 +124,12 @@ async def run_tutoring_graph(
     )
 
     # Fire-and-forget: background post-processing
-    asyncio.create_task(_run_background(final_state))
+    # Pass only the data the background needs — NOT the request DB session,
+    # which may be closed by the time the task runs.
+    bg_snapshot = {k: v for k, v in final_state.items() if not k.startswith("_")}
+    bg_snapshot["_qdrant"] = qdrant
+    bg_snapshot["_claude"] = claude
+    asyncio.create_task(_run_background(bg_snapshot))
 
     return TutoringResult(
         content=final_state.get("chat_text", ""),
@@ -206,17 +211,28 @@ async def stream_tutoring_graph(
             memory_tokens=memory_ctx.total_tokens if memory_ctx else 0,
         )
 
+        assistant_msg_id = state.get("assistant_msg_id")
+        if not assistant_msg_id:
+            logger.warning(
+                "assistant_msg_id missing after persist_messages",
+                conversation_id=conversation_id,
+            )
+
         yield {
             "event": "done",
-            "message_id": state.get("assistant_msg_id"),
+            "message_id": assistant_msg_id,
+            "chat_text": state.get("chat_text", ""),
             "artifact": state.get("artifact"),
             "action": state.get("action"),
             "widgets": state.get("widgets") or [],
             "strategy_used": strategy.name if strategy else None,
         }
 
-        # Fire-and-forget background tasks
-        asyncio.create_task(_run_background(state))
+        # Fire-and-forget: pass only data — NOT the request DB session.
+        bg_snapshot = {k: v for k, v in state.items() if not k.startswith("_")}
+        bg_snapshot["_qdrant"] = qdrant
+        bg_snapshot["_claude"] = claude
+        asyncio.create_task(_run_background(bg_snapshot))
 
     except Exception as e:
         logger.error("Streaming tutoring graph failed", error=str(e))

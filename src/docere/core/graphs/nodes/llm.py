@@ -19,7 +19,10 @@ logger = structlog.get_logger()
 
 def build_prompt(state: TutoringState) -> dict:
     """Assemble the full system prompt from context, strategy, and instructions."""
-    memory_ctx = state["memory_context"]
+    memory_ctx = state.get("memory_context")
+    if not memory_ctx:
+        from docere.core.memory.memory_layer import MemoryContext
+        memory_ctx = MemoryContext.empty()
     strategy = state.get("strategy")
     assignment = state.get("assignment")
     profile = state.get("student_profile")
@@ -60,13 +63,18 @@ def build_prompt(state: TutoringState) -> dict:
                 "Previous approaches haven't been effective with this student. "
                 "Try a completely different angle than what might have been tried before."
             )
-        if profile.avg_confusion_score > 0.6 and profile.engagement_level != "high":
+        if (profile.avg_confusion_score or 0) > 0.6 and profile.engagement_level != "high":
             adaptations.append(
                 "This student is frequently confused. Use very short, concrete "
                 "examples. Avoid abstract explanations."
             )
         if adaptations:
             parts.append("\n## Adaptation Notes\n" + "\n".join(adaptations))
+
+    # Student-uploaded documents
+    student_doc_ctx = state.get("student_doc_context", "")
+    if student_doc_ctx:
+        parts.append(f"\n## Student's Uploaded Materials\n{student_doc_ctx}")
 
     parts.append(STUDY_MATERIALS_INSTRUCTIONS)
     parts.append(WIDGET_INSTRUCTIONS)

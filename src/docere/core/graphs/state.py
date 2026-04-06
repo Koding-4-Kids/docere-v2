@@ -39,10 +39,13 @@ class TutoringState(TypedDict, total=False):
     chat_text: str
     artifact: dict[str, Any] | None
     action: dict[str, Any] | None
-    widgets: list[dict[str, Any]]
+    widgets: list[dict[str, Any]] | None
 
     # ── Persisted ──
     assistant_msg_id: str | None
+
+    # ── Student uploaded documents ──
+    student_doc_context: str | None
 
     # ── Background results ──
     extracted_concepts: list[str]

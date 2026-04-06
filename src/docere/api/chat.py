@@ -3,6 +3,7 @@
 import json
 import uuid
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -25,6 +26,8 @@ from docere.schemas.chat import (
     SendMessageRequest,
     StudyArtifact,
 )
+
+logger = structlog.get_logger()
 
 router = APIRouter()
 
@@ -153,17 +156,24 @@ async def send_message(
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     # Run the LangGraph tutoring pipeline
-    agent_response = await run_tutoring_graph(
-        db=db,
-        qdrant=qdrant,
-        claude=claude,
-        conversation_id=str(conversation_id),
-        student_message=request.content,
-        student_id=str(user_id),
-        course_id=str(conversation.course_id),
-        assignment_id=str(conversation.assignment_id) if conversation.assignment_id else None,
-        study_group=conversation.study_group,
-    )
+    try:
+        agent_response = await run_tutoring_graph(
+            db=db,
+            qdrant=qdrant,
+            claude=claude,
+            conversation_id=str(conversation_id),
+            student_message=request.content,
+            student_id=str(user_id),
+            course_id=str(conversation.course_id),
+            assignment_id=str(conversation.assignment_id) if conversation.assignment_id else None,
+            study_group=conversation.study_group,
+        )
+    except Exception as e:
+        logger.error("Tutoring graph failed", error=str(e), conversation_id=str(conversation_id))
+        raise HTTPException(
+            status_code=503,
+            detail="I'm having trouble responding right now. Please try again in a moment.",
+        )
 
     # Fetch the persisted assistant message
     msg_result = await db.execute(
@@ -175,7 +185,16 @@ async def send_message(
         .order_by(Message.created_at.desc())
         .limit(1)
     )
-    assistant_msg = msg_result.scalar_one()
+    assistant_msg = msg_result.scalar_one_or_none()
+    if not assistant_msg:
+        logger.error(
+            "Assistant message not found after tutoring graph",
+            conversation_id=str(conversation_id),
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Response was generated but could not be saved. Please try again.",
+        )
 
     # Extract artifact and action from message metadata if present
     artifact = None
@@ -187,6 +206,7 @@ async def send_message(
         try:
             artifact = StudyArtifact(**artifact_data)
         except Exception:
+            logger.warning("Failed to parse artifact", artifact_data=artifact_data)
             artifact = None
 
     action_data = metadata.get("action")
@@ -194,6 +214,7 @@ async def send_message(
         try:
             action = MeetingAction(**action_data)
         except Exception:
+            logger.warning("Failed to parse action", action_data=action_data)
             action = None
 
     widgets_data = metadata.get("widgets")
@@ -257,7 +278,7 @@ async def stream_message(
             assignment_id=str(conversation.assignment_id) if conversation.assignment_id else None,
             study_group=conversation.study_group,
         ):
-            event_type = event.pop("event")
+            event_type = event.pop("event", "token")
             yield f"event: {event_type}\ndata: {json.dumps(event)}\n\n"
 
     return StreamingResponse(
