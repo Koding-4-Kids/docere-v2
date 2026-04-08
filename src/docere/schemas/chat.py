@@ -132,6 +132,7 @@ class CreateConversationRequest(BaseModel):
 
 class SendMessageRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=10000)
+    notes_content: str | None = Field(None, max_length=20000)
 
 
 class MessageResponse(BaseModel):

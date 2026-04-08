@@ -76,6 +76,17 @@ def build_prompt(state: TutoringState) -> dict:
     if student_doc_ctx:
         parts.append(f"\n## Student's Uploaded Materials\n{student_doc_ctx}")
 
+    # Live notes from the student's editor
+    notes = state.get("notes_content") or ""
+    notes = notes.strip()
+    if notes:
+        parts.append(
+            f"\n## Student's Current Notes\n"
+            f"The student is actively editing these notes right now. "
+            f"Reference them when relevant — correct mistakes, fill gaps, "
+            f"or build on what they've written.\n\n{notes}"
+        )
+
     parts.append(STUDY_MATERIALS_INSTRUCTIONS)
     parts.append(WIDGET_INSTRUCTIONS)
 

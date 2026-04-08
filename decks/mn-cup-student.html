@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docere — MN Cup Student Division 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }
+  .deck { width: 100vw; height: 100vh; position: relative; }
+
+  /* — Slide base — */
+  .slide { width: 100vw; height: 100vh; display: none; flex-direction: column; justify-content: center; padding: 6vh 8vw; position: absolute; top: 0; left: 0; }
+  .slide.active { display: flex; }
+
+  /* — Themes — */
+  .slide.light { background: #ffffff; color: #1a1a1a; }
+  .slide.light h1, .slide.light h2 { color: #1a1a1a; }
+  .slide.light p { color: #444; }
+  .slide.light .card { background: #f7f7f4; border: 1px solid #e5e5e0; }
+  .slide.light .card h4 { color: #1a1a1a; }
+  .slide.light .card p { color: #666; }
+  .slide.light .dim { color: #999; }
+
+  .slide.dark { background: #1a1a18; color: #e8e8e8; }
+  .slide.dark h1, .slide.dark h2 { color: #fff; }
+  .slide.dark p { color: #b0b0b0; }
+  .slide.dark .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); }
+  .slide.dark .card h4 { color: #fff; }
+  .slide.dark .card p { color: #999; }
+  .slide.dark .dim { color: #555; }
+
+  .slide.orange { background: #F15524; color: #fff; }
+  .slide.orange h1, .slide.orange h2, .slide.orange p { color: #fff; }
+  .slide.orange .dim { color: rgba(255,255,255,0.6); }
+
+  /* — Typography — */
+  h1 { font-family: 'EB Garamond', Georgia, serif; font-size: 2.8rem; font-weight: 400; margin-bottom: 1rem; line-height: 1.15; }
+  h2 { font-family: 'EB Garamond', Georgia, serif; font-size: 2rem; font-weight: 400; margin-bottom: 1.2rem; line-height: 1.2; }
+  h3 { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; color: #F15524; margin-bottom: 1rem; }
+  h4 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+  p { font-size: 0.95rem; line-height: 1.65; max-width: 700px; margin-bottom: 0.6rem; }
+  .accent { color: #F15524; }
+  .small { font-size: 0.82rem; }
+
+  /* — Grids — */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 0.75rem; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-top: 0.75rem; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-top: 0.75rem; }
+  .grid5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-top: 0.75rem; }
+
+  /* — Cards — */
+  .card { border-radius: 14px; padding: 1.5rem; }
+  .card-top { border-top: 3px solid #F15524; }
+
+  /* — Metrics — */
+  .metric { text-align: center; padding: 1.25rem; }
+  .metric .num { font-size: 2.4rem; font-weight: 700; color: #F15524; line-height: 1; margin-bottom: 0.2rem; }
+  .metric .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: #888; }
+
+  /* — Metrics row (horizontal) — */
+  .metrics-row { display: flex; gap: 2rem; margin-top: 1rem; justify-content: center; flex-wrap: wrap; }
+  .metrics-row .metric { min-width: 100px; }
+
+  /* — Tags — */
+  .tag { display: inline-block; font-size: 0.65rem; padding: 0.2rem 0.6rem; border-radius: 20px; background: rgba(241,85,36,0.1); color: #F15524; border: 1px solid rgba(241,85,36,0.2); margin-right: 0.4rem; margin-bottom: 0.4rem; font-weight: 500; }
+
+  /* — Flow — */
+  .flow { display: flex; align-items: center; gap: 0.5rem; margin: 1rem 0; flex-wrap: wrap; }
+  .flow-step { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem 1.25rem; text-align: center; min-width: 120px; flex: 1; }
+  .slide.light .flow-step { background: #f7f7f4; border: 1px solid #e5e5e0; }
+  .flow-step .fnum { font-size: 0.65rem; font-weight: 600; color: #F15524; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.3rem; }
+  .flow-step .ftitle { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.15rem; }
+  .slide.dark .flow-step .ftitle { color: #fff; }
+  .flow-step .fdesc { font-size: 0.72rem; color: #999; }
+  .slide.light .flow-step .fdesc { color: #888; }
+  .flow-arrow { color: #F15524; font-size: 1.2rem; font-weight: 300; }
+
+  /* — Stat bar — */
+  .stat-bar { display: flex; gap: 1.5rem; margin-top: 1.5rem; font-size: 0.8rem; color: #888; flex-wrap: wrap; }
+  .stat-bar span { display: flex; align-items: center; gap: 0.35rem; }
+  .stat-bar .dot { width: 5px; height: 5px; border-radius: 50%; background: #F15524; }
+
+  /* — Video placeholder — */
+  .video-slot { width: 100%; max-width: 600px; margin: 1rem auto 0; border-radius: 12px; overflow: hidden; }
+  .video-slot video { width: 100%; display: block; border-radius: 12px; }
+
+  /* — Callout — */
+  .callout { background: rgba(241,85,36,0.06); border-left: 3px solid #F15524; border-radius: 0 10px 10px 0; padding: 1rem 1.25rem; margin-top: 1rem; }
+  .slide.dark .callout { background: rgba(241,85,36,0.08); }
+  .callout p { margin: 0; font-size: 0.88rem; }
+
+  /* — Bar chart — */
+  .bar-chart { display: flex; align-items: flex-end; gap: 2rem; height: 160px; margin-top: 1rem; padding: 0 1rem; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; }
+  .bar { width: 100%; max-width: 80px; background: linear-gradient(180deg, #F15524 0%, #D94A1C 100%); border-radius: 6px 6px 0 0; transition: height 0.6s ease; }
+  .bar-val { font-size: 0.85rem; font-weight: 700; color: #F15524; margin-bottom: 0.3rem; }
+  .bar-label { font-size: 0.7rem; color: #888; margin-top: 0.4rem; text-align: center; }
+
+  /* — Comparison table — */
+  .comp-table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.82rem; }
+  .comp-table th { text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.6rem 1rem; border-bottom: 1px solid rgba(128,128,128,0.2); }
+  .slide.light .comp-table th { color: #888; }
+  .slide.dark .comp-table th { color: #666; }
+  .comp-table td { padding: 0.55rem 1rem; border-bottom: 1px solid rgba(128,128,128,0.08); }
+  .slide.light .comp-table td { color: #444; }
+  .slide.dark .comp-table td { color: #bbb; }
+  .comp-table .highlight { background: rgba(241,85,36,0.06); }
+  .comp-table .highlight td { color: #F15524; font-weight: 600; }
+  .slide.dark .comp-table .highlight { background: rgba(241,85,36,0.08); }
+  .comp-table .check { color: #10B981; }
+  .comp-table .cross { color: #888; }
+
+  /* — TAM circles (SVG) — */
+  .tam-wrap { display: flex; align-items: center; gap: 3rem; }
+
+  /* — Timeline — */
+  .timeline { display: flex; gap: 0; margin-top: 1.5rem; position: relative; }
+  .timeline::before { content: ''; position: absolute; top: 12px; left: 0; right: 0; height: 2px; background: rgba(241,85,36,0.2); }
+  .tl-item { flex: 1; text-align: center; position: relative; padding-top: 2rem; }
+  .tl-item::before { content: ''; position: absolute; top: 6px; left: 50%; transform: translateX(-50%); width: 14px; height: 14px; border-radius: 50%; background: #F15524; border: 3px solid; }
+  .slide.dark .tl-item::before { border-color: #1a1a18; }
+  .slide.light .tl-item::before { border-color: #fff; }
+  .tl-item .tl-date { font-size: 0.7rem; font-weight: 600; color: #F15524; margin-bottom: 0.2rem; }
+  .tl-item .tl-text { font-size: 0.72rem; color: #999; }
+
+  /* — Logo — */
+  .logo-sm { width: 32px; height: 32px; }
+  .logo-lg { width: 72px; height: 72px; margin-bottom: 0.75rem; }
+
+  /* — Progress bar — */
+  #progress { position: fixed; top: 0; left: 0; height: 3px; background: #F15524; transition: width 0.4s ease; z-index: 200; }
+
+  /* — Nav — */
+  .counter { position: fixed; bottom: 1.75rem; left: 2.5rem; font-size: 0.75rem; color: #666; z-index: 100; }
+  .nav { position: fixed; bottom: 1.5rem; right: 2.5rem; display: flex; gap: 0.5rem; z-index: 100; }
+  .nav button { background: rgba(128,128,128,0.1); border: 1px solid rgba(128,128,128,0.2); color: #999; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .nav button:hover { background: rgba(241,85,36,0.15); color: #F15524; border-color: rgba(241,85,36,0.3); }
+
+  /* — Notes — */
+  .notes-overlay { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.88); color: #e0e0e0; padding: 1.25rem 2.5rem; font-size: 0.8rem; line-height: 1.6; z-index: 150; max-height: 28vh; overflow-y: auto; border-top: 2px solid #F15524; }
+  .notes-overlay.show { display: block; }
+  .notes-overlay .notes-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F15524; margin-bottom: 0.4rem; }
+
+  /* — Animations — */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .slide.active > * { animation: fadeIn 0.35s ease-out both; }
+  .slide.active > *:nth-child(2) { animation-delay: 0.06s; }
+  .slide.active > *:nth-child(3) { animation-delay: 0.12s; }
+  .slide.active > *:nth-child(4) { animation-delay: 0.18s; }
+  .slide.active > *:nth-child(5) { animation-delay: 0.24s; }
+  .slide.active > *:nth-child(6) { animation-delay: 0.30s; }
+  .slide.active > *:nth-child(7) { animation-delay: 0.36s; }
+
+  /* — Print — */
+  @media print {
+    .slide { display: flex !important; position: relative !important; height: auto; min-height: 100vh; page-break-after: always; }
+    .nav, .counter, #progress, .notes-overlay { display: none !important; }
+    body { overflow: visible; }
+    .deck { height: auto; }
+  }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div class="deck">
+
+<!-- ===== SLIDE 1: Title ===== -->
+<div class="slide light active" data-notes="Good morning. I'm Youdahe Asfaw, and this is my co-founder Kofi Osei. We're CS students at Gustavus Adolphus College in Minnesota. We built Docere — an AI tutor that's already live in two middle schools with over 500 students. It doesn't just tutor. It measures whether students actually learn, and it gets better at teaching every week.">
+  <svg class="logo-lg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="p" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#p" transform="rotate(0 100 100)"/><use href="#p" transform="rotate(45 100 100)"/><use href="#p" transform="rotate(90 100 100)"/><use href="#p" transform="rotate(135 100 100)"/></g></svg>
+  <h1>Docere</h1>
+  <p style="font-size: 1.2rem; color: #666; font-family: 'EB Garamond', Georgia, serif;">AI tutoring that learns from student outcomes.</p>
+  <p style="font-size: 0.85rem; color: #999; margin-top: 0.3rem;">Youdahe Asfaw &amp; Kofi Osei &nbsp;·&nbsp; Gustavus Adolphus College</p>
+  <div class="stat-bar">
+    <span><span class="dot"></span> 500+ students</span>
+    <span><span class="dot"></span> 2 schools deployed</span>
+    <span><span class="dot"></span> AIED 2026 research paper</span>
+    <span><span class="dot"></span> $10K in prizes</span>
+  </div>
+</div>
+
+<!-- ===== SLIDE 2: The Problem ===== -->
+<div class="slide dark" data-notes="Students are using AI in every classroom in America. But they're using it wrong — they paste homework into ChatGPT, get the answer, and learn nothing. Teachers know this is happening and have zero way to stop it or even see it. And here's the real problem: every AI tutor on the market is static. Khanmigo doesn't know if it actually taught anything. ChatGPT doesn't care. Nobody closes the loop between tutoring and outcomes.">
+  <h3>The Problem</h3>
+  <h1>A problem every school faces.<br><span class="accent">Nobody has solved it.</span></h1>
+  <div class="grid3" style="margin-top: 1.25rem;">
+    <div class="card">
+      <h4 style="color: #F15524; font-size: 0.75rem; letter-spacing: 0.1em;">AI MISUSE</h4>
+      <h4>Students copy, don't learn</h4>
+      <p class="small">Students paste homework into ChatGPT, get the answer, and move on. Zero understanding gained. Teachers can't stop it.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: #F15524; font-size: 0.75rem; letter-spacing: 0.1em;">ZERO VISIBILITY</h4>
+      <h4>Teachers are in the dark</h4>
+      <p class="small">No teacher in America can see how their students use AI tools. It's a complete black box in every classroom.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: #F15524; font-size: 0.75rem; letter-spacing: 0.1em;">STATIC TUTORS</h4>
+      <h4>AI tutors never improve</h4>
+      <p class="small">Khanmigo, ChatGPT, Cognii — none measure whether students actually learned. Same tutor today as a year ago.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 3: The Solution ===== -->
+<div class="slide light" data-notes="Docere plugs into a school's existing Moodle or Canvas. Teachers click one button. All their course materials, grades, and rosters sync automatically. When a student asks for help, the AI tutors them using Socratic questioning — it guides them to the answer instead of giving it. But the key differentiator: every tutoring session is scored on four dimensions. Those scores are linked to actual LMS grades. Every week, the system evolves its best teaching strategies and prunes the worst ones.">
+  <h3>The Solution</h3>
+  <h1>Docere: an AI tutor that <span class="accent">gets better at teaching.</span></h1>
+  <div class="grid3" style="margin-top: 1rem;">
+    <div class="card card-top">
+      <h4>Plugs into existing LMS</h4>
+      <p class="small">Canvas &amp; Moodle via LTI 1.3. Auto-syncs courses, assignments, grades, rosters. Teacher clicks one button.</p>
+    </div>
+    <div class="card card-top">
+      <h4>Teaches, doesn't tell</h4>
+      <p class="small">Socratic questioning grounded in actual course materials. Guides students to answers — never gives them directly.</p>
+    </div>
+    <div class="card card-top">
+      <h4>Measures &amp; improves</h4>
+      <p class="small">Every interaction scored on 4 dimensions. Scores linked to real grades. Teaching strategies evolve weekly.</p>
+    </div>
+  </div>
+  <div class="callout" style="max-width: 600px; margin-top: 1.25rem;">
+    <p><strong class="accent">One-click setup.</strong> Teachers add Docere to their LMS. Everything syncs automatically. No configuration, no training, no IT tickets.</p>
+  </div>
+</div>
+
+<!-- ===== SLIDE 4: Product Demo ===== -->
+<div class="slide dark" data-notes="[PLAY DEMO VIDEO] You'll see: an LTI launch from inside Moodle, the automatic sync of course materials, a student asking for help and getting Socratic guidance, and the teacher dashboard showing interaction analytics, at-risk alerts, and concept mastery graphs.">
+  <h3>Product</h3>
+  <h1>See it in action.</h1>
+  <div class="grid3" style="margin-top: 0.75rem;">
+    <div class="card" style="padding: 0.5rem; overflow: hidden;">
+      <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #F15524; margin-bottom: 0.3rem; padding: 0.5rem 0.5rem 0;">Course Dashboard</div>
+      <video controls muted preload="metadata" src="clip-course-nav.mp4" style="width: 100%; border-radius: 8px;"></video>
+    </div>
+    <div class="card" style="padding: 0.5rem; overflow: hidden;">
+      <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #F15524; margin-bottom: 0.3rem; padding: 0.5rem 0.5rem 0;">Student Query + Widgets</div>
+      <video controls muted preload="metadata" src="clip-student-query.mp4" style="width: 100%; border-radius: 8px;"></video>
+    </div>
+    <div class="card" style="padding: 0.5rem; overflow: hidden;">
+      <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #F15524; margin-bottom: 0.3rem; padding: 0.5rem 0.5rem 0;">3D Memory Graph</div>
+      <video controls muted preload="metadata" src="clip-network-graph.mp4" style="width: 100%; border-radius: 8px;"></video>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 5: Self-Improvement Loop ===== -->
+<div class="slide light" data-notes="Here's the technical core. After every tutoring interaction, the system scores itself on four dimensions using both AI judgment and measurable signals. Those scores get linked to actual grades from the LMS via a 14-day attribution window. Every week, the best teaching strategies are mutated — new variants are created — and the worst are pruned. A multi-armed bandit algorithm decides which strategy to try next. This is a flywheel: more data makes the tutor better, which creates more data. This is the moat.">
+  <h3>The Innovation</h3>
+  <h1>The self-improvement loop. <span class="accent">This is the moat.</span></h1>
+  <div class="flow" style="margin-top: 1.5rem;">
+    <div class="flow-step">
+      <div class="fnum">Tutor</div>
+      <div class="ftitle">5 Strategies</div>
+      <div class="fdesc">Socratic, Analogy, Scaffolded, Error-Focused, Minimal</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="fnum">Score</div>
+      <div class="ftitle">4 Dimensions</div>
+      <div class="fdesc">Helpfulness, Clarity, Understanding gain, Engagement</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="fnum">Link</div>
+      <div class="ftitle">Grade Outcomes</div>
+      <div class="fdesc">Scores connected to real LMS grades (14-day window)</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="fnum">Evolve</div>
+      <div class="ftitle">Weekly Cycle</div>
+      <div class="fdesc">Mutate top performers. Prune failures. UCB1 selects.</div>
+    </div>
+  </div>
+  <div class="callout" style="max-width: 640px; margin-top: 1.5rem;">
+    <p><strong class="accent">Every week of usage makes Docere harder to replicate.</strong> Competitors can build a chatbot. They can't build 500+ students of self-improvement data.</p>
+  </div>
+</div>
+
+<!-- ===== SLIDE 6: Traction ===== -->
+<div class="slide dark" data-notes="We have over 500 students actively using the product across two Minnesota middle schools. The entire system has 50+ API endpoints, full LMS integration, and zero teacher setup. We've won $10,000 in pitch competitions. We're writing a research paper for AIED 2026 in Seoul. A professor at Gustavus volunteered to help with our IRB application — he came to us, we didn't pitch him.">
+  <h3>Traction</h3>
+  <h1>Further along than most <span class="accent">funded startups.</span></h1>
+  <div class="metrics-row" style="margin-top: 1.25rem;">
+    <div class="metric"><div class="num">500+</div><div class="label">Students</div></div>
+    <div class="metric"><div class="num">2</div><div class="label">Schools Live</div></div>
+    <div class="metric"><div class="num">50+</div><div class="label">API Endpoints</div></div>
+    <div class="metric"><div class="num">$10K</div><div class="label">Prize Money</div></div>
+    <div class="metric"><div class="num">0 min</div><div class="label">Teacher Setup</div></div>
+  </div>
+  <div class="timeline">
+    <div class="tl-item"><div class="tl-date">Early 2024</div><div class="tl-text">Started building v1<br>Node.js platform</div></div>
+    <div class="tl-item"><div class="tl-date">Mid 2024</div><div class="tl-text">Kofi joins<br>Research begins</div></div>
+    <div class="tl-item"><div class="tl-date">2025</div><div class="tl-text">Deployed in<br>2 middle schools</div></div>
+    <div class="tl-item"><div class="tl-date">2026</div><div class="tl-text">v2 agent system<br>AIED paper · $10K prizes</div></div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 7: Market Opportunity ===== -->
+<div class="slide light" data-notes="There are 50 million K-12 students in the US. At $10 per student per year, the US market alone is $500 million. Higher ed adds another billion. The important number is the SAM: districts that are already spending on adaptive tools. They have budget line items for IXL, DreamBox, Lexia. We're not asking them to spend new money — we're asking them to spend it better. Year one target: 10 paying districts, approximately $500,000 in ARR.">
+  <h3>Market</h3>
+  <h1><span class="accent">$500M+</span> and growing.</h1>
+  <div class="grid2" style="margin-top: 1rem;">
+    <div>
+      <!-- TAM/SAM/SOM -->
+      <svg viewBox="0 0 300 300" style="width: 100%; max-width: 280px; margin: 0 auto; display: block;">
+        <circle cx="150" cy="150" r="140" fill="rgba(241,85,36,0.06)" stroke="#F15524" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="150" y="38" text-anchor="middle" fill="#F15524" font-size="11" font-family="Inter" font-weight="600">TAM: $500M+</text>
+        <text x="150" y="52" text-anchor="middle" fill="#999" font-size="9" font-family="Inter">50M US K-12 students</text>
+        <circle cx="150" cy="165" r="90" fill="rgba(241,85,36,0.08)" stroke="#F15524" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="150" y="110" text-anchor="middle" fill="#F15524" font-size="11" font-family="Inter" font-weight="600">SAM: $50M</text>
+        <text x="150" y="124" text-anchor="middle" fill="#999" font-size="9" font-family="Inter">Districts buying EdTech</text>
+        <circle cx="150" cy="195" r="40" fill="rgba(241,85,36,0.15)" stroke="#F15524" stroke-width="1.5"/>
+        <text x="150" y="192" text-anchor="middle" fill="#F15524" font-size="11" font-family="Inter" font-weight="700">SOM Yr 1</text>
+        <text x="150" y="206" text-anchor="middle" fill="#D94A1C" font-size="9" font-family="Inter">$500K · 10 districts</text>
+      </svg>
+    </div>
+    <div>
+      <div class="card" style="height: 100%;">
+        <h4 style="color: #F15524; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;">Why Now?</h4>
+        <div style="margin-top: 0.75rem;">
+          <p class="small" style="margin-bottom: 0.6rem;"><strong>Every school is dealing with ChatGPT</strong> right now. Districts are actively seeking AI solutions they can control.</p>
+          <p class="small" style="margin-bottom: 0.6rem;"><strong>LMS ecosystems are mature.</strong> Canvas and Moodle (95% of US K-12) support LTI 1.3 — one-click integration.</p>
+          <p class="small" style="margin-bottom: 0.6rem;"><strong>AI costs dropped 90%</strong> in 2 years. Per-student API costs are now ~$0.50/year.</p>
+          <p class="small"><strong>Districts already budget $5-20/student</strong> for IXL, DreamBox, Lexia. We're a direct replacement.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 8: Business Model ===== -->
+<div class="slide dark" data-notes="We sell SaaS subscriptions to school districts. K-12 pricing is $5 to $15 per student per year. A single mid-size district with 10,000 students is a $50K to $150K annual contract. Year one target is 10 paying districts. Our unit economics are strong: the AI API cost is roughly 50 cents per student per year, infrastructure is about 25 cents per student. That gives us 85%+ gross margins.">
+  <h3>Business Model</h3>
+  <h1>SaaS to school districts. <span class="accent">85%+ margins.</span></h1>
+  <div class="grid2" style="margin-top: 1rem;">
+    <div>
+      <div class="card" style="margin-bottom: 1rem;">
+        <h4 style="color: #F15524; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;">Pricing</h4>
+        <div style="margin-top: 0.5rem;">
+          <p class="small"><strong style="color: #fff;">K-12:</strong> $5-15 / student / year</p>
+          <p class="small"><strong style="color: #fff;">Higher Ed:</strong> $500-2,000 / course / semester</p>
+          <p class="small dim" style="margin-top: 0.5rem;">A mid-size district (10K students) = $50K-$150K/year</p>
+        </div>
+      </div>
+      <div class="card">
+        <h4 style="color: #F15524; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;">Unit Economics</h4>
+        <div style="margin-top: 0.5rem;">
+          <p class="small"><strong style="color: #fff;">API cost:</strong> ~$0.50/student/year</p>
+          <p class="small"><strong style="color: #fff;">Infrastructure:</strong> ~$0.25/student/year</p>
+          <p class="small"><strong style="color: #fff;">Gross margin:</strong> <span style="color: #10B981;">85%+</span></p>
+          <p class="small dim" style="margin-top: 0.5rem;">EdTech contracts renew at 90%+</p>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h4 style="color: #fff; font-size: 0.8rem; margin-bottom: 0.5rem;">Revenue Projections</h4>
+      <div class="bar-chart" style="height: 180px;">
+        <div class="bar-col">
+          <div class="bar-val">$500K</div>
+          <div class="bar" style="height: 15%;"></div>
+          <div class="bar-label">Year 1<br><span style="color: #666;">10 districts</span></div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-val">$2M</div>
+          <div class="bar" style="height: 45%;"></div>
+          <div class="bar-label">Year 2<br><span style="color: #666;">40 districts</span></div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-val">$8M</div>
+          <div class="bar" style="height: 100%;"></div>
+          <div class="bar-label">Year 3<br><span style="color: #666;">150+ districts</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 9: Competitive Landscape ===== -->
+<div class="slide light" data-notes="Khanmigo is a good tutor but it's the same tutor forever and it requires switching to Khan Academy. ChatGPT now has memory, but remembering facts is not the same as measuring if teaching worked. Cognii and Carnegie Learning are enterprise — months-long integrations, expensive. Docere is the only product that scores every interaction, links those scores to real grades, and evolves its teaching strategies. And it integrates in one click.">
+  <h3>Competition</h3>
+  <h1>What they miss. <span class="accent">What we don't.</span></h1>
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th style="width: 22%;">Feature</th>
+        <th style="width: 18%;">Khanmigo</th>
+        <th style="width: 18%;">ChatGPT</th>
+        <th style="width: 18%;">Cognii</th>
+        <th style="width: 24%; color: #F15524;">Docere</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>LMS Integration</strong></td>
+        <td><span class="cross">None</span></td>
+        <td><span class="cross">None</span></td>
+        <td>Slow (months)</td>
+        <td class="highlight" style="color: #F15524;"><strong>One-click LTI</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Outcome Tracking</strong></td>
+        <td><span class="cross">None</span></td>
+        <td><span class="cross">None</span></td>
+        <td><span class="cross">None</span></td>
+        <td class="highlight" style="color: #F15524;"><strong>Score + grade link</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Self-Improvement</strong></td>
+        <td><span class="cross">None</span></td>
+        <td><span class="cross">None</span></td>
+        <td><span class="cross">None</span></td>
+        <td class="highlight" style="color: #F15524;"><strong>Weekly evolution</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Teacher Dashboard</strong></td>
+        <td>Minimal</td>
+        <td><span class="cross">None</span></td>
+        <td>Basic</td>
+        <td class="highlight" style="color: #F15524;"><strong>Full analytics</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Setup Time</strong></td>
+        <td>Switch platforms</td>
+        <td>Copy-paste</td>
+        <td>Months</td>
+        <td class="highlight" style="color: #F15524;"><strong>Zero</strong></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ===== SLIDE 10: Go-to-Market ===== -->
+<div class="slide dark" data-notes="Our go-to-market starts bottom-up. A teacher tries Docere for free. They see the dashboard, see their students getting better help. They bring it to their principal. That's exactly how our current two schools happened — both came from a single teacher trying it. Phase 2 is conversion: once we have outcome data, we go to the district office with a case study. Phase 3 is scaling through conferences, LMS marketplaces, and reseller partnerships.">
+  <h3>Go-to-Market</h3>
+  <h1>Land. Prove. <span class="accent">Expand.</span></h1>
+  <div class="grid3" style="margin-top: 1.25rem;">
+    <div class="card">
+      <h4 style="color: #F15524;">Phase 1 — Prove</h4>
+      <p class="small" style="color: #bbb;"><strong style="color: #fff;">Now - 6 months</strong></p>
+      <p class="small">Free pilots at 5-10 Minnesota schools. Collect outcome data. Build case studies with grade comparison data.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: #F15524;">Phase 2 — Convert</h4>
+      <p class="small" style="color: #bbb;"><strong style="color: #fff;">6-12 months</strong></p>
+      <p class="small">First paid district contracts. "Students using Docere scored X% higher on unit tests." Sell the case study.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: #F15524;">Phase 3 — Scale</h4>
+      <p class="small" style="color: #bbb;"><strong style="color: #fff;">12-24 months</strong></p>
+      <p class="small">Multi-district deals. LMS app marketplace listings. Conference presentations. Reseller partnerships.</p>
+    </div>
+  </div>
+  <div style="margin-top: 1.25rem;">
+    <span class="tag">Teacher-to-admin word-of-mouth</span>
+    <span class="tag">ISTE &amp; AIED conferences</span>
+    <span class="tag">Academic publications</span>
+    <span class="tag">Canvas App Center</span>
+    <span class="tag">Moodle Plugin Directory</span>
+  </div>
+</div>
+
+<!-- ===== SLIDE 11: Technology ===== -->
+<div class="slide light" data-notes="The system is production-grade. Full async Python backend, PostgreSQL for relational data, Qdrant for vector search, Redis for task queuing. The LTI 1.3 integration works with both Canvas and Moodle — the two dominant LMS platforms covering 95% of US K-12. We built the entire codebase ourselves — no non-founder has written any code.">
+  <h3>Technology</h3>
+  <h1>Built to scale. <span class="accent">Production-grade.</span></h1>
+  <div class="grid2" style="margin-top: 1rem;">
+    <div>
+      <div class="card" style="margin-bottom: 1rem;">
+        <h4>Backend</h4>
+        <p class="small">Python 3.12 · FastAPI (async) · PostgreSQL · Redis · Qdrant (vector DB) · Alembic migrations · ARQ task queue</p>
+      </div>
+      <div class="card" style="margin-bottom: 1rem;">
+        <h4>AI Layer</h4>
+        <p class="small">Anthropic Claude (tutoring + evolution) · Voyage AI (embeddings) · LangGraph (agent orchestration) · FSRS (spaced repetition)</p>
+      </div>
+      <div class="card">
+        <h4>Frontend</h4>
+        <p class="small">React 19 · TypeScript · Tailwind CSS · Three.js (3D memory graph) · Vite</p>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="height: 100%; display: flex; flex-direction: column; justify-content: center;">
+        <h4 style="color: #F15524; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem;">Key Metrics</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="metric"><div class="num" style="font-size: 1.8rem;">50+</div><div class="label">API Endpoints</div></div>
+          <div class="metric"><div class="num" style="font-size: 1.8rem;">&lt;1s</div><div class="label">Response Time</div></div>
+          <div class="metric"><div class="num" style="font-size: 1.8rem;">15</div><div class="label">DB Tables</div></div>
+          <div class="metric"><div class="num" style="font-size: 1.8rem;">95%</div><div class="label">LMS Coverage</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 12: Research ===== -->
+<div class="slide dark" data-notes="This isn't just a product — it's a research contribution. We've designed a three-arm ablation study to rigorously measure whether memory augmentation and strategy evolution actually improve student outcomes. The control group gets a base LLM. Treatment A adds memory. Treatment B adds the full self-improvement loop. A professor at Gustavus volunteered to help with our IRB application when he saw the research design. Our paper is targeting AIED 2026 in Seoul, the top venue in this field.">
+  <h3>Research</h3>
+  <h1>Rigorous by design. <span class="accent">Not by anecdote.</span></h1>
+  <div class="grid2" style="margin-top: 1rem;">
+    <div>
+      <div class="card" style="margin-bottom: 1rem;">
+        <h4 style="color: #F15524;">AIED 2026 Paper</h4>
+        <p class="small" style="font-family: 'EB Garamond', Georgia, serif; font-style: italic; font-size: 1rem;">"Learning Agents That Learn"</p>
+        <p class="small">Targeting the top AI in Education conference. Seoul, 2026.</p>
+      </div>
+      <div class="card">
+        <h4 style="color: #F15524;">IRB Application</h4>
+        <p class="small">Faculty sponsor volunteered — came to us after seeing the research design. Formal classroom study in progress.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="height: 100%;">
+        <h4 style="color: #F15524;">Three-Arm Ablation Study</h4>
+        <div style="margin-top: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
+            <span style="background: #333; color: #999; padding: 0.3rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; min-width: 65px; text-align: center;">Control</span>
+            <span class="small" style="color: #bbb;">Base LLM only</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
+            <span style="background: rgba(241,85,36,0.15); color: #F15524; padding: 0.3rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; min-width: 65px; text-align: center;">Group A</span>
+            <span class="small" style="color: #bbb;">+ Memory + Student Profiles</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span style="background: #F15524; color: #fff; padding: 0.3rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; min-width: 65px; text-align: center;">Group B</span>
+            <span class="small" style="color: #bbb;">+ Memory + Strategies + Evolution</span>
+          </div>
+        </div>
+        <p class="small dim" style="margin-top: 1rem;">Measures: interaction quality scores, grade trajectories, concept mastery progression</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 13: Team ===== -->
+<div class="slide light" data-notes="I've spent two years building educational software and hundreds of hours in middle school classrooms watching students use AI tools. Before Docere, I did ML research at Hugging Face and built cognitive software at Medtronic. Kofi is a published ML researcher who worked at HashiCorp and Goldman Sachs. Together we bring the technical depth to build this and the classroom experience to know what actually works.">
+  <h3>Team</h3>
+  <h1>The people behind Docere.</h1>
+  <div class="grid2" style="margin-top: 1.25rem;">
+    <div class="card card-top">
+      <h4>Youdahe Asfaw <span style="font-weight: 400; color: #888; font-size: 0.85rem;">— Founder</span></h4>
+      <p class="small">Built the entire platform from scratch — v1 (Node.js, deployed in 2 schools) and v2 (Python/FastAPI agent system). 2+ years building educational software. Hundreds of hours in middle school classrooms.</p>
+      <div style="margin-top: 0.5rem;">
+        <span class="tag">ML Research @ Hugging Face</span>
+        <span class="tag">Software Engineer @ Medtronic (AI)</span>
+        <span class="tag">Code2040 Fellow</span>
+        <span class="tag">Angel Investor</span>
+      </div>
+    </div>
+    <div class="card card-top">
+      <h4>Kofi Osei <span style="font-weight: 400; color: #888; font-size: 0.85rem;">— Co-founder</span></h4>
+      <p class="small">Research &amp; ML lead. Published IEEE researcher (Adaptive Mixture of Experts). Co-leads AIED 2026 paper and ablation study design. 1.5 years teaching experience as TA.</p>
+      <div style="margin-top: 0.5rem;">
+        <span class="tag">Published IEEE Researcher</span>
+        <span class="tag">Software Engineer @ HashiCorp</span>
+        <span class="tag">Goldman Sachs Emerging Leaders</span>
+        <span class="tag">Code2040 Fellow</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 14: Use of Funds ===== -->
+<div class="slide dark" data-notes="With the prize money, we immediately expand from 2 schools to 5 to 10. We present our research at AIED 2026 in Seoul. We build teacher onboarding materials. And we get a FERPA compliance audit to clear the path for district-level sales. Within 3 months: 5+ school deployments. Within 6 months: first outcome data with grade comparisons. Within 9 months: first paid district contract.">
+  <h3>Use of Funds</h3>
+  <h1>What we do with <span class="accent">the money.</span></h1>
+  <div class="grid2" style="margin-top: 1rem;">
+    <div>
+      <div style="margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem;">
+          <span class="small" style="color: #fff; font-weight: 600;">Cloud Infrastructure — 5-10 school pilots</span>
+          <span class="small" style="color: #F15524; font-weight: 700;">40%</span>
+        </div>
+        <div style="height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;">
+          <div style="height: 100%; width: 40%; background: #F15524; border-radius: 4px;"></div>
+        </div>
+      </div>
+      <div style="margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem;">
+          <span class="small" style="color: #fff; font-weight: 600;">AIED 2026 Conference — Seoul</span>
+          <span class="small" style="color: #F15524; font-weight: 700;">25%</span>
+        </div>
+        <div style="height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;">
+          <div style="height: 100%; width: 25%; background: #F15524; border-radius: 4px;"></div>
+        </div>
+      </div>
+      <div style="margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem;">
+          <span class="small" style="color: #fff; font-weight: 600;">Teacher Onboarding &amp; Pilot Development</span>
+          <span class="small" style="color: #F15524; font-weight: 700;">20%</span>
+        </div>
+        <div style="height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;">
+          <div style="height: 100%; width: 20%; background: #F15524; border-radius: 4px;"></div>
+        </div>
+      </div>
+      <div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem;">
+          <span class="small" style="color: #fff; font-weight: 600;">Legal &amp; FERPA Compliance Audit</span>
+          <span class="small" style="color: #F15524; font-weight: 700;">15%</span>
+        </div>
+        <div style="height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;">
+          <div style="height: 100%; width: 15%; background: #F15524; border-radius: 4px;"></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="border: 1px solid rgba(241,85,36,0.2); background: rgba(241,85,36,0.04); height: 100%;">
+        <h4 style="color: #F15524;">Milestones Enabled</h4>
+        <div style="margin-top: 0.75rem;">
+          <div style="display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 1rem;">
+            <span style="color: #F15524; font-weight: 700; font-size: 0.85rem; min-width: 55px;">3 mo</span>
+            <p class="small" style="margin: 0; color: #ccc;">5+ school deployments across Minnesota</p>
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 1rem;">
+            <span style="color: #F15524; font-weight: 700; font-size: 0.85rem; min-width: 55px;">6 mo</span>
+            <p class="small" style="margin: 0; color: #ccc;">First outcome data — grade comparison case study</p>
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+            <span style="color: #F15524; font-weight: 700; font-size: 0.85rem; min-width: 55px;">9 mo</span>
+            <p class="small" style="margin: 0; color: #ccc;">First paid district contract signed</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 15: Closing ===== -->
+<div class="slide orange" data-notes="We have over 500 students already using the product. We have a self-improving AI system no competitor has built. We have a research paper going to the top conference in the field. We're asking you to help us go from 2 schools to 200 districts. Thank you.">
+  <div style="text-align: center;">
+    <svg style="width: 80px; height: 80px; margin-bottom: 1.5rem;" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pw" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#fff"><use href="#pw" transform="rotate(0 100 100)"/><use href="#pw" transform="rotate(45 100 100)"/><use href="#pw" transform="rotate(90 100 100)"/><use href="#pw" transform="rotate(135 100 100)"/></g></svg>
+    <h1 style="font-size: 2.8rem; max-width: 700px; margin: 0 auto 1rem;">500+ students are already learning better.</h1>
+    <p style="font-size: 1.5rem; font-family: 'EB Garamond', Georgia, serif; max-width: none; opacity: 0.85; margin-bottom: 2rem;">Help us reach 50 million.</p>
+    <p class="dim" style="font-size: 0.9rem; max-width: none;">Youdahe Asfaw &amp; Kofi Osei &nbsp;·&nbsp; Gustavus Adolphus College &nbsp;·&nbsp; docere.ai</p>
+  </div>
+</div>
+
+</div><!-- end .deck -->
+
+<!-- Navigation -->
+<div class="counter"><span id="current">1</span> / <span id="total"></span></div>
+<div class="nav">
+  <button onclick="prev()" aria-label="Previous slide">&larr;</button>
+  <button onclick="next()" aria-label="Next slide">&rarr;</button>
+</div>
+<div class="notes-overlay" id="notes"></div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const progress = document.getElementById('progress');
+const notesEl = document.getElementById('notes');
+let idx = 0;
+let notesVisible = false;
+document.getElementById('total').textContent = slides.length;
+
+function show(i) {
+  slides.forEach(s => s.classList.remove('active'));
+  slides[i].classList.add('active');
+  document.getElementById('current').textContent = i + 1;
+  progress.style.width = ((i + 1) / slides.length * 100) + '%';
+  const note = slides[i].getAttribute('data-notes');
+  notesEl.innerHTML = '<div class="notes-label">Speaker Notes (N)</div>' + (note || '<em>No notes.</em>');
+}
+
+function next() { if (idx < slides.length - 1) { idx++; show(idx); } }
+function prev() { if (idx > 0) { idx--; show(idx); } }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+  if (e.key === 'n' || e.key === 'N') { notesVisible = !notesVisible; notesEl.classList.toggle('show', notesVisible); }
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; });
+document.addEventListener('touchend', e => {
+  const diff = touchStartX - e.changedTouches[0].screenX;
+  if (Math.abs(diff) > 50) { diff > 0 ? next() : prev(); }
+});
+
+show(0);
+</script>
+</body>
+</html>

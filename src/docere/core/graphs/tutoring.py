@@ -90,6 +90,7 @@ async def run_tutoring_graph(
     course_id: str,
     assignment_id: str | None = None,
     study_group: str | None = None,
+    notes_content: str | None = None,
 ) -> TutoringResult:
     """Run the tutoring graph and return a structured result.
 
@@ -104,6 +105,7 @@ async def run_tutoring_graph(
         "message": student_message,
         "assignment_id": assignment_id,
         "study_group": study_group,
+        "notes_content": notes_content,
         # Injected dependencies (prefixed with _ to indicate they're not graph state)
         "_db": db,
         "_qdrant": qdrant,
@@ -154,6 +156,7 @@ async def stream_tutoring_graph(
     course_id: str,
     assignment_id: str | None = None,
     study_group: str | None = None,
+    notes_content: str | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Stream the tutoring graph, yielding token chunks then a final done event.
 
@@ -169,6 +172,7 @@ async def stream_tutoring_graph(
         "message": student_message,
         "assignment_id": assignment_id,
         "study_group": study_group,
+        "notes_content": notes_content,
         "_db": db,
         "_qdrant": qdrant,
         "_claude": claude,

@@ -304,15 +304,16 @@ export async function deleteConversation(conversationId: string): Promise<void> 
 
 // ── Messages ──
 
-export async function sendMessage(conversationId: string, content: string): Promise<AgentMessageResponse> {
+export async function sendMessage(conversationId: string, content: string, notesContent?: string): Promise<AgentMessageResponse> {
   return apiFetch<AgentMessageResponse>(`/api/v1/chat/conversations/${conversationId}/messages`, {
     method: 'POST',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, notes_content: notesContent || null }),
   })
 }
 
 export interface StreamDoneMeta {
   message_id: string
+  chat_text: string
   artifact: StudyArtifact | null
   action: MeetingAction | null
   widgets: Widget[]
@@ -329,6 +330,7 @@ export async function streamMessage(
   onToken: (text: string) => void,
   onDone: (meta: StreamDoneMeta) => void,
   onError: (err: string) => void,
+  notesContent?: string,
 ): Promise<void> {
   const token = getStoredToken()
   const headers: Record<string, string> = {
@@ -341,7 +343,7 @@ export async function streamMessage(
   const res = await fetch(`/api/v1/chat/conversations/${conversationId}/messages/stream`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, notes_content: notesContent || null }),
   })
 
   if (res.status === 401) {
@@ -364,37 +366,53 @@ export async function streamMessage(
 
   const decoder = new TextDecoder()
   let buffer = ''
+  let receivedDone = false
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
 
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    // Keep the last (possibly incomplete) line in the buffer
-    buffer = lines.pop() || ''
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      // Keep the last (possibly incomplete) line in the buffer
+      buffer = lines.pop() || ''
 
-    let currentEvent = ''
-    for (const line of lines) {
-      if (line.startsWith('event: ')) {
-        currentEvent = line.slice(7).trim()
-      } else if (line.startsWith('data: ')) {
-        const data = line.slice(6)
-        try {
-          const parsed = JSON.parse(data)
-          if (currentEvent === 'token') {
-            onToken(parsed.text)
-          } else if (currentEvent === 'done') {
-            onDone(parsed as StreamDoneMeta)
-          } else if (currentEvent === 'error') {
-            onError(parsed.detail || 'Stream error')
+      let currentEvent = ''
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          currentEvent = line.slice(7).trim()
+        } else if (line.startsWith('data: ')) {
+          const data = line.slice(6)
+          try {
+            const parsed = JSON.parse(data)
+            if (currentEvent === 'token') {
+              onToken(parsed.text)
+            } else if (currentEvent === 'done') {
+              receivedDone = true
+              onDone(parsed as StreamDoneMeta)
+            } else if (currentEvent === 'error') {
+              onError(parsed.detail || 'Stream error')
+              return
+            }
+          } catch {
+            // Ignore malformed JSON lines
           }
-        } catch {
-          // Ignore malformed JSON lines
+          currentEvent = ''
         }
-        currentEvent = ''
       }
     }
+  } catch (err) {
+    // Network error or connection drop mid-stream
+    if (!receivedDone) {
+      onError('Connection lost — please try again.')
+    }
+    return
+  }
+
+  // Stream ended without a done event — connection dropped after some tokens
+  if (!receivedDone) {
+    onError('Response interrupted — please try again.')
   }
 }
 
@@ -714,4 +732,138 @@ export async function undoCardReview(cardId: string): Promise<ReviewResult> {
 
 export async function getDueCounts(): Promise<DueCount[]> {
   return apiFetch<DueCount[]>('/api/v1/flashcards/due-counts')
+}
+
+// ── Student Documents ──
+
+export interface StudentDocument {
+  id: string
+  filename: string
+  status: 'uploaded' | 'processing' | 'completed' | 'failed'
+  chunk_count: number
+  page_count: number | null
+  file_size_bytes: number
+  created_at: string
+  error_message: string | null
+  doc_type: string | null
+}
+
+export interface StudentDocumentDetail extends StudentDocument {
+  extracted_text: string | null
+  has_file: boolean
+}
+
+export async function fetchDocumentFileBlob(docId: string): Promise<Blob> {
+  const token = getStoredToken()
+  const res = await fetch(`/api/v1/documents/${docId}/file`, {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+  })
+  if (res.status === 401) {
+    clearAuth()
+    window.location.reload()
+    throw new Error('Unauthorized')
+  }
+  if (!res.ok) throw new Error(`Failed to fetch file: ${res.status}`)
+  return res.blob()
+}
+
+export interface DocumentUploadResponse {
+  doc_id: string
+  filename: string
+  status: string
+  extracted_text: string
+  page_count: number | null
+}
+
+export async function uploadDocument(courseId: string, file: File): Promise<DocumentUploadResponse> {
+  const token = getStoredToken()
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('course_id', courseId)
+
+  const res = await fetch('/api/v1/documents/upload', {
+    method: 'POST',
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+    body: formData,
+  })
+
+  if (res.status === 401) {
+    clearAuth()
+    window.location.reload()
+    throw new Error('Unauthorized')
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.detail || `Upload failed: ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function uploadDocumentFromUrl(courseId: string, url: string): Promise<DocumentUploadResponse> {
+  return apiFetch<DocumentUploadResponse>('/api/v1/documents/upload-url', {
+    method: 'POST',
+    body: JSON.stringify({ course_id: courseId, url }),
+  })
+}
+
+export async function listDocuments(courseId?: string): Promise<StudentDocument[]> {
+  const params = courseId ? `?course_id=${courseId}` : ''
+  return apiFetch<StudentDocument[]>(`/api/v1/documents${params}`)
+}
+
+export async function getDocument(docId: string): Promise<StudentDocumentDetail> {
+  return apiFetch<StudentDocumentDetail>(`/api/v1/documents/${docId}`)
+}
+
+export async function confirmDocument(docId: string): Promise<void> {
+  await apiFetch<unknown>(`/api/v1/documents/${docId}/confirm`, { method: 'POST' })
+}
+
+export async function getDocumentStatus(docId: string): Promise<StudentDocument> {
+  return apiFetch<StudentDocument>(`/api/v1/documents/${docId}/status`)
+}
+
+export async function deleteDocument(docId: string): Promise<void> {
+  await apiFetch<void>(`/api/v1/documents/${docId}`, { method: 'DELETE' })
+}
+
+// ── Student Memory Graph ──
+
+export interface MemoryGraphNode {
+  id: string
+  name: string
+  type: 'memory' | 'concept' | 'document'
+  // Memory fields
+  memory_type?: string | null
+  content?: string | null
+  concepts?: string[] | null
+  confusion_score?: number | null
+  sentiment?: string | null
+  // Concept fields
+  mastery_level?: number | null
+  mastery_label?: string | null
+  times_practiced?: number | null
+  times_struggled?: number | null
+  // Document fields
+  doc_type?: string | null
+  filename?: string | null
+  status?: string | null
+  page_count?: number | null
+  chunk_count?: number | null
+}
+
+export interface MemoryGraphEdge {
+  source: string
+  target: string
+  type: 'memory_concept' | 'doc_concept' | 'concept_concept' | 'memory_memory'
+  weight?: number | null
+}
+
+export interface MemoryGraphData {
+  nodes: MemoryGraphNode[]
+  edges: MemoryGraphEdge[]
+}
+
+export async function getMyMemoryGraph(courseId: string): Promise<MemoryGraphData> {
+  return apiFetch<MemoryGraphData>(`/api/v1/memory/me/${courseId}/graph`)
 }

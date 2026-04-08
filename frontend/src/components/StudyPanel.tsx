@@ -1,6 +1,5 @@
-import { useState } from 'react'
-import { X, ChevronLeft, ChevronRight, RotateCcw, BookOpen, Layers, FileText, Presentation, Eye } from 'lucide-react'
-import { useTypewriter } from '../hooks/useTypewriter'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { X, ChevronLeft, ChevronRight, RotateCcw, BookOpen, Layers, FileText, Presentation, Pencil, Eye } from 'lucide-react'
 import type { StudyArtifact } from '../api'
 
 interface StudyPanelProps {
@@ -62,38 +61,93 @@ export function StudyPanel({ artifact, isGenerating, onClose }: StudyPanelProps)
         )}
 
         {artifact && (artifact.type === 'notes' || artifact.type === 'study_guide') && (
-          <MarkdownContent content={artifact.content} />
+          <EditableNotes content={artifact.content} />
         )}
       </div>
     </div>
   )
 }
 
-// ── Markdown renderer with typewriter ──
+// ── Editable notes with markdown preview ──
 
-function MarkdownContent({ content }: { content: string }) {
-  const { displayedText, isComplete, showAll } = useTypewriter({ text: content })
+function EditableNotes({ content: initialContent }: { content: string }) {
+  const [content, setContent] = useState(initialContent)
+  const [isEditing, setIsEditing] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Sync when new content arrives (e.g. new artifact generated)
+  useEffect(() => {
+    setContent(initialContent)
+    setIsEditing(false)
+  }, [initialContent])
+
+  // Auto-resize textarea and focus when entering edit mode
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.focus()
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
+    }
+  }, [isEditing])
+
+  const handleTextareaInput = useCallback(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
+    }
+  }, [])
 
   return (
     <div className="relative">
-      {!isComplete && (
-        <button
-          onClick={showAll}
-          className="absolute top-0 right-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-text-400 hover:text-text-200 hover:bg-bg-200 transition-colors"
-        >
-          <Eye className="w-3 h-3" />
-          Show all
-        </button>
+      {/* Toggle button */}
+      <button
+        onClick={() => setIsEditing(e => !e)}
+        className={`absolute top-0 right-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors z-10 ${
+          isEditing
+            ? 'text-accent bg-accent/10 hover:bg-accent/15'
+            : 'text-text-400 hover:text-text-200 hover:bg-bg-200'
+        }`}
+      >
+        {isEditing ? (
+          <>
+            <Eye className="w-3 h-3" />
+            Preview
+          </>
+        ) : (
+          <>
+            <Pencil className="w-3 h-3" />
+            Edit
+          </>
+        )}
+      </button>
+
+      {isEditing ? (
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={e => setContent(e.target.value)}
+          onInput={handleTextareaInput}
+          className="w-full bg-transparent text-sm text-text-200 leading-relaxed outline-none resize-none font-mono border border-bg-300/60 rounded-lg p-3 pt-8 min-h-[200px] focus:border-accent/30 transition-colors"
+          spellCheck
+        />
+      ) : (
+        <div className="pt-6">
+          <div
+            className="prose-sm cursor-text"
+            onClick={() => setIsEditing(true)}
+            title="Click to edit"
+          >
+            {content.split('\n').map((line, i) => (
+              <MarkdownLine key={i} line={line} />
+            ))}
+          </div>
+        </div>
       )}
-      <div className="prose-sm">
-        {displayedText.split('\n').map((line, i) => (
-          <MarkdownLine key={i} line={line} />
-        ))}
-        {!isComplete && <span className="inline-block w-0.5 h-4 bg-accent animate-pulse ml-0.5" />}
-      </div>
     </div>
   )
 }
+
+// ── Markdown line renderer ──
 
 function MarkdownLine({ line }: { line: string }) {
   const trimmed = line.trim()
@@ -125,7 +179,6 @@ function renderInline(text: string): (string | JSX.Element)[] {
     const boldMatch = remaining.match(/\*\*(.+?)\*\*/)
     const codeMatch = remaining.match(/`(.+?)`/)
 
-    // Pick whichever comes first
     const boldIdx = boldMatch?.index ?? Infinity
     const codeIdx = codeMatch?.index ?? Infinity
 

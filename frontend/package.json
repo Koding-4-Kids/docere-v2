@@ -10,9 +10,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tiptap/extension-bubble-menu": "^3.22.2",
+    "@tiptap/extension-highlight": "^3.22.2",
+    "@tiptap/extension-placeholder": "^3.22.2",
+    "@tiptap/extension-task-item": "^3.22.2",
+    "@tiptap/extension-task-list": "^3.22.2",
+    "@tiptap/pm": "^3.22.2",
+    "@tiptap/react": "^3.22.2",
+    "@tiptap/starter-kit": "^3.22.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-force-graph-3d": "^1.29.1",
+    "react-pdf": "^10.4.1",
     "three-spritetext": "^1.10.0"
   },
   "devDependencies": {

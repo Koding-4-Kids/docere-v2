@@ -578,7 +578,7 @@ function ValidationStep({ result, sourceData, courseId, onSync, onFix, onBack }:
 
         {/* Preview table */}
         {result.preview.length > 0 && (
-          <div className="overflow-x-auto mb-4 rounded-xl border border-white/[0.06]">
+          <div className="overflow-hidden mb-4 rounded-xl border border-white/[0.06]">
             <table className="w-full text-[11px]">
               <thead>
                 <tr className="border-b border-white/[0.06]">
@@ -652,7 +652,7 @@ function ValidationStep({ result, sourceData, courseId, onSync, onFix, onBack }:
       )}
 
       {/* Spreadsheet preview with highlighted issues */}
-      <div className="overflow-x-auto mb-4 rounded-xl border border-white/[0.06]">
+      <div className="overflow-hidden mb-4 rounded-xl border border-white/[0.06]">
         <table className="w-full text-[10px]">
           <thead>
             <tr className="border-b border-white/[0.06]">

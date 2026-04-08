@@ -40,6 +40,8 @@ dependencies = [
     "fsrs>=4.0.0",
     "langgraph>=0.2.0",
     "langchain-anthropic>=0.3.0",
+    "docling>=2.0.0",
+    "chonkie[semantic]>=0.5.0",
 ]
 
 [project.optional-dependencies]

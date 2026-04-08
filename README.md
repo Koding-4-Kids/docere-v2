@@ -926,7 +926,7 @@ Docere v2 is designed for rigorous empirical evaluation via a three-arm ablation
 - [x] Google Calendar integration (OAuth)
 - [x] Flashcard spaced repetition (FSRS)
 - [x] Classroom agent (instructor meta-queries)
-- [ ] Background task scheduling (ARQ)
+- [x] Background task scheduling (ARQ)
 
 ---
 

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docere — Gustie Cup 2026</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap');
+
+  :root {
+    --orange: #F15524;
+    --orange-light: #FF7A50;
+    --bg: #FFFFFF;
+    --bg-2: #F8F8FA;
+    --bg-3: #F0F0F4;
+    --text: #111114;
+    --text-2: #333340;
+    --text-3: #555568;
+    --text-4: #8888A0;
+    --text-5: #AAABB8;
+    --border: #E8E8EE;
+    --green: #22C55E;
+    --blue: #3B82F6;
+    --red: #EF4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #000;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .serif { font-family: 'EB Garamond', Georgia, serif; }
+
+  /* ─── Slideshow container ─── */
+  .slideshow {
+    display: flex;
+    height: 100vh;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .slide {
+    min-width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 80px;
+    position: relative;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  .slide-inner {
+    max-width: 900px;
+    width: 100%;
+  }
+
+  /* ─── Slide variants ─── */
+  .slide-accent {
+    background: var(--orange);
+    color: white;
+  }
+  .slide-accent .subtitle { color: rgba(255,255,255,0.8); }
+  .slide-accent .label { color: rgba(255,255,255,0.5); }
+  .slide-dark {
+    background: var(--text);
+    color: white;
+  }
+  .slide-dark .subtitle { color: rgba(255,255,255,0.5); }
+  .slide-dark .label { color: var(--orange); }
+  .slide-dark .dim { color: rgba(255,255,255,0.4); }
+  .slide-dark .g-card { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); }
+  .slide-dark .g-card p { color: rgba(255,255,255,0.5); }
+  .slide-dark .comp-chip { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); }
+
+  /* ─── Typography ─── */
+  h1 { font-size: 52px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.1; }
+  h2 { font-size: 38px; font-weight: 700; letter-spacing: -0.8px; line-height: 1.15; }
+  h3 { font-size: 24px; font-weight: 600; letter-spacing: -0.3px; }
+
+  .subtitle { font-size: 17px; color: var(--text-3); margin-top: 12px; line-height: 1.6; }
+  .label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--orange); margin-bottom: 12px; }
+  .accent { color: var(--orange); }
+  .dim { color: var(--text-4); }
+
+  .divider { width: 48px; height: 3px; background: var(--orange); border-radius: 2px; margin: 20px 0; }
+  .divider-center { margin: 20px auto; }
+
+  /* ─── Photo slots ─── */
+  .photo-slot {
+    width: 160px; height: 160px;
+    border-radius: 16px;
+    background: var(--bg-3);
+    border: 2px dashed var(--border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-5);
+    font-size: 12px; font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  /* ─── Team ─── */
+  .team-row { display: flex; gap: 56px; justify-content: center; margin-top: 40px; }
+  .team-card { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 280px; }
+  .team-card h3 { font-size: 18px; text-align: center; }
+  .team-card .role { font-size: 12px; color: var(--orange); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .team-card .bio { font-size: 12px; color: var(--text-4); text-align: center; line-height: 1.6; }
+  .tags { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+  .tag { font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 5px; background: var(--bg-3); color: var(--text-3); }
+
+  /* ─── Timeline ─── */
+  .timeline { display: flex; flex-direction: column; padding-left: 28px; position: relative; margin-top: 36px; }
+  .timeline::before { content: ''; position: absolute; left: 6px; top: 8px; bottom: 8px; width: 2px; background: linear-gradient(180deg, var(--orange), var(--border)); }
+  .timeline-item { display: flex; align-items: flex-start; gap: 20px; padding: 12px 0; position: relative; }
+  .timeline-item::before { content: ''; position: absolute; left: -26px; top: 18px; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); }
+  .timeline-item .era { font-size: 12px; font-weight: 700; color: var(--orange); min-width: 110px; flex-shrink: 0; }
+  .timeline-item .desc { font-size: 14px; color: var(--text-3); line-height: 1.5; }
+  .timeline-item .desc strong { color: var(--text); }
+
+  /* ─── Grid cards ─── */
+  .card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 28px; }
+  .card-grid.three { grid-template-columns: repeat(3, 1fr); }
+  .g-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .g-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .g-card p { font-size: 12px; color: var(--text-4); line-height: 1.5; }
+
+  /* ─── Stats ─── */
+  .stat-row { display: flex; gap: 48px; margin-top: 36px; justify-content: center; }
+  .stat { text-align: center; }
+  .stat .val { font-size: 40px; font-weight: 800; letter-spacing: -1px; }
+  .stat .lbl { font-size: 11px; color: var(--text-4); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  /* ─── Competitor chips ─── */
+  .comp-row { display: flex; gap: 12px; margin-top: 28px; justify-content: center; flex-wrap: wrap; }
+  .comp-chip { padding: 10px 18px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--border); font-size: 13px; font-weight: 500; color: var(--text-3); display: flex; align-items: center; gap: 8px; }
+  .comp-chip .x { color: var(--red); font-size: 12px; font-weight: 700; }
+
+  /* ─── Quote block ─── */
+  .quote-block { padding: 24px 28px; background: var(--bg-2); border-left: 3px solid var(--orange); border-radius: 0 10px 10px 0; margin-top: 20px; }
+  .quote-block p { font-family: 'EB Garamond', Georgia, serif; font-size: 18px; font-style: italic; color: var(--text-2); line-height: 1.5; }
+  .quote-block .src { font-family: 'Inter', sans-serif; font-size: 11px; color: var(--text-5); margin-top: 6px; font-style: normal; }
+
+  /* ─── Navigation ─── */
+  .nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .nav button {
+    pointer-events: all;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text-3);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .nav button:hover { background: var(--bg-2); color: var(--text); }
+  .nav button:disabled { opacity: 0.3; cursor: default; }
+  .nav .dots {
+    display: flex; gap: 6px; pointer-events: all;
+  }
+  .nav .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .nav .dot.active {
+    background: var(--orange);
+    width: 20px;
+    border-radius: 3px;
+  }
+
+  /* ─── Slide number ─── */
+  .slide-num {
+    position: absolute;
+    top: 24px; right: 32px;
+    font-size: 11px; color: var(--text-5);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .slide-accent .slide-num { color: rgba(255,255,255,0.4); }
+  .slide-dark .slide-num { color: rgba(255,255,255,0.2); }
+
+  /* ─── Logo top left ─── */
+  .slide-logo {
+    position: absolute;
+    top: 24px; left: 32px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .slide-logo svg { width: 20px; height: 20px; }
+  .slide-logo span { font-size: 13px; font-weight: 700; color: var(--text-4); letter-spacing: -0.3px; }
+  .slide-accent .slide-logo span { color: rgba(255,255,255,0.6); }
+  .slide-dark .slide-logo span { color: rgba(255,255,255,0.3); }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 768px) {
+    .slide { padding: 40px 24px; }
+    h1 { font-size: 32px; }
+    h2 { font-size: 26px; }
+    .team-row { flex-direction: column; gap: 32px; }
+    .card-grid, .card-grid.three { grid-template-columns: 1fr; }
+    .stat-row { flex-wrap: wrap; gap: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="slideshow" id="slideshow">
+
+<!-- ═══ 1: LANDING ═══ -->
+<div class="slide" style="text-align:center;">
+  <div class="slide-inner" style="display:flex;flex-direction:column;align-items:center;">
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:72px;height:72px;margin-bottom:20px;">
+      <defs><ellipse id="p" cx="100" cy="100" rx="90" ry="22"/></defs>
+      <g fill="#F15524"><use href="#p" transform="rotate(0 100 100)"/><use href="#p" transform="rotate(45 100 100)"/><use href="#p" transform="rotate(90 100 100)"/><use href="#p" transform="rotate(135 100 100)"/></g>
+    </svg>
+    <h1>Docere</h1>
+    <p class="subtitle" style="font-size:20px;margin-top:6px;">AI Tutoring That Learns</p>
+    <div style="margin-top:36px;font-size:12px;color:var(--text-5);">Gustie Cup 2026 &mdash; Gustavus Adolphus College</div>
+  </div>
+  <div class="slide-num">01 / 17</div>
+</div>
+
+<!-- ═══ 2: TEAM ═══ -->
+<div class="slide">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl" transform="rotate(0 100 100)"/><use href="#pl" transform="rotate(45 100 100)"/><use href="#pl" transform="rotate(90 100 100)"/><use href="#pl" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner" style="text-align:center;">
+    <div class="label">The Team</div>
+    <h2>Built by researchers,<br>for <span class="accent">classrooms</span></h2>
+    <div class="team-row">
+      <div class="team-card">
+        <div class="photo-slot">Photo</div>
+        <div>
+          <h3>Youdahe Asfaw</h3>
+          <div class="role">Founder &amp; CTO</div>
+        </div>
+        <p class="bio">Previously at Hugging Face and Medtronic. Presented research at UChicago and Johns Hopkins.</p>
+        <div class="tags">
+          <span class="tag">Hugging Face</span>
+          <span class="tag">Medtronic</span>
+          <span class="tag">UChicago</span>
+          <span class="tag">Johns Hopkins</span>
+        </div>
+      </div>
+      <div class="team-card">
+        <div class="photo-slot">Photo</div>
+        <div>
+          <h3>Kofi Osei</h3>
+          <div class="role">Co-Founder &amp; CRO</div>
+        </div>
+        <p class="bio">Research on precipitation forecasting using transformers and multi-modal systems. Previously SWE at HashiCorp.</p>
+        <div class="tags">
+          <span class="tag">HashiCorp</span>
+          <span class="tag">Transformers</span>
+          <span class="tag">Multi-Modal ML</span>
+          <span class="tag">IEEE Published</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">02 / 17</div>
+</div>
+
+<!-- ═══ 3: HISTORY ═══ -->
+<div class="slide">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl2" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl2" transform="rotate(0 100 100)"/><use href="#pl2" transform="rotate(45 100 100)"/><use href="#pl2" transform="rotate(90 100 100)"/><use href="#pl2" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner">
+    <div class="label">Historical Context</div>
+    <h2>Education was always <span class="accent">personal</span></h2>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="era">470 BC</div>
+        <div class="desc"><strong>Socrates</strong> taught through dialogue. One student, one teacher, one question at a time.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="era">Medieval Era</div>
+        <div class="desc"><strong>Apprenticeships.</strong> Masters passed knowledge to a handful of students. Every learner was known.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="era">1800s</div>
+        <div class="desc"><strong>Industrial Age.</strong> We needed to educate millions. So we built factories for learning &mdash; same pace, same test, every student.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="era">1900s&ndash;2000s</div>
+        <div class="desc"><strong>Standardized everything.</strong> Textbooks, lectures, bell curves. Efficient &mdash; but the personal connection? Gone.</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">03 / 17</div>
+</div>
+
+<!-- ═══ 4: DIGITIZED ═══ -->
+<div class="slide" style="text-align:center;">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl3" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl3" transform="rotate(0 100 100)"/><use href="#pl3" transform="rotate(45 100 100)"/><use href="#pl3" transform="rotate(90 100 100)"/><use href="#pl3" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner" style="display:flex;flex-direction:column;align-items:center;">
+    <div class="label">The Digital Shift</div>
+    <h2>Then we digitized<br>the <span class="accent">factory</span></h2>
+    <p class="subtitle" style="max-width:550px;">Schools adopted Learning Management Systems to move courses online. Assignments, grades, materials &mdash; all in one place. But the model stayed the same: one-size-fits-all.</p>
+  </div>
+  <div class="slide-num">04 / 17</div>
+</div>
+
+<!-- ═══ 5: WHAT IS AN LMS ═══ -->
+<div class="slide">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl4" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl4" transform="rotate(0 100 100)"/><use href="#pl4" transform="rotate(45 100 100)"/><use href="#pl4" transform="rotate(90 100 100)"/><use href="#pl4" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner" style="text-align:center;">
+    <div class="label">For Context</div>
+    <h2>What is an LMS?</h2>
+    <p class="subtitle" style="max-width:550px;margin:8px auto 0;">A <strong>Learning Management System</strong> is the software every school uses to run courses &mdash; the operating system for education.</p>
+    <div class="card-grid three" style="margin-top:28px;text-align:left;">
+      <div class="g-card">
+        <h4>Course Materials</h4>
+        <p>Syllabi, assignments, readings &mdash; uploaded and organized by the instructor.</p>
+      </div>
+      <div class="g-card">
+        <h4>Grades &amp; Submissions</h4>
+        <p>Students submit work, instructors grade it. The gradebook is the system of record.</p>
+      </div>
+      <div class="g-card">
+        <h4>Rosters &amp; Enrollment</h4>
+        <p>Every student, every section, every role &mdash; managed in one place.</p>
+      </div>
+    </div>
+    <div style="margin-top:24px;display:flex;gap:24px;justify-content:center;">
+      <span style="font-size:13px;color:var(--text-5);font-weight:500;">Canvas</span>
+      <span style="font-size:13px;color:var(--text-5);font-weight:500;">Moodle</span>
+      <span style="font-size:13px;color:var(--text-5);font-weight:500;">Blackboard</span>
+      <span style="font-size:13px;color:var(--text-5);font-weight:500;">Google Classroom</span>
+    </div>
+  </div>
+  <div class="slide-num">05 / 17</div>
+</div>
+
+<!-- ═══ 6: AI MOMENT ═══ -->
+<div class="slide" style="text-align:center;">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl5" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl5" transform="rotate(0 100 100)"/><use href="#pl5" transform="rotate(45 100 100)"/><use href="#pl5" transform="rotate(90 100 100)"/><use href="#pl5" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner" style="display:flex;flex-direction:column;align-items:center;">
+    <div class="label">The AI Moment</div>
+    <h2>Then AI changed <span class="accent">everything</span></h2>
+    <p class="subtitle" style="max-width:550px;">ChatGPT gave every student a superpower &mdash; and every teacher a nightmare. Students stopped learning and started copying.</p>
+    <div class="quote-block" style="margin-top:32px;max-width:480px;">
+      <p>"89% of students have used ChatGPT for homework. 53% of teachers can't tell the difference."</p>
+      <div class="src">&mdash; Stanford Digital Education Survey, 2024</div>
+    </div>
+  </div>
+  <div class="slide-num">06 / 17</div>
+</div>
+
+<!-- ═══ 7: STUDENT PAIN ═══ -->
+<div class="slide">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl6" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl6" transform="rotate(0 100 100)"/><use href="#pl6" transform="rotate(45 100 100)"/><use href="#pl6" transform="rotate(90 100 100)"/><use href="#pl6" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner">
+    <div class="label">The Problem &mdash; Students</div>
+    <h2>What students <span class="accent">actually</span> need</h2>
+    <div class="card-grid">
+      <div class="g-card"><h4 style="color:var(--orange);">No personalization</h4><p>Every student gets the same content at the same pace. Struggling? Too bad.</p></div>
+      <div class="g-card"><h4 style="color:var(--orange);">AI gives answers, not understanding</h4><p>ChatGPT solves the problem for you. You get the grade but learn nothing.</p></div>
+      <div class="g-card"><h4 style="color:var(--orange);">No memory between sessions</h4><p>Every time you open a chatbot, it's a blank slate. It forgets what you struggled with.</p></div>
+      <div class="g-card"><h4 style="color:var(--orange);">No connection to your course</h4><p>Generic AI doesn't know your syllabus, your assignment, or what your professor expects.</p></div>
+    </div>
+  </div>
+  <div class="slide-num">07 / 17</div>
+</div>
+
+<!-- ═══ 8: TEACHER PAIN ═══ -->
+<div class="slide">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl7" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl7" transform="rotate(0 100 100)"/><use href="#pl7" transform="rotate(45 100 100)"/><use href="#pl7" transform="rotate(90 100 100)"/><use href="#pl7" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner">
+    <div class="label">The Problem &mdash; Teachers</div>
+    <h2>What teachers are <span class="accent">dealing with</span></h2>
+    <div class="card-grid">
+      <div class="g-card"><h4 style="color:var(--orange);">Zero visibility into AI use</h4><p>Students use ChatGPT and teachers have no idea what's being asked or copied.</p></div>
+      <div class="g-card"><h4 style="color:var(--orange);">Can't identify struggling students early</h4><p>By the time a student fails a midterm, it's too late. No early warning system.</p></div>
+      <div class="g-card"><h4 style="color:var(--orange);">Grading takes forever</h4><p>Hours spent on spreadsheets, manually entering grades, cross-referencing systems.</p></div>
+      <div class="g-card"><h4 style="color:var(--orange);">No tool connects everything</h4><p>IXL for practice, Kahoot for quizzes, Turnitin for plagiarism. Nothing talks to each other.</p></div>
+    </div>
+  </div>
+  <div class="slide-num">08 / 17</div>
+</div>
+
+<!-- ═══ 9: BRIDGE ═══ -->
+<div class="slide" style="text-align:center;background:var(--bg-2);">
+  <div class="slide-inner" style="display:flex;flex-direction:column;align-items:center;">
+    <p class="serif" style="font-size:32px;font-style:italic;color:var(--text-2);max-width:600px;line-height:1.4;">"What system can solve all of these problems &mdash; for students <em>and</em> teachers &mdash; in one place?"</p>
+  </div>
+  <div class="slide-num">09 / 17</div>
+</div>
+
+<!-- ═══ 10: INTRODUCING ═══ -->
+<div class="slide slide-accent" style="text-align:center;">
+  <div class="slide-inner" style="display:flex;flex-direction:column;align-items:center;">
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:56px;height:56px;margin-bottom:16px;">
+      <defs><ellipse id="pw" cx="100" cy="100" rx="90" ry="22"/></defs>
+      <g fill="white"><use href="#pw" transform="rotate(0 100 100)"/><use href="#pw" transform="rotate(45 100 100)"/><use href="#pw" transform="rotate(90 100 100)"/><use href="#pw" transform="rotate(135 100 100)"/></g>
+    </svg>
+    <h1 style="font-size:56px;">Introducing Docere</h1>
+    <p style="font-size:20px;color:rgba(255,255,255,0.85);margin-top:8px;max-width:450px;line-height:1.5;">The AI tutor that lives inside your LMS, remembers every student, and gets smarter every week.</p>
+  </div>
+  <div class="slide-num">10 / 17</div>
+</div>
+
+<!-- ═══ 11: HOW IT WORKS ═══ -->
+<div class="slide">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl8" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl8" transform="rotate(0 100 100)"/><use href="#pl8" transform="rotate(45 100 100)"/><use href="#pl8" transform="rotate(90 100 100)"/><use href="#pl8" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner">
+    <div class="label">How It Works</div>
+    <h2>Zero setup. One click. <span class="accent">Done.</span></h2>
+    <p class="subtitle" style="max-width:550px;">Plugs into Canvas or Moodle via LTI &mdash; like Turnitin or Zoom. No migrations, no IT ticket.</p>
+    <div class="card-grid three" style="margin-top:28px;">
+      <div class="g-card"><h4>Auto-syncs content</h4><p>Pulls syllabi, assignments, materials from the LMS automatically.</p></div>
+      <div class="g-card"><h4>Remembers every student</h4><p>Tracks struggles, learning patterns, and concept mastery over time.</p></div>
+      <div class="g-card"><h4>Teaches, doesn't answer</h4><p>Socratic questioning guides students to understanding.</p></div>
+      <div class="g-card"><h4>Teacher dashboard</h4><p>Full visibility into every student-AI interaction. At-risk alerts.</p></div>
+      <div class="g-card"><h4>Gradebook sync</h4><p>Upload a spreadsheet, auto-maps to the LMS gradebook.</p></div>
+      <div class="g-card"><h4>Schedules meetings</h4><p>Struggling student? Docere books time with the instructor.</p></div>
+    </div>
+  </div>
+  <div class="slide-num">11 / 17</div>
+</div>
+
+<!-- ═══ 12: TECHNICAL ═══ -->
+<div class="slide slide-dark">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl9" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl9" transform="rotate(0 100 100)"/><use href="#pl9" transform="rotate(45 100 100)"/><use href="#pl9" transform="rotate(90 100 100)"/><use href="#pl9" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner" style="text-align:center;">
+    <div class="label">Under the Hood</div>
+    <h2>Backed by months of research<br>on a <span class="accent">proprietary algorithm</span></h2>
+    <div class="card-grid" style="margin-top:28px;text-align:left;">
+      <div class="g-card"><h4 style="color:var(--orange);">Bayesian Knowledge Tracing</h4><p>Per-concept mastery tracking using probabilistic inference &mdash; not just quiz scores.</p></div>
+      <div class="g-card"><h4 style="color:var(--orange);">UCB1 Strategy Selection</h4><p>Multi-armed bandit selects the best teaching strategy for each student state. 27 context buckets.</p></div>
+      <div class="g-card"><h4 style="color:var(--orange);">Self-Improving Loop</h4><p>Every interaction scored on 4 dimensions. Weekly, top strategies mutate. Weak ones are pruned.</p></div>
+      <div class="g-card"><h4 style="color:var(--orange);">Semantic Memory</h4><p>Vector embeddings of every interaction. The tutor recalls by meaning, not just recency.</p></div>
+    </div>
+  </div>
+  <div class="slide-num">12 / 17</div>
+</div>
+
+<!-- ═══ 13: COMPETITORS ═══ -->
+<div class="slide" style="text-align:center;">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl10" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl10" transform="rotate(0 100 100)"/><use href="#pl10" transform="rotate(45 100 100)"/><use href="#pl10" transform="rotate(90 100 100)"/><use href="#pl10" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner" style="display:flex;flex-direction:column;align-items:center;">
+    <div class="label">Competitive Edge</div>
+    <h2>What they <span class="accent">can't</span> replicate</h2>
+    <p class="subtitle">Other tools solve one piece. None close the full loop.</p>
+    <div class="comp-row">
+      <div class="comp-chip"><span class="x">No</span> LMS integration &mdash; <strong>Khanmigo</strong></div>
+      <div class="comp-chip"><span class="x">No</span> AI tutoring &mdash; <strong>IXL</strong></div>
+      <div class="comp-chip"><span class="x">No</span> self-improvement &mdash; <strong>ChatGPT</strong></div>
+    </div>
+    <div class="comp-row" style="margin-top:8px;">
+      <div class="comp-chip"><span class="x">No</span> student memory &mdash; <strong>Carnegie Learning</strong></div>
+      <div class="comp-chip"><span class="x">No</span> teacher visibility &mdash; <strong>ChatGPT</strong></div>
+      <div class="comp-chip"><span class="x">No</span> multi-subject &mdash; <strong>DreamBox</strong></div>
+    </div>
+  </div>
+  <div class="slide-num">13 / 17</div>
+</div>
+
+<!-- ═══ 14: WHY / ORIGIN ═══ -->
+<div class="slide" style="text-align:center;">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl11" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl11" transform="rotate(0 100 100)"/><use href="#pl11" transform="rotate(45 100 100)"/><use href="#pl11" transform="rotate(90 100 100)"/><use href="#pl11" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner" style="display:flex;flex-direction:column;align-items:center;">
+    <div class="label">Our Origin</div>
+    <h2>We didn't plan this.<br><span class="accent">Teachers asked for it.</span></h2>
+    <p class="subtitle" style="max-width:500px;">We started as a coding education platform. An AI tutor for CS students. It worked. Then something happened.</p>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:28px;max-width:480px;width:100%;">
+      <div class="quote-block">
+        <p>"Can you make this work for my math class?"</p>
+        <div class="src">&mdash; 7th grade teacher, Minnesota</div>
+      </div>
+      <div class="quote-block">
+        <p>"My Spanish students need this more than the CS kids."</p>
+        <div class="src">&mdash; Language arts teacher, Minnesota</div>
+      </div>
+    </div>
+    <p style="margin-top:24px;font-size:15px;color:var(--text-3);">The problem isn't coding education. The problem is <strong style="color:var(--orange);">education</strong>.</p>
+  </div>
+  <div class="slide-num">14 / 17</div>
+</div>
+
+<!-- ═══ 15: TRACTION ═══ -->
+<div class="slide" style="text-align:center;">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl12" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl12" transform="rotate(0 100 100)"/><use href="#pl12" transform="rotate(45 100 100)"/><use href="#pl12" transform="rotate(90 100 100)"/><use href="#pl12" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner" style="display:flex;flex-direction:column;align-items:center;">
+    <div class="label">Traction</div>
+    <h2>Where we are <span class="accent">today</span></h2>
+    <div class="stat-row">
+      <div class="stat"><div class="val accent">505</div><div class="lbl">Live Students</div></div>
+      <div class="stat"><div class="val">2</div><div class="lbl">Schools in MN</div></div>
+      <div class="stat"><div class="val accent">$10K</div><div class="lbl">Prize Money</div></div>
+      <div class="stat"><div class="val">10+</div><div class="lbl">Months Live</div></div>
+    </div>
+    <div style="margin-top:40px;">
+      <div class="photo-slot" style="width:480px;height:260px;border-radius:14px;">Classroom Photo</div>
+    </div>
+  </div>
+  <div class="slide-num">15 / 17</div>
+</div>
+
+<!-- ═══ 16: WHAT'S NEXT ═══ -->
+<div class="slide">
+  <div class="slide-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pl13" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pl13" transform="rotate(0 100 100)"/><use href="#pl13" transform="rotate(45 100 100)"/><use href="#pl13" transform="rotate(90 100 100)"/><use href="#pl13" transform="rotate(135 100 100)"/></g></svg><span>Docere</span></div>
+  <div class="slide-inner">
+    <div class="label">What's Next</div>
+    <h2>The <span class="accent">roadmap</span></h2>
+    <div class="card-grid" style="margin-top:28px;">
+      <div class="g-card" style="border-color:rgba(241,85,36,0.25);">
+        <h4 style="color:var(--orange);">IRB Research Study</h4>
+        <p>Formal classroom study measuring whether self-improving AI tutors improve student outcomes. Targeting AIED 2026 in Seoul.</p>
+      </div>
+      <div class="g-card" style="border-color:rgba(241,85,36,0.25);">
+        <h4 style="color:var(--orange);">Algorythm Partnership</h4>
+        <p>Signed contract with Algorythm &mdash; a community of <strong>20,000+ engineers</strong> founded by Esco Obong (Sr. SWE @ Airbnb). Docere powers their memory layer.</p>
+      </div>
+      <div class="g-card">
+        <h4>Higher-Ed Expansion</h4>
+        <p>Pilot in college courses starting Fall 2026. Faculty conversations underway at Gustavus.</p>
+      </div>
+      <div class="g-card">
+        <h4>District Sales</h4>
+        <p>Convert pilots to paid contracts. Target: 5 districts by FY2027 at $10/student/year.</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">16 / 17</div>
+</div>
+
+<!-- ═══ 17: THANK YOU ═══ -->
+<div class="slide" style="text-align:center;background:var(--bg-2);">
+  <div class="slide-inner" style="display:flex;flex-direction:column;align-items:center;">
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:56px;height:56px;margin-bottom:16px;opacity:0.7;">
+      <defs><ellipse id="pf" cx="100" cy="100" rx="90" ry="22"/></defs>
+      <g fill="#F15524"><use href="#pf" transform="rotate(0 100 100)"/><use href="#pf" transform="rotate(45 100 100)"/><use href="#pf" transform="rotate(90 100 100)"/><use href="#pf" transform="rotate(135 100 100)"/></g>
+    </svg>
+    <h2 style="font-size:32px;">Thank you.</h2>
+    <div class="divider divider-center"></div>
+    <p class="serif" style="font-size:22px;color:var(--text-2);max-width:480px;line-height:1.5;font-style:italic;">Our vision is to make memory accessible to every student and every instructor.</p>
+    <div style="margin-top:32px;font-size:13px;color:var(--text-5);">
+      Youdahe Asfaw &amp; Kofi Osei<br>
+      <span style="color:var(--orange);font-weight:600;">Docere</span> &mdash; AI Tutoring That Learns
+    </div>
+  </div>
+  <div class="slide-num">17 / 17</div>
+</div>
+
+</div><!-- /slideshow -->
+
+<!-- Navigation -->
+<div class="nav" id="nav">
+  <button id="prevBtn" disabled onclick="goTo(current-1)">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+  </button>
+  <div class="dots" id="dots"></div>
+  <button id="nextBtn" onclick="goTo(current+1)">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+  </button>
+</div>
+
+<script>
+const slideshow = document.getElementById('slideshow');
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let current = 0;
+
+// Build dots
+const dotsEl = document.getElementById('dots');
+for (let i = 0; i < total; i++) {
+  const dot = document.createElement('div');
+  dot.className = 'dot' + (i === 0 ? ' active' : '');
+  dot.onclick = () => goTo(i);
+  dotsEl.appendChild(dot);
+}
+
+function goTo(n) {
+  if (n < 0 || n >= total) return;
+  current = n;
+  slideshow.style.transform = `translateX(-${current * 100}vw)`;
+  // Update dots
+  document.querySelectorAll('.dot').forEach((d, i) => {
+    d.className = 'dot' + (i === current ? ' active' : '');
+  });
+  // Update buttons
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === total - 1;
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(current - 1); }
+  if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+  if (e.key === 'End') { e.preventDefault(); goTo(total - 1); }
+});
+</script>
+
+</body>
+</html>

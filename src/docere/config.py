@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
 
     # LLM Provider
-    llm_provider: str = "openai"  # "openai" or "anthropic"
+    llm_provider: str = "anthropic"  # "openai" or "anthropic"
 
     # Anthropic
     anthropic_api_key: str = ""
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 1536  # 1536 for OpenAI text-embedding-3-small, 1024 for Voyage
 
     # JWT
-    jwt_secret: str = "change-this-in-production"
+    jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
     jwt_expiration_minutes: int = 1440
 
@@ -81,6 +81,14 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/v1/calendar/oauth/callback"
     token_encryption_key: str = ""  # Fernet key — generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+    # Student document ingestion
+    student_doc_max_file_size_mb: int = 500
+    student_doc_max_pages: int = 2000
+    student_doc_upload_dir: str = "/tmp/docere_uploads"
+    student_doc_storage_dir: str = "data/student_docs"  # Persistent file storage
+    student_doc_collection_prefix: str = "student_docs"
+    student_doc_max_per_course: int = 20
 
     # Meeting scheduling
     meeting_default_duration_minutes: int = 30

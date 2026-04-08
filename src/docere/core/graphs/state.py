@@ -47,6 +47,9 @@ class TutoringState(TypedDict, total=False):
     # ── Student uploaded documents ──
     student_doc_context: str | None
 
+    # ── Live notes from the student's editor ──
+    notes_content: str | None
+
     # ── Background results ──
     extracted_concepts: list[str]
     confusion_score: float

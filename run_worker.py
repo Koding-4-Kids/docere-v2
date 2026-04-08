@@ -1,19 +1,10 @@
-"""ARQ worker runner compatible with Python 3.14+.
-
-Usage: python run_worker.py
-"""
-
+"""Run the ARQ worker (Python 3.14 compatible)."""
 import asyncio
-
-from arq.worker import create_worker, get_kwargs
-
+from arq.worker import create_worker
 from docere.worker import WorkerSettings
 
-
-async def main() -> None:
+async def main():
     worker = create_worker(WorkerSettings)
     await worker.async_run()
 
-
-if __name__ == "__main__":
-    asyncio.run(main())
+asyncio.run(main())

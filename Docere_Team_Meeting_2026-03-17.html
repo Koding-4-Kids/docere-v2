@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docere — Team Meeting — March 17, 2026</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #0a0a0f; color: #e8e8e8; overflow: hidden; }
+  .deck { width: 100vw; height: 100vh; position: relative; }
+  .slide { width: 100vw; height: 100vh; display: none; flex-direction: column; justify-content: center; padding: 8vh 10vw; position: absolute; top: 0; left: 0; }
+  .slide.active { display: flex; }
+  h1 { font-family: 'EB Garamond', Georgia, serif; font-size: 3.2rem; font-weight: 400; margin-bottom: 1.5rem; color: #fff; }
+  h2 { font-family: 'EB Garamond', Georgia, serif; font-size: 2.4rem; font-weight: 400; margin-bottom: 2rem; color: #fff; }
+  h3 { font-size: 1rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.15em; color: #F15524; margin-bottom: 1.5rem; }
+  p { font-size: 1.15rem; line-height: 1.7; color: #b0b0b0; max-width: 700px; margin-bottom: 1rem; }
+  .accent { color: #F15524; }
+  .dim { color: #666; }
+  ul { list-style: none; padding: 0; }
+  ul li { font-size: 1.1rem; line-height: 1.8; color: #c0c0c0; padding-left: 1.5rem; position: relative; margin-bottom: 0.5rem; }
+  ul li::before { content: '\2192'; position: absolute; left: 0; color: #F15524; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin-top: 1rem; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; margin-top: 1rem; }
+  .grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1.5rem; margin-top: 1rem; }
+  .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 2rem; }
+  .card h4 { font-size: 1.1rem; color: #fff; margin-bottom: 0.75rem; }
+  .card p { font-size: 0.95rem; color: #999; }
+  .tag { display: inline-block; font-size: 0.7rem; padding: 0.25rem 0.75rem; border-radius: 20px; background: rgba(241,85,36,0.12); color: #F15524; border: 1px solid rgba(241,85,36,0.2); margin-right: 0.5rem; margin-bottom: 0.5rem; }
+  .stat-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 1.5rem; text-align: center; }
+  .stat-card .value { font-size: 2.4rem; font-weight: 700; color: #F15524; }
+  .stat-card .label { font-size: 0.85rem; color: #888; margin-top: 0.25rem; }
+  .stat-card.red .value { color: #ef4444; }
+  .stat-card.yellow .value { color: #f59e0b; }
+  .stat-card.green .value { color: #22c55e; }
+  .contributor { display: flex; align-items: center; gap: 1.25rem; padding: 0.75rem 1.25rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; margin-bottom: 0.5rem; }
+  .contributor .name { font-size: 1rem; color: #fff; font-weight: 500; min-width: 140px; }
+  .contributor .status { font-size: 0.8rem; font-weight: 600; padding: 0.2rem 0.75rem; border-radius: 20px; min-width: 70px; text-align: center; }
+  .contributor .status.active { background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
+  .contributor .status.moderate { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+  .contributor .status.inactive { background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+  .contributor .desc { font-size: 0.9rem; color: #888; }
+  .alert { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); border-radius: 12px; padding: 1rem 1.5rem; margin: 1rem 0; }
+  .alert p { color: #ef4444; font-weight: 500; max-width: none; margin: 0; }
+  .pr-card { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 0.75rem; }
+  .pr-card.merged { border: 1px solid rgba(34,197,94,0.25); }
+  .pr-card.open { border: 1px solid rgba(245,158,11,0.25); }
+  .pr-card.stale { border: 1px solid rgba(239,68,68,0.25); }
+  .pr-card .pr-title { font-size: 1rem; color: #fff; font-weight: 500; margin-bottom: 0.35rem; }
+  .pr-card .pr-meta { font-size: 0.85rem; color: #777; }
+  .priority-section { margin-bottom: 1.5rem; }
+  .priority-section h4 { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; }
+  .priority-section h4.urgent { color: #ef4444; }
+  .priority-section h4.sprint { color: #f59e0b; }
+  .priority-section h4.backlog { color: #666; }
+  .small { font-size: 0.85rem; color: #666; }
+  .nav { position: fixed; bottom: 2rem; right: 3rem; display: flex; gap: 0.75rem; z-index: 100; }
+  .nav button { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #999; width: 44px; height: 44px; border-radius: 12px; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .nav button:hover { background: rgba(255,255,255,0.12); color: #fff; }
+  .counter { position: fixed; bottom: 2.4rem; left: 3rem; font-size: 0.8rem; color: #444; z-index: 100; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .slide.active > * { animation: fadeIn 0.4s ease-out both; }
+  .slide.active > *:nth-child(2) { animation-delay: 0.1s; }
+  .slide.active > *:nth-child(3) { animation-delay: 0.2s; }
+  .slide.active > *:nth-child(4) { animation-delay: 0.3s; }
+  .slide.active > *:nth-child(5) { animation-delay: 0.4s; }
+  .slide.active > *:nth-child(6) { animation-delay: 0.5s; }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- SLIDE 1: Title -->
+<div class="slide active">
+  <h3>Koding-4-Kids, Inc. (d/b/a Docere)</h3>
+  <h1>Team Meeting</h1>
+  <p>March 17, 2026<br>GitHub Organization Status & Roadmap</p>
+  <div style="margin-top: 2rem;">
+    <span class="tag">11 Repos</span>
+    <span class="tag">11 Members</span>
+    <span class="tag">docere-v2</span>
+    <span class="tag">LangGraph</span>
+    <span class="tag">React</span>
+    <span class="tag">FastAPI</span>
+  </div>
+</div>
+
+<!-- SLIDE 2: Org Overview -->
+<div class="slide">
+  <h3>Organization</h3>
+  <h2>At a Glance</h2>
+  <div class="grid4">
+    <div class="stat-card">
+      <div class="value">11</div>
+      <div class="label">Total Repos</div>
+    </div>
+    <div class="stat-card red">
+      <div class="value">1</div>
+      <div class="label">Active Repos</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="value">3</div>
+      <div class="label">Open PRs</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">11</div>
+      <div class="label">Org Members</div>
+    </div>
+  </div>
+  <div class="grid4" style="margin-top: 1rem;">
+    <div class="stat-card yellow">
+      <div class="value">20</div>
+      <div class="label">Issues (docere-v2)</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="value">19</div>
+      <div class="label">Issues (backend1)</div>
+    </div>
+    <div class="stat-card red">
+      <div class="value">FAIL</div>
+      <div class="label">CI Status</div>
+    </div>
+    <div class="stat-card green">
+      <div class="value">1</div>
+      <div class="label">Merged This Period</div>
+    </div>
+  </div>
+  <p style="margin-top: 1.5rem;">All active development is concentrated on <strong style="color:#fff;">docere-v2</strong> — every other repo is dormant.</p>
+</div>
+
+<!-- SLIDE 3: docere-v2 Status -->
+<div class="slide">
+  <h3>docere-v2</h3>
+  <h2>Current Status</h2>
+  <div class="grid2">
+    <div>
+      <p><strong style="color:#fff;">Branches</strong></p>
+      <ul>
+        <li><strong style="color:#ddd;">main</strong> — production (last commit Mar 3)</li>
+        <li><strong style="color:#ddd;">development</strong> — integration branch</li>
+        <li><strong style="color:#ddd;">staging</strong> — pre-production</li>
+        <li><strong style="color:#ddd;">feature/error-boundary-toast-system</strong> — CJ (active)</li>
+        <li><strong style="color:#ddd;">feature/mobile-responsive-layout</strong> — CJ (merged via PR #26)</li>
+        <li><strong style="color:#ddd;">feature/render-chat-markdown</strong> — Kevin (open PR #27)</li>
+      </ul>
+    </div>
+    <div>
+      <p><strong style="color:#fff;">Recent Commits (main)</strong></p>
+      <ul>
+        <li>Mar 3 — LangGraph agent upgrade, 18 backend stubs, dev docs</li>
+        <li>Mar 2 — CI/CD pipeline, Dockerfile, deployment workflows</li>
+        <li>Mar 2 — Flashcard spaced repetition, Focus Mode</li>
+        <li>Feb 25 — Formulas page, Google Sheets/Excel integration</li>
+        <li>Feb 21 — Gradebook sync, calendar, instructor dashboard</li>
+      </ul>
+    </div>
+  </div>
+  <div class="alert">
+    <p>CI/CD Pipeline: Last 5 runs FAILED — needs immediate attention (development + feature branches)</p>
+  </div>
+</div>
+
+<!-- SLIDE 4: Pull Requests -->
+<div class="slide">
+  <h3>Pull Requests</h3>
+  <h2>Review Status</h2>
+  <p style="margin-bottom: 0.5rem;"><strong style="color:#22c55e;">Recently Merged</strong></p>
+  <div class="pr-card merged">
+    <div class="pr-title">PR #26 — Mobile chat UX responsive layout <span class="dim">by CJ Ackett</span></div>
+    <div class="pr-meta">+223 / -113 lines &middot; 7 files &middot; Reviewed by Copilot &middot; Merged by Kofi (Mar 10)</div>
+  </div>
+  <p style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><strong style="color:#f59e0b;">Open — Awaiting Review</strong></p>
+  <div class="pr-card open">
+    <div class="pr-title">PR #27 — Lightweight Markdown Renderer for Chat Messages <span class="dim">by Kevin Thai</span></div>
+    <div class="pr-meta">Open 11 days &middot; Review requested from Youdahe + Kofi &middot; REVIEW REQUIRED</div>
+  </div>
+  <p style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><strong style="color:#ef4444;">Stale — lesson-page repo (2+ months)</strong></p>
+  <div class="pr-card stale">
+    <div class="pr-title">PR #1 — Added border and adaptable lesson changes <span class="dim">by CJ Ackett</span> &middot; +1061 / -77</div>
+    <div class="pr-title">PR #2 — Navbar buttons <span class="dim">by Kevin Thai</span> &middot; +521 / -741</div>
+    <div class="pr-meta">Both over 2 months old — close or archive?</div>
+  </div>
+</div>
+
+<!-- SLIDE 5: Team Activity -->
+<div class="slide">
+  <h3>Team</h3>
+  <h2>Activity Overview (Mar 3–17)</h2>
+  <div class="grid3">
+    <div class="stat-card green">
+      <div class="value">3</div>
+      <div class="label">Active Contributors</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="value">1</div>
+      <div class="label">Moderate Activity</div>
+    </div>
+    <div class="stat-card red">
+      <div class="value">4</div>
+      <div class="label">No Recent Activity</div>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top: 2rem;">
+    <div>
+      <p><strong style="color:#fff;">What got done</strong></p>
+      <ul>
+        <li>1 PR merged (mobile responsive layout)</li>
+        <li>1 new PR opened (markdown renderer)</li>
+        <li>1 new feature branch started (error boundary)</li>
+        <li>Code reviews and development branch integration</li>
+      </ul>
+    </div>
+    <div>
+      <div class="card">
+        <h4>Team Health</h4>
+        <p>Half the team has been active this period. Consider redistributing work from idle branches or checking in with contributors who haven't pushed recently.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 6: Integrations — LMS & Google -->
+<div class="slide">
+  <h3>Integrations</h3>
+  <h2>LMS & Google Workspace</h2>
+  <div class="grid2">
+    <div>
+      <p><strong style="color:#fff;">Learning Management Systems</strong></p>
+      <div class="card" style="margin-bottom: 1rem;">
+        <h4>Moodle <span class="dim">— Web Services API</span></h4>
+        <p>Auto-pulls courses, assignments, student roster, grades, submissions, page content, and PDF materials. Writes grades back via <code style="color:#F15524;">mod_assign_save_grade</code>. Posts announcements via forum module.</p>
+      </div>
+      <div class="card" style="margin-bottom: 1rem;">
+        <h4>Canvas <span class="dim">— REST API</span></h4>
+        <p>Pulls syllabus, assignments, rubrics, modules, roster, submissions, discussions, quizzes. Writes grades & feedback. Posts announcements as discussion topics.</p>
+      </div>
+      <div class="card">
+        <h4>LTI 1.3 <span class="dim">— Launch Protocol</span></h4>
+        <p>Standardized single sign-on for both Canvas and Moodle. JWT validation, role mapping (student/instructor/TA), automatic course discovery and enrollment sync. Multi-tenant.</p>
+      </div>
+    </div>
+    <div>
+      <p><strong style="color:#fff;">Google Workspace (OAuth 2.0)</strong></p>
+      <div class="card" style="margin-bottom: 1rem;">
+        <h4>Google Calendar</h4>
+        <p>Free/busy availability lookup, create events with attendees, cancel events. Powers the meeting scheduling when the agent detects a struggling student.</p>
+      </div>
+      <div class="card" style="margin-bottom: 1rem;">
+        <h4>Google Sheets</h4>
+        <p>Create spreadsheets with data, read from URLs or IDs, list Docere-created sheets. Powers the gradebook sync — import grades, validate, auto-fix errors, push back to LMS.</p>
+      </div>
+      <div class="card" style="margin-bottom: 1rem;">
+        <h4>Google Docs</h4>
+        <p>Create rich-text documents on demand. Used by the agent to generate study guides, notes, and reports for instructors.</p>
+      </div>
+      <div class="card">
+        <h4>Gmail</h4>
+        <p>Send HTML emails with CC/BCC. Agent can draft and send emails to students or groups — e.g., reminders, meeting confirmations, progress updates.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 7: Integrations — AI & Infrastructure -->
+<div class="slide">
+  <h3>Integrations</h3>
+  <h2>AI & Infrastructure</h2>
+  <div class="grid3">
+    <div class="card">
+      <h4>Claude <span class="dim">— Anthropic</span></h4>
+      <p>Primary LLM for tutoring, grading, strategy selection, and verification. Models: claude-sonnet-4-20250514, claude-opus. Streaming responses with circuit breaker and retry logic.</p>
+    </div>
+    <div class="card">
+      <h4>GPT-4o <span class="dim">— OpenAI</span></h4>
+      <p>Fallback LLM provider. Chat completions with streaming. Used when Claude is unavailable or for specific tasks requiring a second model perspective.</p>
+    </div>
+    <div class="card">
+      <h4>Voyage AI <span class="dim">— Embeddings</span></h4>
+      <p>Primary embedding provider (voyage-3, 1024-dim). Batch support with LRU cache (1000 entries, ~50% cost reduction). Powers semantic search across student memory and course materials.</p>
+    </div>
+    <div class="card">
+      <h4>Qdrant <span class="dim">— Vector DB</span></h4>
+      <p>Vector storage for all semantic memory. Cosine similarity search with score thresholds. Stores student interactions, course materials, concept embeddings. Circuit breaker on failures.</p>
+    </div>
+    <div class="card">
+      <h4>PostgreSQL <span class="dim">— Primary DB</span></h4>
+      <p>Relational database for users, courses, enrollments, assignments, grades, profiles, memory records, tokens, and flashcards. Async driver via asyncpg.</p>
+    </div>
+    <div class="card">
+      <h4>Redis <span class="dim">— Cache</span></h4>
+      <p>Session caching, rate limiting, and temporary data storage. Powers the middleware that protects API endpoints from abuse.</p>
+    </div>
+  </div>
+  <div style="margin-top: 1.5rem;">
+    <span class="tag">LTI 1.3</span>
+    <span class="tag">OAuth 2.0</span>
+    <span class="tag">Fernet Encryption</span>
+    <span class="tag">Circuit Breakers</span>
+    <span class="tag">Async Everywhere</span>
+    <span class="tag">Multi-Tenant</span>
+  </div>
+</div>
+
+<!-- SLIDE 8: Open Issues -->
+<div class="slide">
+  <h3>What's Left</h3>
+  <h2>Open Issues</h2>
+  <div class="grid2">
+    <div>
+      <p><strong style="color:#F15524;">docere-v2 (20 issues)</strong></p>
+      <p style="margin-bottom: 0.25rem;"><strong style="color:#fff;">Frontend</strong></p>
+      <ul>
+        <li>#18 Error boundary & toast notifications</li>
+        <li>#17 Mobile responsive layout</li>
+        <li>#16 Render markdown in chat (PR #27 open)</li>
+      </ul>
+      <p style="margin-top: 0.75rem; margin-bottom: 0.25rem;"><strong style="color:#fff;">Backend / Infra</strong></p>
+      <ul>
+        <li>#19 Response streaming (SSE)</li>
+        <li>#15 Unit tests for ML infrastructure</li>
+        <li>#12 Chunk limits & tiered compression</li>
+        <li>#13 Student todo + calendar integration</li>
+      </ul>
+      <p style="margin-top: 0.75rem; margin-bottom: 0.25rem;"><strong style="color:#fff;">Research</strong></p>
+      <ul>
+        <li>#22 Tutoring quality evaluation rubric</li>
+        <li>#21 A/B testing statistical analysis</li>
+        <li>#10 Summarize process reward model papers</li>
+        <li>#9 Survey AI memory systems</li>
+        <li>#5–#7 Memory architecture, self-improvement</li>
+      </ul>
+    </div>
+    <div>
+      <p><strong style="color:#F15524;">backend1 (19 issues)</strong></p>
+      <p style="margin-bottom: 0.25rem;"><strong style="color:#ef4444;">Critical / Security</strong></p>
+      <ul>
+        <li style="color:#ef4444;">#48 Shop authorization & rate limiting</li>
+      </ul>
+      <p style="margin-top: 0.75rem; margin-bottom: 0.25rem;"><strong style="color:#fff;">Performance / Infra</strong></p>
+      <ul>
+        <li>#69 Improve lesson generation engine</li>
+        <li>#68 Evaluate Pinecone alternatives</li>
+        <li>#67 Replace zero-vector Pinecone queries</li>
+        <li>#63 Rate limiting & circuit breaker</li>
+        <li>#61 Parallelize N+1 queries (memory tree)</li>
+        <li>#60 Parallelize N+1 Pinecone queries (chat)</li>
+      </ul>
+      <p style="margin-top: 0.75rem; margin-bottom: 0.25rem;"><strong style="color:#fff;">Features / Bugs</strong></p>
+      <ul>
+        <li>#66 Re-enable memory capture routes</li>
+        <li>#65 Embedding cache cleanup</li>
+        <li>#55 Fix lesson completion rewards (BUG)</li>
+        <li>#54 Fix Python imports in Pyodide (BUG)</li>
+        <li>#51 Implement lesson completion state</li>
+        <li>#50 Shop purchase & character equipping</li>
+        <li>#46 Content moderation & profanity filter</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 9: Action Items -->
+<div class="slide">
+  <h3>Action Items</h3>
+  <h2>Priorities</h2>
+  <div class="grid2">
+    <div>
+      <div class="priority-section">
+        <h4 class="urgent">Urgent</h4>
+        <ul>
+          <li>Fix CI/CD pipeline — last 5 runs failing on docere-v2</li>
+          <li>Review & merge PR #27 (Kevin's markdown renderer) — open 11 days</li>
+          <li>Address backend1 #48 — shop auth & rate limiting (CRITICAL security)</li>
+        </ul>
+      </div>
+      <div class="priority-section">
+        <h4 class="sprint">This Sprint</h4>
+        <ul>
+          <li>CJ: Continue error boundary + toast system (#18)</li>
+          <li>Kevin: Address PR #27 feedback, start next frontend issue</li>
+          <li>Kofi: Code reviews, development branch integration</li>
+          <li>Close or archive stale lesson-page PRs (#1, #2)</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="priority-section">
+        <h4 class="backlog">Backlog</h4>
+        <ul>
+          <li>SSE streaming (#19), student calendar integration (#13)</li>
+          <li>Research issues (#5–#10, #21–#22) — need assignment</li>
+          <li>Re-engage inactive contributors or reassign their issues</li>
+        </ul>
+      </div>
+      <div class="card" style="margin-top: 1.5rem;">
+        <h4>Key Takeaway</h4>
+        <p>All energy is on docere-v2. CI needs fixing before any merges. 4 of 8 contributors are inactive — either re-engage or redistribute work.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 10: End -->
+<div class="slide">
+  <h3>Docere</h3>
+  <h1>Questions?</h1>
+  <p>Koding-4-Kids, Inc. (d/b/a Docere)<br>Team Meeting — March 17, 2026</p>
+</div>
+
+</div>
+
+<!-- Navigation -->
+<div class="counter"><span id="current">1</span> / <span id="total"></span></div>
+<div class="nav">
+  <button onclick="prev()">&larr;</button>
+  <button onclick="next()">&rarr;</button>
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+let idx = 0;
+document.getElementById('total').textContent = slides.length;
+function show(i) {
+  slides.forEach(s => s.classList.remove('active'));
+  slides[i].classList.add('active');
+  document.getElementById('current').textContent = i + 1;
+}
+function next() { if (idx < slides.length - 1) { idx++; show(idx); } }
+function prev() { if (idx > 0) { idx--; show(idx); } }
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+});
+</script>
+</body>
+</html>

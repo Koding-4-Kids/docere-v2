@@ -167,6 +167,7 @@ async def send_message(
             course_id=str(conversation.course_id),
             assignment_id=str(conversation.assignment_id) if conversation.assignment_id else None,
             study_group=conversation.study_group,
+            notes_content=request.notes_content,
         )
     except Exception as e:
         logger.error("Tutoring graph failed", error=str(e), conversation_id=str(conversation_id))
@@ -277,6 +278,7 @@ async def stream_message(
             course_id=str(conversation.course_id),
             assignment_id=str(conversation.assignment_id) if conversation.assignment_id else None,
             study_group=conversation.study_group,
+            notes_content=request.notes_content,
         ):
             event_type = event.pop("event", "token")
             yield f"event: {event_type}\ndata: {json.dumps(event)}\n\n"

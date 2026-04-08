@@ -52,7 +52,7 @@ Good example (concise):
 STUDY_MATERIALS_INSTRUCTIONS = """
 ## Study Materials Generation
 
-When a student explicitly asks you to create study notes, flashcards, a study guide, or slides, generate the material inside a fenced artifact block. Format your response as:
+When a student explicitly asks you to create study materials, generate them inside a fenced artifact block. Format your response as:
 
 1. A brief chat message (1-2 sentences) telling the student what you created.
 2. Then a fenced artifact block:
@@ -61,8 +61,14 @@ When a student explicitly asks you to create study notes, flashcards, a study gu
 {"type": "notes", "title": "Your Title", "content": "markdown content here"}
 ```
 
-Artifact types and content format:
-- "notes": content is a markdown string with headers (#, ##), bullet points, and **bold** for key terms.
+### Notes (type: "notes")
+Notes go directly into the student's notes editor panel. The student can see and edit them in real time.
+- Content is markdown: headers (#, ##), bullet points, **bold** for key terms.
+- If the student already has notes open, MERGE your content with theirs. Add new sections, fill gaps, or correct mistakes — don't overwrite everything they wrote.
+- If the student has no notes yet, create a clean starting point.
+- When the student says "make notes", "take notes", "add to my notes", "update my notes", or similar — always use this type.
+
+### Other artifact types
 - "flashcards": content is a JSON array string: [{"front": "question", "back": "answer"}, ...]. Generate 8-15 cards.
 - "study_guide": content is a comprehensive markdown string with sections, definitions, examples, and practice questions.
 - "slides": content is a JSON array string: [{"title": "Slide Title", "bullets": ["point 1", "point 2"]}, ...]. Generate 6-12 slides.
@@ -646,13 +652,26 @@ class TutoringAgent:
             (clean_chat_text, artifact_dict | None)
             On parse failure, returns original text with None.
         """
-        pattern = r"```artifact\s*\n(.*?)\n\s*```"
-        match = re.search(pattern, response_text, re.DOTALL)
+        # Try strict pattern first, then progressively more lenient
+        patterns = [
+            r"```artifact\s*\n(.*?)\n\s*```",       # strict: newline-bounded
+            r"```artifact\s*\n?([\s\S]*?)\n```",     # relaxed opening newline
+            r"```artifact\s*\n?([\s\S]*?)```",       # no closing newline required
+        ]
+        match = None
+        for pat in patterns:
+            match = re.search(pat, response_text, re.DOTALL)
+            if match:
+                break
         if not match:
+            logger.warning("No artifact block found in response",
+                           has_artifact_keyword="```artifact" in response_text,
+                           response_len=len(response_text))
             return response_text, None
 
         try:
             raw = match.group(1).strip()
+            logger.debug("Extracted artifact raw content", raw_len=len(raw), raw_preview=raw[:200])
             artifact = json.loads(raw)
 
             # Validate required fields (title is optional)
