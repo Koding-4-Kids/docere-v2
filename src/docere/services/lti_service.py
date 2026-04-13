@@ -2,9 +2,9 @@
 
 from dataclasses import dataclass
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.core.improvement.experiment_runner import ExperimentRunner
 from docere.integrations.lms.base import LMSAdapter
@@ -301,11 +301,13 @@ async def sync_user_enrollments(
             )
         )
         if not result.scalar_one_or_none():
-            db.add(Enrollment(
-                user_id=user.id,
-                course_id=course.id,
-                lms_role="student",
-            ))
+            db.add(
+                Enrollment(
+                    user_id=user.id,
+                    course_id=course.id,
+                    lms_role="student",
+                )
+            )
             created += 1
 
     if created:

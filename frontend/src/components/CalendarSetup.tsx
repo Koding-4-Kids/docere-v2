@@ -34,8 +34,9 @@ export function CalendarSetup({ courseId }: CalendarSetupProps) {
   const jsonHeaders = { ...headers, 'Content-Type': 'application/json' }
 
   useEffect(() => {
+    const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
     // Check calendar status
-    fetch('/api/v1/calendar/status', { headers })
+    fetch('/api/v1/calendar/status', { headers: authHeaders })
       .then(r => r.ok ? r.json() : { connected: false })
       .then(data => {
         setConnected(data.connected)
@@ -44,11 +45,11 @@ export function CalendarSetup({ courseId }: CalendarSetupProps) {
       .catch(() => setCheckingStatus(false))
 
     // Load office hours
-    fetch(`/api/v1/calendar/office-hours/${courseId}`, { headers })
+    fetch(`/api/v1/calendar/office-hours/${courseId}`, { headers: authHeaders })
       .then(r => r.ok ? r.json() : [])
       .then(setOfficeHours)
       .catch(() => {})
-  }, [courseId])
+  }, [courseId, token])
 
   const handleConnectCalendar = () => {
     fetch('/api/v1/calendar/oauth/authorize', { headers })

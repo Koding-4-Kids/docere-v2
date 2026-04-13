@@ -8,6 +8,11 @@ from typing import Any, TypedDict
 class TutoringState(TypedDict, total=False):
     """State for the tutoring agent graph."""
 
+    # ── Runtime deps (injected by graph runner / background tasks) ──
+    _db: Any
+    _qdrant: Any
+    _claude: Any
+
     # ── Input (set by caller) ──
     student_id: str
     course_id: str
@@ -47,6 +52,11 @@ class TutoringState(TypedDict, total=False):
 
 class ClassroomState(TypedDict, total=False):
     """State for the classroom agent graph."""
+
+    # ── Runtime deps (injected by run_classroom_graph, not in API payloads) ──
+    _db: Any
+    _qdrant: Any
+    _claude: Any
 
     # ── Input ──
     course_id: str

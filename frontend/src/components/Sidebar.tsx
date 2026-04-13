@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { MessageSquare, Sun, Moon, HelpCircle, Settings, LogOut, Plus, Trash2, Layers, Timer } from 'lucide-react'
+import { useState } from 'react'
+import { MessageSquare, HelpCircle, Settings, Plus, Trash2, Layers, Timer, X } from 'lucide-react'
 
 interface Conversation {
   id: string
@@ -19,6 +19,8 @@ interface SidebarProps {
   userEmail: string
   dark: boolean
   toggleTheme: () => void
+  isOpen?: boolean
+  onClose?: () => void
   onOpenFlashcards?: () => void
   flashcardDueCount?: number
   onOpenFocus?: () => void
@@ -79,20 +81,18 @@ function Menu({ children, items }: { children: React.ReactNode; items: { name: s
   )
 }
 
-export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onLogout, userEmail, dark, toggleTheme, onOpenFlashcards, flashcardDueCount, onOpenFocus }: SidebarProps) {
-  const profileRef = useRef<HTMLButtonElement | null>(null)
-  const [isProfileActive, setIsProfileActive] = useState(false)
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileOpen(false)
-      }
-    }
-    document.addEventListener('click', handleClick)
-    return () => document.removeEventListener('click', handleClick)
-  }, [])
-
+export function Sidebar({
+  conversations,
+  activeId,
+  onSelect,
+  onNew,
+  onDelete,
+  isOpen = false,
+  onClose,
+  onOpenFlashcards,
+  flashcardDueCount,
+  onOpenFocus,
+}: SidebarProps) {
   // Group conversations by course
   const courseGroups = conversations.reduce<Record<string, Conversation[]>>((acc, conv) => {
     if (!acc[conv.courseName]) acc[conv.courseName] = []
@@ -100,15 +100,13 @@ export function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, on
     return acc
   }, {})
 
-  const initial = userName.charAt(0).toUpperCase()
-
   return (
     <>
       {/* Backdrop: mobile only, when sidebar is open (click to close) */}
       <div
         aria-hidden
         className={`fixed inset-0 bg-black/40 z-40 transition-opacity duration-200 md:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={onClose}
+        onClick={() => onClose?.()}
       />
 
       {/* Sidebar: mobile = overlay drawer; desktop (md+) = in flow, always visible */}

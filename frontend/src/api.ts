@@ -201,6 +201,52 @@ export function clearAuth(): void {
 
 // ── Fetch wrapper ──
 
+/** User-facing message for failed API responses (avoids raw "API error 500"). */
+function friendlyApiErrorMessage(status: number, serverDetail: unknown): string {
+  const detailStr =
+    typeof serverDetail === 'string'
+      ? serverDetail.trim()
+      : Array.isArray(serverDetail) && serverDetail[0] && typeof serverDetail[0] === 'object' && 'msg' in serverDetail[0]
+        ? String((serverDetail[0] as { msg: string }).msg)
+        : ''
+
+  const strippedDetail = detailStr.replace(/\s*\(?API Error \d+\)?\s*$/i, '').trim()
+  const genericServerPhrases = /^(internal server error|server error|error)$/i
+  if (
+    strippedDetail &&
+    !genericServerPhrases.test(strippedDetail) &&
+    strippedDetail.length < 200 &&
+    !/API Error \d+/i.test(strippedDetail)
+  ) {
+    return strippedDetail.length > 80 ? `${strippedDetail.slice(0, 77)}…` : strippedDetail
+  }
+
+  switch (status) {
+    case 400:
+      return "Check your input and try again."
+    case 403:
+      return "You don’t have permission to do that."
+    case 404:
+      return "We couldn’t find that."
+    case 408:
+    case 504:
+      return "That took too long. Try again."
+    case 502:
+    case 503:
+      return "Server unreachable. If local, start the backend."
+    case 500:
+      return "Something went wrong. Please try again. (API Error 500)"
+    default:
+      if (status >= 500) {
+        return "Something went wrong. Please try again."
+      }
+      if (status >= 400) {
+        return "We couldn’t complete that request. Please try again."
+      }
+      return "Something went wrong. Please try again."
+  }
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getStoredToken()
   const headers: Record<string, string> = {
@@ -211,17 +257,22 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const res = await fetch(path, { ...options, headers })
+  let res: Response
+  try {
+    res = await fetch(path, { ...options, headers })
+  } catch {
+    throw new Error("Can’t reach the server. Start the backend and try again.")
+  }
 
   if (res.status === 401) {
     clearAuth()
     window.location.reload()
-    throw new Error('Unauthorized')
+    throw new Error('Your session expired. Please sign in again.')
   }
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error(body.detail || `API error ${res.status}`)
+    const body = (await res.json().catch(() => ({}))) as { detail?: unknown }
+    throw new Error(friendlyApiErrorMessage(res.status, body.detail))
   }
 
   return res.json()
@@ -502,8 +553,8 @@ export async function uploadExcel(file: File): Promise<ExcelUploadResult> {
     throw new Error('Unauthorized')
   }
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error(body.detail || `Upload failed: ${res.status}`)
+    const body = (await res.json().catch(() => ({}))) as { detail?: unknown }
+    throw new Error(friendlyApiErrorMessage(res.status, body.detail))
   }
   return res.json()
 }

@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -44,9 +44,7 @@ async def get_integration_status(
     )
     google_token = result.scalar_one_or_none()
     google_connected = google_token is not None
-    google_scopes = (
-        google_token.scopes.split(",") if google_token and google_token.scopes else []
-    )
+    google_scopes = google_token.scopes.split(",") if google_token and google_token.scopes else []
 
     lms_type: str | None = None
     lms_connected = False
@@ -238,7 +236,10 @@ async def _execute_excel(payload: dict) -> ExecuteActionResponse:
 
     return ExecuteActionResponse(
         success=True,
-        result={"filename": filename, "download_url": f"/api/v1/integrations/download-excel/{filename}"},
+        result={
+            "filename": filename,
+            "download_url": f"/api/v1/integrations/download-excel/{filename}",
+        },
     )
 
 
@@ -290,7 +291,7 @@ async def upload_excel(
             break
 
     headers = rows_data[header_idx] if rows_data else []
-    data_rows = rows_data[header_idx + 1:] if len(rows_data) > header_idx + 1 else []
+    data_rows = rows_data[header_idx + 1 :] if len(rows_data) > header_idx + 1 else []
 
     # Strip trailing empty rows
     while data_rows and all(c.strip() == "" for c in data_rows[-1]):

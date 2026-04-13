@@ -98,9 +98,7 @@ async def moodle_webhook(
     for event in events:
         event_type = event.get("eventname", "unknown")
         moodle_course_id = event.get("courseid")
-        moodle_user_id = event.get("userid") or event.get(
-            "relateduserid"
-        )
+        moodle_user_id = event.get("userid") or event.get("relateduserid")
 
         # Resolve internal IDs
         course = None

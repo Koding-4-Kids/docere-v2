@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from langgraph.graph import END, START, StateGraph
@@ -146,19 +146,20 @@ async def _run_background(state: dict[str, Any]) -> None:
 
     try:
         async with async_session() as db:
-            bg_state = {**state, "_db": db}
+            bg_state: dict[str, Any] = {**state, "_db": db}
+            ts = cast(TutoringState, bg_state)
 
-            await score_previous(bg_state)
-            await extract_concepts(bg_state)
+            await score_previous(ts)
+            await extract_concepts(ts)
 
             # Merge extracted concepts back for metric updates
-            bg_state["extracted_concepts"] = bg_state.get("extracted_concepts", [])
-            bg_state["confusion_score"] = bg_state.get("confusion_score", 0.0)
-            bg_state["sentiment"] = bg_state.get("sentiment", "neutral")
+            ts["extracted_concepts"] = ts.get("extracted_concepts", [])
+            ts["confusion_score"] = ts.get("confusion_score", 0.0)
+            ts["sentiment"] = ts.get("sentiment", "neutral")
 
-            await update_metrics(bg_state)
-            await summarize_stale(bg_state)
-            await persist_flashcards(bg_state)
+            await update_metrics(ts)
+            await summarize_stale(ts)
+            await persist_flashcards(ts)
 
             await db.commit()
     except Exception as e:

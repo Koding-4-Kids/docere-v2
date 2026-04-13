@@ -50,10 +50,15 @@ class GmailService:
 
         def _send():
             service = build("gmail", "v1", credentials=creds, static_discovery=False)
-            result = service.users().messages().send(
-                userId="me",
-                body={"raw": raw},
-            ).execute()
+            result = (
+                service.users()
+                .messages()
+                .send(
+                    userId="me",
+                    body={"raw": raw},
+                )
+                .execute()
+            )
             return result
 
         loop = asyncio.get_event_loop()

@@ -50,6 +50,14 @@ def _mock_db_returning(strategies):
     return db
 
 
+def _mock_db_for_mutate():
+    """AsyncSession mock with sync add() — AsyncMock.add would be a coroutine and warn."""
+    db = AsyncMock()
+    db.add = MagicMock()
+    db.flush = AsyncMock()
+    return db
+
+
 def _evolver(db=None, claude=None):
     return StrategyEvolver(
         db=db or AsyncMock(),
@@ -167,7 +175,7 @@ class TestMutateStrategy:
         claude = AsyncMock()
         claude.chat.return_value = response_json
 
-        db = AsyncMock()
+        db = _mock_db_for_mutate()
         # _is_too_similar needs db.execute to return empty results
         similar_result = MagicMock()
         similar_result.all.return_value = []
@@ -192,7 +200,7 @@ class TestMutateStrategy:
         claude = AsyncMock()
         claude.chat.return_value = response
 
-        db = AsyncMock()
+        db = _mock_db_for_mutate()
         similar_result = MagicMock()
         similar_result.all.return_value = []
         db.execute.return_value = similar_result
@@ -216,7 +224,7 @@ class TestMutateStrategy:
         claude = AsyncMock()
         claude.chat.return_value = response_json
 
-        db = AsyncMock()
+        db = _mock_db_for_mutate()
         # _get_score_contexts returns empty
         score_result = MagicMock()
         score_result.all.return_value = []
@@ -244,7 +252,7 @@ class TestMutateStrategy:
         claude = AsyncMock()
         claude.chat.return_value = "Sorry, I can't generate that."
 
-        db = AsyncMock()
+        db = _mock_db_for_mutate()
         score_result = MagicMock()
         score_result.all.return_value = []
         db.execute.return_value = score_result

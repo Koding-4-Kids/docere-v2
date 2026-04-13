@@ -4,23 +4,25 @@ import { ChatPage } from './pages/ChatPage'
 import { LTICallbackPage } from './pages/LTICallbackPage'
 import { InstructorDashboardPage } from './pages/InstructorDashboardPage'
 import { Icons } from './components/ClaudeChatInput'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { ToastProvider, useToast } from './hooks/useToast'
 import './index.css'
 
 function LoginPage() {
   const { login } = useAuth()
+  const { addToast } = useToast()
   const [email, setEmail] = useState('')
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim()) return
     setLoading(true)
-    setError('')
     try {
       await login(email.trim())
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      const message = err instanceof Error ? err.message : 'Login failed'
+      addToast(message, 'error')
     } finally {
       setLoading(false)
     }
@@ -44,7 +46,6 @@ function LoginPage() {
             className="w-full px-4 py-3 rounded-xl border border-bg-300 bg-bg-100 text-text-100 placeholder:text-text-500 focus:outline-none focus:border-accent/50 text-sm"
             autoFocus
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
           <button
             type="submit"
             disabled={loading || !email.trim()}
@@ -89,8 +90,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   )
 }

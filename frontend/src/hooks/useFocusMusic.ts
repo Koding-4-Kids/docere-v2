@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- YouTube IFrame API is untyped here */
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 export interface MusicTrack {
@@ -76,9 +77,11 @@ export function useFocusMusic() {
   const playerRef = useRef<any>(null)
   const playlistRef = useRef<MusicTrack[]>([])
   const indexRef = useRef(0)
+  const volumeRef = useRef(volume)
 
   useEffect(() => { playlistRef.current = playlist }, [playlist])
   useEffect(() => { indexRef.current = currentTrackIndex }, [currentTrackIndex])
+  useEffect(() => { volumeRef.current = volume }, [volume])
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -98,7 +101,7 @@ export function useFocusMusic() {
     }
   }, [])
 
-  // Create player instance
+  // Create player instance (once API is ready; volume synced in separate effect)
   useEffect(() => {
     if (!playerReady || playerRef.current) return
     if (!document.getElementById('docere-yt-player')) {
@@ -112,7 +115,7 @@ export function useFocusMusic() {
       width: '0',
       playerVars: { autoplay: 0, controls: 0, disablekb: 1, enablejsapi: 1, fs: 0, modestbranding: 1, playsinline: 1, rel: 0 },
       events: {
-        onReady: () => { playerRef.current?.setVolume(volume) },
+        onReady: () => { playerRef.current?.setVolume(volumeRef.current) },
         onStateChange: (e: any) => {
           if (e.data === 0 && playlistRef.current.length > 0) {
             const next = (indexRef.current + 1) % playlistRef.current.length

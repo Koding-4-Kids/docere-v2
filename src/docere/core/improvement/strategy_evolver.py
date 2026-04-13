@@ -11,10 +11,9 @@ Process:
 
 import json
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
-import structlog
 
 from docere.config import settings
 from docere.integrations.llm.client import ClaudeClient
@@ -64,9 +63,7 @@ class StrategyEvolver:
 
         Returns summary of actions taken (mutations, prunings).
         """
-        result = await self.db.execute(
-            select(Strategy).where(Strategy.is_active.is_(True))
-        )
+        result = await self.db.execute(select(Strategy).where(Strategy.is_active.is_(True)))
         strategies = result.scalars().all()
 
         if not strategies:

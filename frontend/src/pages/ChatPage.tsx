@@ -8,6 +8,7 @@ import { ClaudeChatInput, Icons } from '../components/ClaudeChatInput'
 import { MessageBubble } from '../components/MessageBubble'
 import { StudyPanel } from '../components/StudyPanel'
 import { useTheme } from '../hooks/useTheme'
+import { useToast } from '../hooks/useToast'
 import { useAuth } from '../AuthContext'
 import { Pencil, BookOpen, Code, Lightbulb, FileText, Menu, Sun, Moon } from 'lucide-react'
 import { MeetingScheduler } from '../components/MeetingScheduler'
@@ -49,14 +50,15 @@ const QUICK_ACTIONS = [
 const STUDY_KEYWORDS = /\b(flashcard|flash card|study guide|study notes|make me notes|create notes|make me slides|create slides|make me flashcards|create flashcards|generate notes|generate flashcards|generate slides|generate a study guide|study material)\b/i
 
 export function ChatPage() {
-  const { dark, themeMode, setThemeMode, toggle } = useTheme()
+  const { dark, toggle } = useTheme()
+  const { addToast } = useToast()
   const { user, logout } = useAuth()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [conversations, setConversations] = useState<LocalConversation[]>([])
   const [activeConvId, setActiveConvId] = useState<string | null>(null)
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null)
   const [courses, setCourses] = useState<Course[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [assignments, setAssignments] = useState<api.AssignmentSummary[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -161,7 +163,6 @@ export function ChatPage() {
   const handleNewConversation = () => {
     setActiveConvId(null)
     setSelectedCourseId(null)
-    setError(null)
     closePanel()
   }
 
@@ -179,8 +180,9 @@ export function ChatPage() {
         setSelectedCourseId(null)
         closePanel()
       }
+      addToast('Conversation deleted', 'info')
     } catch {
-      setError('Failed to delete conversation')
+      addToast('Failed to delete conversation', 'error')
     }
   }
 
@@ -207,9 +209,9 @@ export function ChatPage() {
     setIsMeetingPanelOpen(false)
   }
 
-  const handleSendMessage = async (content: string, _files?: File[]) => {
+  const handleSendMessage = async (content: string, files?: File[]) => {
+    void files // reserved for future attachment upload
     if (!selectedCourseId && !activeConv) return
-    setError(null)
     shouldAutoScroll.current = true
 
     const courseId = activeConv?.courseId || selectedCourseId!
@@ -311,7 +313,8 @@ export function ChatPage() {
       setIsLoading(false)
       setIsGeneratingArtifact(false)
       if (isStudyRequest) closePanel()
-      setError(err instanceof Error ? err.message : 'Failed to send message')
+      const message = err instanceof Error ? err.message : 'Failed to send message'
+      addToast(message, 'error')
     }
   }
 
@@ -349,6 +352,8 @@ export function ChatPage() {
         userEmail={user?.email || ''}
         dark={dark}
         toggleTheme={toggle}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
         onOpenFlashcards={() => reviewCourseId && setIsReviewMode(true)}
         flashcardDueCount={totalDueCards}
         onOpenFocus={() => setIsFocusMode(true)}
@@ -377,16 +382,6 @@ export function ChatPage() {
             {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
         </header>
-
-        {/* Error banner */}
-        {error && (
-          <div className="px-4 md:px-6 py-2 bg-red-500/10 border-b border-red-500/20 text-red-600 text-sm flex items-center justify-between">
-            <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 ml-4">
-              Dismiss
-            </button>
-          </div>
-        )}
 
         {/* Course selector (new conversation, no course picked) */}
         {showCourseSelector && (
@@ -523,7 +518,10 @@ export function ChatPage() {
           conversationId={activeConvId}
           action={meetingAction}
           onClose={closeMeetingPanel}
-          onBooked={closeMeetingPanel}
+          onBooked={() => {
+            addToast('Meeting booked successfully', 'success')
+            closeMeetingPanel()
+          }}
         />
       )}
 

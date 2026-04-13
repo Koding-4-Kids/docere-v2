@@ -16,10 +16,11 @@ Usage:
 import asyncio
 import random
 import time
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 import structlog
 
@@ -27,9 +28,9 @@ logger = structlog.get_logger()
 
 
 class CircuitState(Enum):
-    CLOSED = "closed"          # Normal — requests pass through
-    OPEN = "open"              # Tripped — requests fail fast
-    HALF_OPEN = "half_open"    # Testing — one request allowed through
+    CLOSED = "closed"  # Normal — requests pass through
+    OPEN = "open"  # Tripped — requests fail fast
+    HALF_OPEN = "half_open"  # Testing — one request allowed through
 
 
 class CircuitOpenError(RuntimeError):
@@ -38,10 +39,7 @@ class CircuitOpenError(RuntimeError):
     def __init__(self, service: str, retry_after: float):
         self.service = service
         self.retry_after = retry_after
-        super().__init__(
-            f"Circuit breaker open for {service}. "
-            f"Retry after {retry_after:.0f}s."
-        )
+        super().__init__(f"Circuit breaker open for {service}. Retry after {retry_after:.0f}s.")
 
 
 @dataclass
@@ -76,9 +74,7 @@ class CircuitBreaker:
         state = self.state
 
         if state == CircuitState.OPEN:
-            retry_after = self.recovery_timeout - (
-                time.monotonic() - self._last_failure_time
-            )
+            retry_after = self.recovery_timeout - (time.monotonic() - self._last_failure_time)
             raise CircuitOpenError(self.service, max(0, retry_after))
 
         try:
@@ -147,7 +143,7 @@ async def retry_async(
             last_error = e
             if attempt == max_retries:
                 raise
-            delay = min(base_delay * (2 ** attempt), max_delay)
+            delay = min(base_delay * (2**attempt), max_delay)
             jitter = delay * (0.5 + random.random() * 0.5)
             logger.warning(
                 "Retrying after error",
@@ -179,6 +175,7 @@ def with_retry(
                 max_delay=max_delay,
                 retryable=retryable,
             )
+
         return wrapper
 
     return decorator

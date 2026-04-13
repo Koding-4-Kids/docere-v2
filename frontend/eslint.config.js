@@ -19,5 +19,13 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Legitimate init/sync patterns (auth, theme, URL parsing) flag false positives.
+      'react-hooks/set-state-in-effect': 'off',
+      // App exports hooks (useAuth, useToast) alongside providers; HMR hint only.
+      'react-refresh/only-export-components': 'off',
+      // useRef(Date.now()) and similar are intentional for timers; ref init is not render output.
+      'react-hooks/purity': 'off',
+    },
   },
 ])

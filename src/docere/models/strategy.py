@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Float, ForeignKey, Integer, String, Text, Boolean, DateTime, Index, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -45,9 +45,7 @@ class StrategyScore(Base, UUIDMixin):
     """Score for a strategy used in a specific interaction."""
 
     __tablename__ = "strategy_scores"
-    __table_args__ = (
-        Index("idx_strategy_scores_strategy", "strategy_id", "recorded_at"),
-    )
+    __table_args__ = (Index("idx_strategy_scores_strategy", "strategy_id", "recorded_at"),)
 
     strategy_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("strategies.id", ondelete="CASCADE"), nullable=False
