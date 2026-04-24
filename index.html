@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docere Team — PRs & Onboarding</title>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }
+        .deck { width: 100vw; height: 100vh; position: relative; }
+
+        /* Slide base */
+        .slide { width: 100vw; height: 100vh; display: none; flex-direction: column; justify-content: center; padding: 7vh 8vw; position: absolute; top: 0; left: 0; }
+        .slide.active { display: flex; }
+
+        /* Theme variants */
+        .slide.light { background: #ffffff; color: #1a1a1a; }
+        .slide.light h1, .slide.light h2, .slide.light h3 { color: #1a1a1a; }
+        .slide.light p { color: #444; }
+        .slide.light .card { background: #f7f7f4; border-top: 3px solid #F15524; }
+        .slide.light .card h4 { color: #1a1a1a; }
+        .slide.light .card p { color: #666; }
+
+        .slide.dark { background: #1a1a18; color: #e8e8e8; }
+        .slide.dark h1, .slide.dark h2, .slide.dark h3 { color: #fff; }
+        .slide.dark p { color: #b0b0b0; }
+        .slide.dark .card { background: rgba(255,255,255,0.03); border-top: 3px solid #F15524; }
+        .slide.dark .card h4 { color: #fff; }
+        .slide.dark .card p { color: #999; }
+
+        /* Typography */
+        h1 { font-family: 'EB Garamond', Georgia, serif; font-size: 3rem; font-weight: 400; margin-bottom: 1.2rem; line-height: 1.15; }
+        h2 { font-family: 'EB Garamond', Georgia, serif; font-size: 2.2rem; font-weight: 400; margin-bottom: 1.5rem; line-height: 1.2; }
+        h3 { font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; color: #F15524; margin-bottom: 1.2rem; margin-top: 1.5rem; }
+        h4 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.6rem; }
+        p { font-size: 1.1rem; line-height: 1.7; max-width: 720px; margin-bottom: 0.75rem; }
+        .accent { color: #F15524; }
+
+        /* Cards */
+        .card { border-radius: 14px; padding: 1.75rem; }
+
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; margin-top: 1rem; }
+        .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; margin-top: 1rem; }
+
+        /* Progress bar */
+        #progress { position: fixed; top: 0; left: 0; height: 3px; background: #F15524; transition: width 0.4s ease; z-index: 200; }
+
+        /* Navigation */
+        .counter { position: fixed; bottom: 2rem; left: 3rem; font-size: 0.8rem; color: #666; z-index: 100; }
+        .nav { position: fixed; bottom: 1.7rem; right: 3rem; display: flex; gap: 0.6rem; z-index: 100; }
+        .nav button { background: rgba(128,128,128,0.1); border: 1px solid rgba(128,128,128,0.2); color: #999; width: 40px; height: 40px; border-radius: 10px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .nav button:hover { background: rgba(241,85,36,0.15); color: #F15524; border-color: rgba(241,85,36,0.3); }
+        .nav button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        .slide.active > * { animation: fadeIn 0.4s ease-out both; }
+        .slide.active > *:nth-child(2) { animation-delay: 0.08s; }
+        .slide.active > *:nth-child(3) { animation-delay: 0.16s; }
+        .slide.active > *:nth-child(4) { animation-delay: 0.22s; }
+        .slide.active > *:nth-child(5) { animation-delay: 0.28s; }
+        .slide.active > *:nth-child(6) { animation-delay: 0.34s; }
+
+        .stat-bar { display: flex; gap: 2rem; margin-top: 1.5rem; font-size: 0.95rem; color: #888; }
+        .stat-bar span { display: flex; align-items: center; gap: 0.4rem; }
+        .stat-bar .dot { width: 6px; height: 6px; border-radius: 50%; background: #F15524; }
+        .slide.dark .stat-bar { color: #666; }
+
+        .tag { display: inline-block; font-size: 0.82rem; padding: 0.35rem 0.85rem; border-radius: 20px; background: rgba(241,85,36,0.1); color: #F15524; border: 1px solid rgba(241,85,36,0.2); margin-right: 0.5rem; margin-bottom: 0.5rem; font-weight: 500; }
+
+        .subtitle { font-size: 1.35rem; color: #999; margin-bottom: 2rem; font-family: 'EB Garamond', Georgia, serif; font-style: italic; }
+        .slide.dark .subtitle { color: #666; }
+
+        /* Print */
+        @media print {
+            .slide { display: flex !important; position: relative !important; height: auto; min-height: 100vh; page-break-after: always; }
+            .nav, .counter, #progress { display: none !important; }
+            body { overflow: visible; }
+            .deck { height: auto; }
+        }
+    </style>
+</head>
+<body>
+<div id="progress"></div>
+<div class="deck">
+
+    <!-- Slide 1: Title -->
+    <div class="slide light active" data-notes="">
+        <h1>Docere Team Sync</h1>
+        <p class="subtitle">Open PRs & New Team Onboarding</p>
+    </div>
+
+    <!-- Slide 2: Open Pull Requests -->
+    <div class="slide dark" data-notes="We're actively shipping features. PRs are how code gets reviewed and merged. Everyone should understand the PR process and what's currently in flight.">
+        <h2>Open Pull Requests</h2>
+        <p style="margin-top: 2rem; margin-bottom: 1.5rem;">Current work in review/testing:</p>
+        <div class="grid2" style="margin-top: 2rem;">
+            <div class="card">
+                <h4>PR #29: Stream Chat Messages</h4>
+                <p style="margin-top: 0.75rem; font-size: 0.95rem;"><span class="accent" style="font-weight: 600;">Kevin Thai</span></p>
+                <p style="margin-top: 0.5rem; font-size: 0.95rem;">Enables real-time token streaming of AI responses via SSE. Improves perceived latency and shows thinking process incrementally.</p>
+            </div>
+            <div class="card">
+                <h4>PR #27: Markdown Renderer</h4>
+                <p style="margin-top: 0.75rem; font-size: 0.95rem;"><span class="accent" style="font-weight: 600;">Kevin Thai</span></p>
+                <p style="margin-top: 0.5rem; font-size: 0.95rem;">Lightweight markdown parsing for chat. Enables code blocks, headers, lists, bold/italic in tutoring responses.</p>
+            </div>
+        </div>
+        <p style="margin-top: 2rem; font-size: 0.95rem; color: #999;">As we scale the team, you'll open and review PRs constantly. PR → code review → merge → deploy is our shipping rhythm.</p>
+    </div>
+
+    <!-- Slide 3: Welcome -->
+    <div class="slide light" data-notes="These three engineers bring strong backend expertise and are ready to make an impact on our platform.">
+        <h2>New Team Members</h2>
+        <p>We're excited to welcome three engineers to Docere:</p>
+        <div style="margin-top: 2.5rem;">
+            <p style="margin-bottom: 1rem;"><span class="accent" style="font-weight: 600;">Baohuy</span> — Backend & Infrastructure</p>
+            <p style="margin-bottom: 1rem;"><span class="accent" style="font-weight: 600;">Gabriel Parhar</span> — Backend Development</p>
+            <p><span class="accent" style="font-weight: 600;">Nahom Mulugeta</span> — Backend & Team Integration</p>
+        </div>
+    </div>
+
+    <!-- Slide 4: Baohuy -->
+    <div class="slide dark" data-notes="The Canvas LMS adapter is critical for expanding into Canvas-based institutions. This will open up a new market segment for us.">
+        <h2>Baohuy's First Task</h2>
+        <div class="card" style="margin-top: 2rem;">
+            <h4>Issue #31: Implement Canvas LMS Adapter</h4>
+            <p style="margin-top: 1rem; font-size: 0.95rem; line-height: 1.6;">Build a service layer that interfaces with Canvas LMS API endpoints for course syncing, user roster management, and content retrieval. Implement OAuth 2.0 auth flows for institutional Canvas instances, handle course enrollment data ingestion, sync assignments and due dates, and provide real-time course material updates.</p>
+            <div style="margin-top: 1.5rem;">
+                <span class="tag">Backend</span>
+                <span class="tag">API Integration</span>
+                <span class="tag">OAuth</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 5: Gabriel -->
+    <div class="slide dark" data-notes="These analytics endpoints are essential for our research pipeline and help us understand student outcomes and tutor effectiveness.">
+        <h2>Gabriel's First Task</h2>
+        <div class="card" style="margin-top: 2rem;">
+            <h4>Issue #20: Analytics Endpoints & Data Export</h4>
+            <p style="margin-top: 1rem; font-size: 0.95rem; line-height: 1.6;">Implement REST endpoints for aggregating tutoring session metrics, student performance trends, and LLM interaction data. Support filtering by date ranges, institution, student cohorts. Implement data export pipelines (CSV, Parquet) for research and institutional reporting. Design query optimization for large datasets across multiple students/sessions.</p>
+            <div style="margin-top: 1.5rem;">
+                <span class="tag">Backend</span>
+                <span class="tag">Data Pipeline</span>
+                <span class="tag">REST API</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 6: Nahom -->
+    <div class="slide dark" data-notes="Server-Sent Events will bridge our backend and frontend architecture. Working on this will give Nahom visibility into how both layers communicate and how we handle real-time data flows.">
+        <h2>Nahom's First Task</h2>
+        <div class="card" style="margin-top: 2rem;">
+            <h4>Issue #19: Implement Response Streaming (SSE)</h4>
+            <p style="margin-top: 1rem; font-size: 0.95rem; line-height: 1.6;">Implement Server-Sent Events (SSE) handlers in the API to stream LLM token generation in real-time. Configure async generators to chunk LLM responses, handle connection lifecycle (reconnect, timeout), and set up frontend event listeners. Requires understanding async Python/FastAPI, HTTP streaming protocols, and browser event handling.</p>
+            <div style="margin-top: 1.5rem;">
+                <span class="tag">Backend</span>
+                <span class="tag">Frontend</span>
+                <span class="tag">SSE/Streaming</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 7: Backlog & Assignments -->
+    <div class="slide light" data-notes="These are upcoming tasks. Some are already assigned to keep momentum. New team members get the strategic backend work.">
+        <h2>Backlog — High Priority & Assignments</h2>
+
+        <p style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 0.95rem;"><strong style="color: #F15524;">→ Assigned to Kevin Thai</strong></p>
+        <div style="margin-left: 1.5rem;">
+            <p style="margin-bottom: 0.5rem;"><span class="accent">#29</span> — <strong>Stream Chat Messages</strong> (PR in review)</p>
+            <p style="margin-bottom: 1rem;"><span class="accent">#27</span> — <strong>Markdown Renderer</strong> (PR in review)</p>
+        </div>
+
+        <p style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 0.95rem;"><strong style="color: #F15524;">→ Assigned to Jayvion Thaing</strong></p>
+        <div style="margin-left: 1.5rem;">
+            <p style="margin-bottom: 0.5rem;"><span class="accent">#18</span> — <strong>Error Boundaries & Toast Notifications</strong> (Frontend, ~1 week) — Error handling UI</p>
+            <p style="margin-bottom: 1rem;"><span class="accent">#17</span> — <strong>Mobile Responsive Layout</strong> (Frontend, ~1.5 weeks) — Responsive design for phones/tablets</p>
+        </div>
+
+        <p style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 0.95rem;"><strong style="color: #F15524;">→ Assigned to Luke</strong></p>
+        <div style="margin-left: 1.5rem;">
+            <p style="margin-bottom: 0.5rem;"><span class="accent">#15</span> — <strong>Unit Tests for ML Infrastructure</strong> (Backend testing, ~2 weeks) — Test LLM integration, embeddings</p>
+            <p style="margin-bottom: 1rem;"><span class="accent">#21</span> — <strong>Statistical Analysis for A/B Testing</strong> (Research, ~3 weeks) — Analyze study results</p>
+        </div>
+
+        <p style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 0.95rem;"><strong style="color: #F15524;">→ Future Backlog</strong></p>
+        <div style="margin-left: 1.5rem;">
+            <p style="margin-bottom: 0.5rem;"><span class="accent">#12</span> — Scalability: Chunk Limits & Compression (Backend optimization, depends on #19)</p>
+            <p style="margin-bottom: 1rem;"><span class="accent">#11</span> — Auto-sync PDF & Materials from Moodle (Testing & integration)</p>
+        </div>
+
+        <p style="margin-top: 2rem; font-size: 0.9rem; color: #666;">Workflow: Issue → branch → PR → code review → merge. Target: Kevin + Jayvion ship next week. Luke + new team (2-3 weeks).</p>
+    </div>
+
+    <!-- Slide 8: The PR Process -->
+    <div class="slide dark" data-notes="Everyone needs to understand how we ship code. PRs are the mechanism for quality control and knowledge sharing.">
+        <h2>Our PR & Review Process</h2>
+        <p style="margin-top: 2rem; margin-bottom: 1.5rem;"><strong style="color: #10b981;">Standard workflow:</strong></p>
+        <code style="display: block; margin-top: 1rem; font-size: 0.9rem; background: rgba(0,0,0,0.4); padding: 1.5rem; border-radius: 8px; color: #7dd3fc; line-height: 1.8; font-family: 'Courier New', monospace;">1. Pick an issue from GitHub
+2. Create a branch: git checkout -b feat/issue-123-description
+3. Implement + test locally
+4. Push & open PR with description
+5. CI runs: linting (ruff), type checking (mypy), tests (pytest)
+6. Code review: Youdahe or senior team member
+   - Check logic, ask questions, suggest improvements
+   - Make sure it's documented
+7. Address feedback, re-request review
+8. CI passes + approval → merge to main
+9. Deploy (automatic or manual depending on env)</code>
+        <p style="margin-top: 1.5rem; font-size: 0.95rem; color: #b0b0b0;">First PRs may take longer for review. That's expected. We're teaching you our patterns.</p>
+    </div>
+
+    <!-- Slide 9: Next Steps -->
+    <div class="slide dark" data-notes="Let's make sure everyone has clear next steps and knows how to get support.">
+        <h2>Next Steps</h2>
+        <h3>For Kevin Thai</h3>
+        <p style="margin-bottom: 2rem;">Continue development on PRs #29 and #27. Iterate on code review feedback. Plan next PR after these merge.</p>
+        <h3>For New Team Members</h3>
+        <p>Complete setup (slides 9-20). Read the README & core/agent.py. Start on your assigned issue. Your first PR target: 2-3 weeks from start. Ask questions in Slack—we're here to support you.</p>
+    </div>
+
+    <!-- Slide 9: Setup Overview -->
+    <div class="slide dark" data-notes="Before you can start working, you need to understand how Docere actually runs. This is the architecture layer that everything else sits on top of.">
+        <h2>Setup & Architecture</h2>
+        <p style="margin-top: 2rem; margin-bottom: 1.5rem;">Getting from zero to a running tutoring agent</p>
+        <div style="margin-top: 2rem;">
+            <p><strong style="color: #10b981;">v1</strong> — Simple FastAPI + PostgreSQL (2023)</p>
+            <p style="margin-top: 0.5rem; font-size: 0.95rem; color: #999;">Single tutoring endpoint, conversation history only</p>
+            <p style="margin-top: 1.5rem;"><strong style="color: #10b981;">v2</strong> — Async FastAPI + Qdrant + Redis (2024-present)</p>
+            <p style="margin-top: 0.5rem; font-size: 0.95rem; color: #999;">Memory-augmented learning agent with self-improvement loop</p>
+        </div>
+    </div>
+
+    <!-- Slide 10: v1 vs v2 Architecture Diagram -->
+    <div class="slide light" data-notes="The stack expanded significantly. v1 was production-ready. v2 is research-grade.">
+        <h2>Architecture Comparison</h2>
+        <div class="grid2" style="margin-top: 2rem; font-size: 0.9rem;">
+            <div class="card">
+                <h4 style="color: #1a1a1a;">v1: Minimal Stack</h4>
+                <code style="display: block; margin-top: 1rem; font-size: 0.8rem; background: #eee; padding: 1rem; border-radius: 6px; color: #333; line-height: 1.4;">FastAPI server
+  ↓
+PostgreSQL
+  ↓
+Claude API
+  ↓
+LMS (Canvas/Moodle)</code>
+            </div>
+            <div class="card">
+                <h4 style="color: #1a1a1a;">v2: Full Research Platform</h4>
+                <code style="display: block; margin-top: 1rem; font-size: 0.8rem; background: #eee; padding: 1rem; border-radius: 6px; color: #333; line-height: 1.4;">FastAPI (async)
+  ├─ PostgreSQL (relational)
+  ├─ Qdrant (vector embeddings)
+  ├─ Redis (cache + ARQ tasks)
+  └─ Claude API
+     └─ LMS adapters</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 11: v2 Data Flow -->
+    <div class="slide dark" data-notes="This is the core loop. Every message goes through this pipeline. Understanding this is critical for your work.">
+        <h2>v2 Request Flow: Detailed</h2>
+        <code style="display: block; margin-top: 1.5rem; font-size: 0.85rem; background: rgba(0,0,0,0.4); padding: 1.5rem; border-radius: 8px; color: #7dd3fc; line-height: 1.8; font-family: 'Courier New', monospace;">POST /api/v1/chat/conversations/{id}/messages
+  │
+  ├─ 1. MEMORY ASSEMBLY (async, parallel)
+  │    ├─ Student Profile (PostgreSQL lookup)
+  │    │  └─ engagement_level, concept_mastery, confusion_score
+  │    ├─ Teacher Context (Qdrant similarity search)
+  │    │  └─ top-k course materials matching query
+  │    └─ Interaction History (Qdrant + diversity filter)
+  │       └─ past Q&A pairs with max 0.65 similarity
+  │
+  ├─ 2. STRATEGY SELECTION (UCB1 bandit)
+  │    ├─ Fetch 5 seed strategies + evolved variants
+  │    ├─ Calculate UCB1 score for each
+  │    └─ Pick highest (or random if exploration phase)
+  │
+  ├─ 3. PROMPT CONSTRUCTION
+  │    └─ Base tutoring prompt + strategy + memory context (4K token budget)
+  │
+  ├─ 4. LLM CALL
+  │    └─ Claude generates tutoring response (streaming SSE)
+  │
+  └─ 5. ASYNC POST-PROCESSING
+     ├─ Embedding generation (Voyage AI)
+     ├─ Memory capture (store in Qdrant + PostgreSQL)
+     ├─ Heuristic scoring (clarity, engagement, quality)
+     └─ Queue verification task (30-300s timeout for student followup)</code>
+    </div>
+
+    <!-- Slide 12: v2 Setup - Part 1 -->
+    <div class="slide light" data-notes="">
+        <h2>v2 Setup: Services</h2>
+        <p style="margin-top: 1.5rem; margin-bottom: 1rem;"><strong>Step 1: Clone & start Docker services</strong></p>
+        <code style="display: block; margin-top: 1rem; font-size: 0.85rem; background: #1a1a1a; padding: 1.5rem; border-radius: 8px; color: #7dd3fc; line-height: 1.6; font-family: 'Courier New', monospace;">$ git clone https://github.com/Koding-4-Kids/docere-v2
+$ cd docere-v2
+
+$ docker-compose up postgres redis qdrant -d
+# Starts 3 services in background:
+#   - postgres:5432  (databases: users, conversations, strategies)
+#   - redis:6379    (cache + ARQ task queue)
+#   - qdrant:6333   (vector DB for memory embeddings)</code>
+        <p style="margin-top: 1.5rem; font-size: 0.95rem; color: #666;">Wait ~10 seconds for services to be healthy (check logs with <code>docker-compose logs</code>)</p>
+    </div>
+
+    <!-- Slide 13: v2 Setup - Part 2 -->
+    <div class="slide light" data-notes="">
+        <h2>v2 Setup: Python Environment</h2>
+        <p style="margin-top: 1.5rem; margin-bottom: 1rem;"><strong>Step 2: Create Python venv & install</strong></p>
+        <code style="display: block; margin-top: 1rem; font-size: 0.85rem; background: #1a1a1a; padding: 1.5rem; border-radius: 8px; color: #7dd3fc; line-height: 1.6; font-family: 'Courier New', monospace;">$ python3.11 -m venv venv
+$ source venv/bin/activate
+
+$ pip install -e .
+$ pip install -r dev-requirements.txt
+# Installs FastAPI, SQLAlchemy 2.0, Qdrant client,
+# Anthropic SDK, Voyage AI embeddings, pytest, mypy, ruff</code>
+        <p style="margin-top: 1.5rem; font-size: 0.95rem; color: #666;">Uses Python 3.11+ (async/await, match statements)</p>
+    </div>
+
+    <!-- Slide 14: v2 Setup - Part 3 -->
+    <div class="slide light" data-notes="">
+        <h2>v2 Setup: Configuration & DB</h2>
+        <p style="margin-top: 1.5rem; margin-bottom: 1rem;"><strong>Step 3: .env & database migrations</strong></p>
+        <code style="display: block; margin-top: 1rem; font-size: 0.8rem; background: #1a1a1a; padding: 1.5rem; border-radius: 8px; color: #7dd3fc; line-height: 1.5; font-family: 'Courier New', monospace;">$ cp .env.example .env
+
+# Edit .env:
+ANTHROPIC_API_KEY=sk-ant-...      # Required for Claude
+VOYAGE_API_KEY=...                # For embeddings
+DATABASE_URL=postgresql+asyncpg://docere:docere_dev@localhost:5432/docere
+QDRANT_URL=http://localhost:6333
+REDIS_URL=redis://localhost:6379
+
+# Run migrations
+$ alembic upgrade head
+# Creates 25+ tables:
+# users, enrollments, courses, conversations, messages,
+# memory_records, student_profiles, strategies, interaction_scores,
+# research_events, learning_analytics_events, etc.</code>
+    </div>
+
+    <!-- Slide 15: v2 Setup - Part 4 -->
+    <div class="slide light" data-notes="">
+        <h2>v2 Setup: Start Services</h2>
+        <p style="margin-top: 1.5rem; margin-bottom: 1rem;"><strong>Step 4: Start backend API & frontend</strong></p>
+        <code style="display: block; margin-top: 1rem; font-size: 0.85rem; background: #1a1a1a; padding: 1.5rem; border-radius: 8px; color: #7dd3fc; line-height: 1.6; font-family: 'Courier New', monospace;">$ uvicorn docere.main:app --reload --port 8000
+# Starts FastAPI server with hot reload
+# GET  /health              → {"status": "ok"}
+# GET  /docs                → Swagger API docs
+# POST /api/v1/chat/conversations/{id}/messages
+# GET  /api/v1/analytics/...
+# etc.
+
+# In another terminal:
+$ cd frontend && npm install && npm run dev
+# Starts Vite dev server on port 5173
+# React 19 + TypeScript + Tailwind CSS</code>
+    </div>
+
+    <!-- Slide 16: v2 Data Model Overview -->
+    <div class="slide dark" data-notes="This is how data flows through the system. Every table serves a specific purpose.">
+        <h2>v2 Database Schema (Simplified)</h2>
+        <code style="display: block; margin-top: 1.5rem; font-size: 0.8rem; background: rgba(0,0,0,0.4); padding: 1.5rem; border-radius: 8px; color: #7dd3fc; line-height: 1.6; font-family: 'Courier New', monospace;">Users ──< Enrollments >── Courses
+  │                          ├──< Assignments ──< Submissions
+  │                          ├──< CourseMaterials (in Qdrant)
+  │                          └──< StudyConfig ──< ResearchEvents
+  │
+  ├──< Conversations ──< Messages ──< InteractionScores
+  │         │                           (helpfulness, clarity, engagement)
+  │         └──< strategy_id ──> Strategies ──< StrategyScores
+  │                                 (seed + evolved variants)
+  │
+  ├──< StudentProfiles (engagement_level, confusion_avg)
+  ├──< ConceptMastery (per-concept skill 0.0–1.0)
+  ├──< MemoryRecords (compressed interaction summaries)
+  └──< MemoryRecords → Qdrant (embeddings for semantic search)</code>
+    </div>
+
+    <!-- Slide 17: Key Technical Differences -->
+    <div class="slide dark" data-notes="These differences matter for your assignments. You need to understand why v2 is structured this way.">
+        <h2>v1 vs v2: Technical Deep Dive</h2>
+        <div style="font-size: 0.9rem; margin-top: 2rem;">
+            <p style="margin-bottom: 1.5rem;"><strong style="color: #10b981;">Memory System</strong></p>
+            <p style="color: #999; margin-bottom: 1rem;"><strong>v1:</strong> last N messages from PostgreSQL</p>
+            <p style="color: #10b981; margin-bottom: 2rem;"><strong>v2:</strong> 3-source semantic context: student profile + course materials (Qdrant cosine sim) + interaction history (Qdrant + diversity filter, max 0.65 sim)</p>
+
+            <p style="margin-bottom: 1.5rem;"><strong style="color: #10b981;">Strategy Selection</strong></p>
+            <p style="color: #999; margin-bottom: 1rem;"><strong>v1:</strong> fixed prompt instructions</p>
+            <p style="color: #10b981; margin-bottom: 2rem;"><strong>v2:</strong> UCB1 multi-armed bandit: <code>score = avg_score + sqrt(2*ln(total_uses)/strategy_uses)</code></p>
+
+            <p style="margin-bottom: 1.5rem;"><strong style="color: #10b981;">Outcome Tracking</strong></p>
+            <p style="color: #999; margin-bottom: 1rem;"><strong>v1:</strong> no scoring</p>
+            <p style="color: #10b981;"><strong>v2:</strong> hybrid 2-phase: heuristics (30%) + LLM-as-judge (70%), 4 dimensions weighted (helpfulness 0.35, clarity 0.25, understanding Δ 0.25, engagement 0.15)</p>
+        </div>
+    </div>
+
+    <!-- Slide 18: Baohuy Technical Spec -->
+    <div class="slide dark" data-notes="Baohuy needs to understand the LMS adapter interface to build Canvas integration.">
+        <h2>Baohuy's Task — Canvas LMS Adapter</h2>
+        <div class="card" style="margin-top: 1.5rem; border-top: 3px solid #10b981;">
+            <h4 style="color: #10b981;">Issue #31: Implement Canvas LMS Adapter</h4>
+            <p style="margin-top: 0.75rem; font-size: 0.95rem; color: #b0b0b0;">Build the normalized interface layer between Docere and Canvas LMS via REST API. This unlocks Canvas-based institutions (100+ schools).</p>
+        </div>
+
+        <p style="margin-top: 1.5rem; font-size: 0.9rem; text-transform: uppercase; color: #999; font-weight: 600; letter-spacing: 0.1em;">BEFORE: Current State</p>
+        <div style="margin-top: 0.75rem; padding: 1rem; background: rgba(0,0,0,0.2); border-left: 3px solid #666; border-radius: 4px;">
+            <p style="font-size: 0.9rem; color: #b0b0b0; margin: 0;"><strong>✗</strong> Moodle integration only (canvas.py is a stub)</p>
+            <p style="font-size: 0.9rem; color: #b0b0b0; margin: 0; margin-top: 0.4rem;"><strong>✗</strong> Canvas teachers manually copy rosters / assignments into Docere</p>
+            <p style="font-size: 0.9rem; color: #b0b0b0; margin: 0; margin-top: 0.4rem;"><strong>✗</strong> No sync = data stale, teacher frustration, limited adoption</p>
+        </div>
+
+        <p style="margin-top: 1.2rem; font-size: 0.9rem; text-transform: uppercase; color: #10b981; font-weight: 600; letter-spacing: 0.1em;">AFTER: What This PR Adds</p>
+        <div style="margin-top: 0.75rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 4px;">
+            <p style="font-size: 0.9rem; color: #d1fae5; margin: 0;"><strong>✓</strong> Canvas OAuth 2.0 login (token exchange + refresh)</p>
+            <p style="font-size: 0.9rem; color: #d1fae5; margin: 0; margin-top: 0.4rem;"><strong>✓</strong> Auto-fetch: course roster, assignments, due dates, submission data</p>
+            <p style="font-size: 0.9rem; color: #d1fae5; margin: 0; margin-top: 0.4rem;"><strong>✓</strong> Parallel API calls with rate limit handling (10 req/sec)</p>
+            <p style="font-size: 0.9rem; color: #d1fae5; margin: 0; margin-top: 0.4rem;"><strong>✓</strong> Scheduled sync every 2 hours → students always see current data</p>
+        </div>
+
+        <p style="margin-top: 1.2rem; font-size: 0.9rem; text-transform: uppercase; color: #10b981; font-weight: 600; letter-spacing: 0.1em;">Key Methods to Implement</p>
+        <div style="margin-top: 0.75rem; font-size: 0.85rem;">
+            <p style="margin-bottom: 0.6rem;"><strong style="color: #7dd3fc;">get_course()</strong> — Fetch course metadata</p>
+            <p style="margin-bottom: 0.6rem;"><strong style="color: #7dd3fc;">get_enrollments()</strong> — Fetch students + teachers, filter by role</p>
+            <p style="margin-bottom: 0.6rem;"><strong style="color: #7dd3fc;">get_assignments()</strong> — Fetch due dates, points, rubrics</p>
+            <p style="margin-bottom: 0.6rem;"><strong style="color: #7dd3fc;">full_sync()</strong> — Parallel execution + error handling</p>
+        </div>
+
+        <p style="margin-top: 1rem; font-size: 0.85rem; color: #666;">📍 Location: <code>src/docere/integrations/lms/canvas.py</code></p>
+    </div>
+
+    <!-- Slide 19: Gabriel Technical Spec -->
+    <div class="slide dark" data-notes="Gabriel needs to understand how to query PostgreSQL for aggregated analytics and export efficiently.">
+        <h2>Gabriel's Task — Analytics & Data Export</h2>
+        <div class="card" style="margin-top: 1.5rem; border-top: 3px solid #06b6d4;">
+            <h4 style="color: #06b6d4;">Issue #20: Analytics Endpoints & Data Export</h4>
+            <p style="margin-top: 0.75rem; font-size: 0.95rem; color: #b0b0b0;">Build REST endpoints for aggregating tutoring metrics and exporting anonymized data for research analysis. Critical for understanding tutor effectiveness.</p>
+        </div>
+
+        <p style="margin-top: 1.2rem; font-size: 0.9rem; text-transform: uppercase; color: #999; font-weight: 600; letter-spacing: 0.1em;">BEFORE: Current State</p>
+        <div style="margin-top: 0.75rem; padding: 1rem; background: rgba(0,0,0,0.2); border-left: 3px solid #666; border-radius: 4px;">
+            <p style="font-size: 0.9rem; color: #b0b0b0; margin: 0;"><strong>✗</strong> No analytics endpoints (stub routes only)</p>
+            <p style="font-size: 0.9rem; color: #b0b0b0; margin: 0; margin-top: 0.4rem;"><strong>✗</strong> Instructors can't see tutor effectiveness metrics</p>
+            <p style="font-size: 0.9rem; color: #b0b0b0; margin: 0; margin-top: 0.4rem;"><strong>✗</strong> Research team manually queries database → slow, error-prone</p>
+            <p style="font-size: 0.9rem; color: #b0b0b0; margin: 0; margin-top: 0.4rem;"><strong>✗</strong> No data export for external analysis (papers, reports)</p>
+        </div>
+
+        <p style="margin-top: 1.2rem; font-size: 0.9rem; text-transform: uppercase; color: #06b6d4; font-weight: 600; letter-spacing: 0.1em;">AFTER: What This PR Adds</p>
+        <div style="margin-top: 0.75rem; padding: 1rem; background: rgba(6, 182, 212, 0.1); border-left: 3px solid #06b6d4; border-radius: 4px;">
+            <p style="font-size: 0.9rem; color: #cffafe; margin: 0;"><strong>✓</strong> GET /analytics/sessions → avg scores by study_group + strategy</p>
+            <p style="font-size: 0.9rem; color: #cffafe; margin: 0; margin-top: 0.4rem;"><strong>✓</strong> GET /analytics/concepts → concept mastery distribution</p>
+            <p style="font-size: 0.9rem; color: #cffafe; margin: 0; margin-top: 0.4rem;"><strong>✓</strong> POST /analytics/export → CSV/Parquet/JSONL (streaming, no RAM spikes)</p>
+            <p style="font-size: 0.9rem; color: #cffafe; margin: 0; margin-top: 0.4rem;"><strong>✓</strong> Instructors see dashboards. Research team exports for analysis.</p>
+        </div>
+
+        <p style="margin-top: 1.2rem; font-size: 0.9rem; text-transform: uppercase; color: #06b6d4; font-weight: 600; letter-spacing: 0.1em;">Endpoints to Implement</p>
+        <div style="margin-top: 0.75rem; font-size: 0.85rem;">
+            <p style="margin-bottom: 0.6rem;"><strong style="color: #7dd3fc;">GET /api/v1/analytics/sessions</strong> — Aggregate by study_group, strategy, date range</p>
+            <p style="margin-bottom: 0.6rem;"><strong style="color: #7dd3fc;">GET /api/v1/analytics/concepts</strong> — Per-concept mastery trends</p>
+            <p style="margin-bottom: 0.6rem;"><strong style="color: #7dd3fc;">POST /api/v1/analytics/export</strong> — Stream large datasets (csv/parquet)</p>
+        </div>
+
+        <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+            <span class="tag">SQLAlchemy Queries</span>
+            <span class="tag">Async Streaming</span>
+            <span class="tag">Aggregation</span>
+        </div>
+        <p style="margin-top: 1rem; font-size: 0.85rem; color: #666;">📍 Location: <code>src/docere/api/analytics.py</code></p>
+    </div>
+
+    <!-- Slide 20: Nahom Technical Spec -->
+    <div class="slide dark" data-notes="Nahom needs to understand async generators, SSE protocol, and how to connect FastAPI streaming to frontend event listeners.">
+        <h2>Nahom's Task — Response Streaming (SSE)</h2>
+        <div class="card" style="margin-top: 1.5rem; border-top: 3px solid #a78bfa;">
+            <h4 style="color: #a78bfa;">Issue #19: Implement Response Streaming (SSE)</h4>
+            <p style="margin-top: 0.75rem; font-size: 0.95rem; color: #b0b0b0;">Implement Server-Sent Events so AI tutoring responses appear token-by-token. Students see the tutor "thinking" in real-time, improving perceived responsiveness.</p>
+        </div>
+
+        <p style="margin-top: 1.2rem; font-size: 0.9rem; text-transform: uppercase; color: #999; font-weight: 600; letter-spacing: 0.1em;">BEFORE: Current State</p>
+        <div style="margin-top: 0.75rem; padding: 1rem; background: rgba(0,0,0,0.2); border-left: 3px solid #666; border-radius: 4px;">
+            <p style="font-size: 0.9rem; color: #b0b0b0; margin: 0;"><strong>✗</strong> Chat endpoint waits for full response (can be 10-30 seconds)</p>
+            <p style="font-size: 0.9rem; color: #b0b0b0; margin: 0; margin-top: 0.4rem;"><strong>✗</strong> Student stares at loading spinner for entire LLM generation</p>
+            <p style="font-size: 0.9rem; color: #b0b0b0; margin: 0; margin-top: 0.4rem;"><strong>✗</strong> Feels slow, broken, or stuck (even though it's working)</p>
+            <p style="font-size: 0.9rem; color: #b0b0b0; margin: 0; margin-top: 0.4rem;"><strong>✗</strong> Poor user experience → lower engagement</strong></p>
+        </div>
+
+        <p style="margin-top: 1.2rem; font-size: 0.9rem; text-transform: uppercase; color: #a78bfa; font-weight: 600; letter-spacing: 0.1em;">AFTER: What This PR Adds</p>
+        <div style="margin-top: 0.75rem; padding: 1rem; background: rgba(167, 139, 250, 0.1); border-left: 3px solid #a78bfa; border-radius: 4px;">
+            <p style="font-size: 0.9rem; color: #ede9fe; margin: 0;"><strong>✓</strong> Response streams token-by-token via SSE</p>
+            <p style="font-size: 0.9rem; color: #ede9fe; margin: 0; margin-top: 0.4rem;"><strong>✓</strong> Student sees text appearing live: "Let's... start... with... recursion..."</p>
+            <p style="font-size: 0.9rem; color: #ede9fe; margin: 0; margin-top: 0.4rem;"><strong>✓</strong> Feels fast, responsive, & human-like (like ChatGPT)</p>
+            <p style="font-size: 0.9rem; color: #ede9fe; margin: 0; margin-top: 0.4rem;"><strong>✓</strong> Better engagement + satisfying UX</p>
+        </div>
+
+        <p style="margin-top: 1.2rem; font-size: 0.9rem; text-transform: uppercase; color: #a78bfa; font-weight: 600; letter-spacing: 0.1em;">Architecture: Backend → SSE Stream → Frontend</p>
+        <div style="margin-top: 0.75rem; font-size: 0.85rem;">
+            <p style="margin-bottom: 0.7rem;"><strong style="color: #7dd3fc;">Backend:</strong> Async generator → LLM tokens → SSE format (<code style="background: rgba(0,0,0,0.3); padding: 0.1rem 0.3rem; font-size: 0.8rem;">data: {"token": "word"}\n\n</code>) → stream to client</p>
+            <p style="margin-bottom: 0.7rem;"><strong style="color: #7dd3fc;">Frontend:</strong> EventSource listener → parse JSON → append token to DOM in real-time</p>
+        </div>
+
+        <div style="margin-top: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+            <span class="tag">Async Generators</span>
+            <span class="tag">SSE Protocol</span>
+            <span class="tag">LLM Streaming</span>
+            <span class="tag">EventSource API</span>
+            <span class="tag">Real-time UX</span>
+        </div>
+        <p style="margin-top: 1rem; font-size: 0.85rem; color: #666;">📍 Backend: <code>src/docere/api/chat.py</code> &nbsp; | &nbsp; 📍 Frontend: <code>frontend/src/hooks/useStream.ts</code></p>
+    </div>
+
+    <!-- Slide 21: Closing -->
+    <div class="slide light" data-notes="">
+        <h1>Let's Build</h1>
+        <p class="subtitle">Together we're making a dent in education.</p>
+    </div>
+
+</div>
+
+<div class="counter">
+    <span id="current-slide">1</span> / <span id="total-slides">22</span>
+</div>
+
+<div class="nav">
+    <button id="prev-btn" onclick="prevSlide()">←</button>
+    <button id="next-btn" onclick="nextSlide()">→</button>
+</div>
+
+<script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    document.getElementById('total-slides').textContent = totalSlides;
+
+    function showSlide(n) {
+        slides.forEach(slide => slide.classList.remove('active'));
+        if (n >= totalSlides) currentSlide = totalSlides - 1;
+        if (n < 0) currentSlide = 0;
+        slides[currentSlide].classList.add('active');
+        document.getElementById('current-slide').textContent = currentSlide + 1;
+        document.getElementById('prev-btn').disabled = currentSlide === 0;
+        document.getElementById('next-btn').disabled = currentSlide === totalSlides - 1;
+        updateProgress();
+    }
+
+    function updateProgress() {
+        const progress = (currentSlide + 1) / totalSlides * 100;
+        document.getElementById('progress').style.width = progress + '%';
+    }
+
+    function nextSlide() {
+        currentSlide++;
+        showSlide(currentSlide);
+    }
+
+    function prevSlide() {
+        currentSlide--;
+        showSlide(currentSlide);
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') nextSlide();
+        if (e.key === 'ArrowLeft') prevSlide();
+        if (e.key === ' ') { e.preventDefault(); nextSlide(); }
+    });
+
+    showSlide(currentSlide);
+</script>
+</body>
+</html>
