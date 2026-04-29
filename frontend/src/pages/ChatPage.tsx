@@ -8,6 +8,8 @@ import { useTheme } from '../hooks/useTheme'
 import { useAuth } from '../AuthContext'
 import { MeetingScheduler } from '../components/MeetingScheduler'
 import { NotesEditor } from '../components/NotesEditor'
+// For testing toast notifications
+import { useToast } from '../hooks/useToast'
 import * as api from '../api'
 import type { StudyArtifact, MeetingAction, Widget, StreamDoneMeta } from '../api'
 
@@ -47,6 +49,8 @@ const QUICK_ACTIONS = [
 const STUDY_KEYWORDS = /\b(flashcard|flash card|study guide|make me slides|create slides|make me flashcards|create flashcards|generate flashcards|generate slides|generate a study guide|study material)\b/i
 
 export function ChatPage() {
+  // For testing toast notifications
+  const { addToast } = useToast();
   const { dark, toggle } = useTheme()
   const { user, logout } = useAuth()
   const [conversations, setConversations] = useState<LocalConversation[]>([])
@@ -54,7 +58,6 @@ export function ChatPage() {
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null)
   const [courses, setCourses] = useState<Course[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const shouldAutoScroll = useRef(true)
@@ -180,14 +183,12 @@ export function ChatPage() {
 
   const handleNewConversation = () => {
     setActiveConvId(null)
-    setError(null)
     closePanel()
   }
 
   const startNewChatForCourse = (courseId: string) => {
     setActiveCourseId(courseId)
     setActiveConvId(null)
-    setError(null)
     closePanel()
   }
 
@@ -199,8 +200,9 @@ export function ChatPage() {
         setActiveConvId(null)
         closePanel()
       }
+      addToast('success', 'Conversation deleted'); // Wire success
     } catch {
-      setError('Failed to delete conversation')
+      addToast('error', 'Failed to delete conversation'); // Wire error
     }
   }
 
@@ -243,7 +245,6 @@ export function ChatPage() {
     // Course for new conversations: toggled pill > active conversation > first course
     const courseId = activeCourseId || activeConv?.courseId || (courses.length > 0 ? courses[0].id : null)
     if (!courseId) return
-    setError(null)
     shouldAutoScroll.current = true
 
     const course = courses.find(c => c.id === courseId)
@@ -448,7 +449,7 @@ export function ChatPage() {
             setIsLoading(false)
             setIsGeneratingArtifact(false)
             if (isStudyRequest) closePanel()
-            setError(errMsg)
+            addToast('error', errMsg);
           }
         },
         currentNotes,
@@ -457,7 +458,7 @@ export function ChatPage() {
       setIsLoading(false)
       setIsGeneratingArtifact(false)
       if (isStudyRequest) closePanel()
-      setError(err instanceof Error ? err.message : 'Failed to send message')
+      addToast('error', 'Failed to send message')
     }
   }
 
@@ -497,15 +498,6 @@ export function ChatPage() {
 
       {/* Main Content — always a chat */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        {/* Error banner */}
-        {error && (
-          <div className="px-6 py-2 bg-red-500/10 border-b border-red-500/20 text-red-600 text-sm flex items-center justify-between">
-            <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 ml-4">
-              Dismiss
-            </button>
-          </div>
-        )}
 
         {/* Scrollable area — messages or empty greeting */}
         <div ref={messagesContainerRef} onScroll={handleMessagesScroll} className="flex-1 overflow-y-auto custom-scrollbar">
@@ -604,6 +596,14 @@ export function ChatPage() {
           <ClaudeChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
         </div>
       </div>
+      
+
+      {/* Toast notifications for testing */}
+      <div className="fixed top-4 left-4 z-50 bg-gray-800 p-2 rounded-lg border border-gray-600 flex flex-col gap-2">
+      <button onClick={() => addToast('success', 'Meeting Booked!')} className="...">Add Success</button>
+      <button onClick={() => addToast('error', 'API Errors!')} className="...">Add Error</button>
+      <button onClick={() => addToast('info', '(Information Toast)')} className="...">Add Info</button>
+      </div>
 
       {/* Notes Panel */}
       {isNotesOpen && (
@@ -647,7 +647,10 @@ export function ChatPage() {
           conversationId={activeConvId}
           action={meetingAction}
           onClose={closeMeetingPanel}
-          onBooked={closeMeetingPanel}
+          onBooked={() => {
+            closeMeetingPanel();
+            addToast('success', 'Meeting successfully booked!');
+          }}
         />
       )}
 

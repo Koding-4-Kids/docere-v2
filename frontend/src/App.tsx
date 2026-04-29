@@ -4,6 +4,8 @@ import { ChatPage } from './pages/ChatPage'
 import { LTICallbackPage } from './pages/LTICallbackPage'
 import { InstructorDashboardPage } from './pages/InstructorDashboardPage'
 import { Icons } from './components/ClaudeChatInput'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { ToastProvider } from './components/ToastProvider'
 import './index.css'
 
 function LoginPage() {
@@ -89,8 +91,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
