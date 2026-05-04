@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docere — MN Cup Education &amp; Training 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }
+  .deck { width: 100vw; height: 100vh; position: relative; }
+
+  .slide { width: 100vw; height: 100vh; display: none; flex-direction: column; justify-content: center; padding: 6vh 8vw; position: absolute; top: 0; left: 0; }
+  .slide.active { display: flex; }
+
+  /* — Themes — */
+  .slide.light { background: #ffffff; color: #1a1a1a; }
+  .slide.light h1, .slide.light h2 { color: #1a1a1a; }
+  .slide.light p { color: #444; }
+  .slide.light .card { background: #f7f7f4; border: 1px solid #e5e5e0; }
+  .slide.light .card h4 { color: #1a1a1a; }
+  .slide.light .card p { color: #666; }
+  .slide.light .dim { color: #999; }
+
+  .slide.dark { background: #1a1a18; color: #e8e8e8; }
+  .slide.dark h1, .slide.dark h2 { color: #fff; }
+  .slide.dark p { color: #b0b0b0; }
+  .slide.dark .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); }
+  .slide.dark .card h4 { color: #fff; }
+  .slide.dark .card p { color: #999; }
+  .slide.dark .dim { color: #555; }
+
+  .slide.orange { background: #F15524; color: #fff; }
+  .slide.orange h1, .slide.orange h2, .slide.orange p { color: #fff; }
+  .slide.orange .dim { color: rgba(255,255,255,0.6); }
+
+  /* — Typography — */
+  h1 { font-family: 'EB Garamond', Georgia, serif; font-size: 2.6rem; font-weight: 400; margin-bottom: 1rem; line-height: 1.15; }
+  h2 { font-family: 'EB Garamond', Georgia, serif; font-size: 1.9rem; font-weight: 400; margin-bottom: 1rem; line-height: 1.2; }
+  h3 { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; color: #F15524; margin-bottom: 0.9rem; }
+  h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.4rem; }
+  p { font-size: 0.9rem; line-height: 1.6; max-width: 700px; margin-bottom: 0.5rem; }
+  .accent { color: #F15524; }
+  .small { font-size: 0.8rem; }
+
+  /* — Grids — */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 0.75rem; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-top: 0.75rem; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-top: 0.75rem; }
+
+  /* — Cards — */
+  .card { border-radius: 14px; padding: 1.4rem; }
+  .card-top { border-top: 3px solid #F15524; }
+
+  /* — Metrics — */
+  .metric { text-align: center; padding: 1rem; }
+  .metric .num { font-size: 2.2rem; font-weight: 700; color: #F15524; line-height: 1; margin-bottom: 0.2rem; }
+  .metric .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: #888; }
+  .metrics-row { display: flex; gap: 1.5rem; margin-top: 1rem; justify-content: center; flex-wrap: wrap; }
+
+  /* — Tags — */
+  .tag { display: inline-block; font-size: 0.62rem; padding: 0.2rem 0.55rem; border-radius: 20px; background: rgba(241,85,36,0.1); color: #F15524; border: 1px solid rgba(241,85,36,0.2); margin-right: 0.35rem; margin-bottom: 0.35rem; font-weight: 500; }
+
+  /* — Flow — */
+  .flow { display: flex; align-items: center; gap: 0.4rem; margin: 1rem 0; flex-wrap: wrap; }
+  .flow-step { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0.9rem 1rem; text-align: center; min-width: 100px; flex: 1; }
+  .slide.light .flow-step { background: #f7f7f4; border: 1px solid #e5e5e0; }
+  .flow-step .fnum { font-size: 0.6rem; font-weight: 600; color: #F15524; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.2rem; }
+  .flow-step .ftitle { font-size: 0.82rem; font-weight: 600; margin-bottom: 0.1rem; }
+  .slide.dark .flow-step .ftitle { color: #fff; }
+  .flow-step .fdesc { font-size: 0.68rem; color: #999; }
+  .slide.light .flow-step .fdesc { color: #888; }
+  .flow-arrow { color: #F15524; font-size: 1.1rem; font-weight: 300; }
+
+  /* — Stat bar — */
+  .stat-bar { display: flex; gap: 1.5rem; margin-top: 1.5rem; font-size: 0.78rem; color: #888; flex-wrap: wrap; }
+  .stat-bar span { display: flex; align-items: center; gap: 0.3rem; }
+  .stat-bar .dot { width: 5px; height: 5px; border-radius: 50%; background: #F15524; }
+
+  /* — Video placeholder — */
+  .video-slot { width: 100%; max-width: 560px; margin: 1rem auto 0; border-radius: 12px; overflow: hidden; }
+  .video-slot video { width: 100%; display: block; border-radius: 12px; }
+
+  /* — Callout — */
+  .callout { background: rgba(241,85,36,0.06); border-left: 3px solid #F15524; border-radius: 0 10px 10px 0; padding: 0.9rem 1.25rem; margin-top: 1rem; }
+  .slide.dark .callout { background: rgba(241,85,36,0.08); }
+  .callout p { margin: 0; font-size: 0.85rem; }
+
+  /* — Bar chart — */
+  .bar-chart { display: flex; align-items: flex-end; gap: 1.5rem; height: 150px; margin-top: 0.75rem; padding: 0 0.5rem; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; }
+  .bar { width: 100%; max-width: 70px; background: linear-gradient(180deg, #F15524 0%, #D94A1C 100%); border-radius: 5px 5px 0 0; }
+  .bar-val { font-size: 0.8rem; font-weight: 700; color: #F15524; margin-bottom: 0.25rem; }
+  .bar-label { font-size: 0.65rem; color: #888; margin-top: 0.3rem; text-align: center; }
+
+  /* — 2x2 Matrix — */
+  .matrix { display: grid; grid-template-columns: auto 1fr 1fr; grid-template-rows: auto 1fr 1fr; gap: 0; margin-top: 1rem; max-width: 520px; }
+  .matrix .axis-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #888; display: flex; align-items: center; justify-content: center; padding: 0.5rem; }
+  .matrix .axis-label.y { writing-mode: vertical-lr; transform: rotate(180deg); }
+  .matrix .quadrant { padding: 1rem; border: 1px solid rgba(128,128,128,0.12); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 100px; }
+  .matrix .quadrant.highlight { background: rgba(241,85,36,0.08); border-color: rgba(241,85,36,0.3); }
+  .slide.light .matrix .quadrant { border-color: #e5e5e0; }
+  .slide.light .matrix .quadrant.highlight { background: rgba(241,85,36,0.06); border-color: rgba(241,85,36,0.25); }
+  .matrix .q-title { font-size: 0.75rem; font-weight: 600; margin-bottom: 0.15rem; }
+  .matrix .q-items { font-size: 0.65rem; color: #888; }
+
+  /* — Compliance cards — */
+  .compliance-card { text-align: center; padding: 1.25rem 1rem; }
+  .compliance-card .c-icon { font-size: 1.6rem; margin-bottom: 0.3rem; }
+  .compliance-card h4 { color: #10B981; font-size: 0.85rem; }
+
+  /* — Architecture diagram — */
+  .arch-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: stretch; }
+  .arch-box { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.6rem 0.8rem; text-align: center; flex: 1; }
+  .arch-box .ab-title { font-size: 0.7rem; font-weight: 600; color: #F15524; margin-bottom: 0.15rem; }
+  .arch-box .ab-items { font-size: 0.62rem; color: #999; }
+  .arch-connector { text-align: center; color: #F15524; font-size: 0.8rem; margin: 0.15rem 0; }
+
+  /* — Timeline — */
+  .timeline { display: flex; gap: 0; margin-top: 1.25rem; position: relative; }
+  .timeline::before { content: ''; position: absolute; top: 10px; left: 0; right: 0; height: 2px; background: rgba(241,85,36,0.2); }
+  .tl-item { flex: 1; text-align: center; position: relative; padding-top: 1.75rem; }
+  .tl-item::before { content: ''; position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: 14px; height: 14px; border-radius: 50%; background: #F15524; border: 3px solid; }
+  .slide.dark .tl-item::before { border-color: #1a1a18; }
+  .slide.light .tl-item::before { border-color: #fff; }
+  .tl-item .tl-date { font-size: 0.68rem; font-weight: 600; color: #F15524; margin-bottom: 0.15rem; }
+  .tl-item .tl-text { font-size: 0.68rem; color: #999; }
+
+  /* — Logo — */
+  .logo-sm { width: 30px; height: 30px; }
+  .logo-lg { width: 64px; height: 64px; margin-bottom: 0.6rem; }
+
+  /* — Progress bar — */
+  #progress { position: fixed; top: 0; left: 0; height: 3px; background: #F15524; transition: width 0.4s ease; z-index: 200; }
+
+  /* — Nav — */
+  .counter { position: fixed; bottom: 1.75rem; left: 2.5rem; font-size: 0.75rem; color: #666; z-index: 100; }
+  .nav { position: fixed; bottom: 1.5rem; right: 2.5rem; display: flex; gap: 0.5rem; z-index: 100; }
+  .nav button { background: rgba(128,128,128,0.1); border: 1px solid rgba(128,128,128,0.2); color: #999; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .nav button:hover { background: rgba(241,85,36,0.15); color: #F15524; border-color: rgba(241,85,36,0.3); }
+
+  /* — Notes — */
+  .notes-overlay { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.88); color: #e0e0e0; padding: 1.25rem 2.5rem; font-size: 0.8rem; line-height: 1.6; z-index: 150; max-height: 28vh; overflow-y: auto; border-top: 2px solid #F15524; }
+  .notes-overlay.show { display: block; }
+  .notes-overlay .notes-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F15524; margin-bottom: 0.4rem; }
+
+  /* — Animations — */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  .slide.active > * { animation: fadeIn 0.35s ease-out both; }
+  .slide.active > *:nth-child(2) { animation-delay: 0.06s; }
+  .slide.active > *:nth-child(3) { animation-delay: 0.12s; }
+  .slide.active > *:nth-child(4) { animation-delay: 0.18s; }
+  .slide.active > *:nth-child(5) { animation-delay: 0.24s; }
+  .slide.active > *:nth-child(6) { animation-delay: 0.30s; }
+  .slide.active > *:nth-child(7) { animation-delay: 0.36s; }
+
+  @media print {
+    .slide { display: flex !important; position: relative !important; height: auto; min-height: 100vh; page-break-after: always; }
+    .nav, .counter, #progress, .notes-overlay { display: none !important; }
+    body { overflow: visible; }
+    .deck { height: auto; }
+  }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div class="deck">
+
+<!-- ===== SLIDE 1: Title ===== -->
+<div class="slide light active" data-notes="Good morning. I'm Youdahe Asfaw. I'm the founder of Docere — a self-improving AI tutoring system built directly into school learning management systems. We're live in two Minnesota middle schools with over 500 students. What makes us different from every AI tutor on the market is that we measure whether students actually learn, and the system evolves its teaching strategies based on real grade outcomes.">
+  <svg class="logo-lg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="p" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#p" transform="rotate(0 100 100)"/><use href="#p" transform="rotate(45 100 100)"/><use href="#p" transform="rotate(90 100 100)"/><use href="#p" transform="rotate(135 100 100)"/></g></svg>
+  <h1>Docere</h1>
+  <p style="font-size: 1.15rem; color: #666; font-family: 'EB Garamond', Georgia, serif;">Self-improving AI tutoring for K-12, built into the LMS.</p>
+  <p style="font-size: 0.82rem; color: #999; margin-top: 0.3rem;">Youdahe Asfaw &amp; Kofi Osei &nbsp;·&nbsp; Gustavus Adolphus College</p>
+  <div class="stat-bar">
+    <span><span class="dot"></span> 500+ students</span>
+    <span><span class="dot"></span> 2 Minnesota middle schools</span>
+    <span><span class="dot"></span> LTI 1.3 integration</span>
+    <span><span class="dot"></span> AIED 2026 paper</span>
+  </div>
+</div>
+
+<!-- ===== SLIDE 2: The Landscape ===== -->
+<div class="slide dark" data-notes="Three years after ChatGPT launched, schools still don't have a good answer. The current market offers two bad options: standalone AI tools with zero teacher visibility, or legacy adaptive platforms that take months to integrate and never get smarter. Districts are spending $5 to $20 per student per year on tools that are fundamentally static. The opportunity is replacing that spend with something that actually improves.">
+  <h3>The Landscape</h3>
+  <h1>Every school has an AI problem.<br><span class="accent">The market response is inadequate.</span></h1>
+  <div class="grid3" style="margin-top: 1rem;">
+    <div class="card">
+      <h4 style="color: #F15524; font-size: 0.68rem; letter-spacing: 0.1em;">UNIVERSAL PROBLEM</h4>
+      <h4>Student AI misuse</h4>
+      <p class="small">3 years after ChatGPT, schools still have no tools to redirect AI usage toward actual learning. Teachers are reactive, not proactive.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: #F15524; font-size: 0.68rem; letter-spacing: 0.1em;">INADEQUATE SOLUTIONS</h4>
+      <h4>Static, siloed, slow</h4>
+      <p class="small">Khanmigo requires platform-switching. Cognii/Carnegie take months to integrate. ChatGPT has zero teacher visibility. None improve over time.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: #F15524; font-size: 0.68rem; letter-spacing: 0.1em;">MISALLOCATED SPEND</h4>
+      <h4>$5-20/student wasted</h4>
+      <p class="small">Districts budget for IXL, DreamBox, Lexia. These tools are static — the same experience year over year. They never measure real teaching effectiveness.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 3: Our Approach ===== -->
+<div class="slide light" data-notes="Three things set Docere apart. First: we're LMS-native. LTI 1.3 means we plug into any Canvas or Moodle — together, that's 95% of the K-12 LMS market. Teachers do nothing; everything syncs automatically. Second: every tutoring interaction is scored on four pedagogical dimensions using both AI judgment and measurable signals. Third: those scores drive a self-improvement loop. Teaching strategies evolve weekly based on whether students actually learn. No EdTech product in the market does this.">
+  <h3>Our Approach</h3>
+  <h1>LMS-native. Zero-setup. <span class="accent">Self-improving.</span></h1>
+  <div class="grid3" style="margin-top: 1rem;">
+    <div class="card card-top">
+      <h4>LMS-Native Integration</h4>
+      <p class="small">LTI 1.3 standard. Works with Canvas &amp; Moodle (95% of US K-12). Auto-syncs courses, assignments, grades, rosters, PDFs. Teacher clicks one button.</p>
+      <div style="margin-top: 0.5rem;">
+        <span class="tag">Canvas</span><span class="tag">Moodle</span><span class="tag">LTI 1.3</span><span class="tag">OAuth 2.0</span>
+      </div>
+    </div>
+    <div class="card card-top">
+      <h4>Pedagogical Scoring</h4>
+      <p class="small">Every interaction scored on 4 dimensions: helpfulness, clarity, understanding gain, engagement. Hybrid scoring: 70% LLM-as-judge + 30% rule-based heuristics.</p>
+      <div style="margin-top: 0.5rem;">
+        <span class="tag">Process Verification</span><span class="tag">Hybrid Scoring</span>
+      </div>
+    </div>
+    <div class="card card-top">
+      <h4>Strategy Evolution</h4>
+      <p class="small">Teaching strategies modeled as a multi-armed bandit (UCB1). Weekly cycle: mutate top performers, prune underperformers. Scores linked to real LMS grades via 14-day attribution window.</p>
+      <div style="margin-top: 0.5rem;">
+        <span class="tag">UCB1 Bandit</span><span class="tag">Weekly Evolution</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 4: Product Walkthrough ===== -->
+<div class="slide dark" data-notes="Let me walk you through the complete pipeline. An LTI launch authenticates the user via OAuth and JWT. The system auto-syncs all course content from the LMS API. Materials are chunked, embedded, and stored in a vector database for semantic retrieval. When a student asks for help, the system pulls relevant context from three sources — course materials, student profile, and interaction history — within a 4,000-token budget. After the tutoring response, the interaction is scored and the score is linked to LMS grades. Weekly, the strategy pool evolves.">
+  <h3>Product</h3>
+  <h1>From LTI launch to <span class="accent">learning outcomes.</span></h1>
+  <div class="flow" style="margin-top: 1rem;">
+    <div class="flow-step">
+      <div class="fnum">1</div>
+      <div class="ftitle" style="color:#fff;">LTI Launch</div>
+      <div class="fdesc">OAuth + JWT auth from LMS</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="fnum">2</div>
+      <div class="ftitle" style="color:#fff;">Auto-Sync</div>
+      <div class="fdesc">Courses, grades, rosters, PDFs</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="fnum">3</div>
+      <div class="ftitle" style="color:#fff;">Index</div>
+      <div class="fdesc">Chunk, embed, store in Qdrant</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="fnum">4</div>
+      <div class="ftitle" style="color:#fff;">Tutor</div>
+      <div class="fdesc">Memory-augmented Socratic AI</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="fnum">5</div>
+      <div class="ftitle" style="color:#fff;">Score</div>
+      <div class="fdesc">4-dimension hybrid scoring</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="fnum">6</div>
+      <div class="ftitle" style="color:#fff;">Evolve</div>
+      <div class="fdesc">UCB1 + weekly mutation</div>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top: 1rem;">
+    <div class="video-slot" style="max-width: none; margin: 0;">
+      <video controls muted preload="metadata" src="clip-student-query.mp4" style="border-radius: 8px;"></video>
+      <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: #888; text-align: center; margin-top: 0.3rem;">Student Query + Widgets</div>
+    </div>
+    <div class="video-slot" style="max-width: none; margin: 0;">
+      <video controls muted preload="metadata" src="clip-network-graph.mp4" style="border-radius: 8px;"></video>
+      <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: #888; text-align: center; margin-top: 0.3rem;">3D Concept Graph</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 5: Teacher Dashboard ===== -->
+<div class="slide light" data-notes="Teachers don't just get a chatbot for their students — they get the most complete picture of student learning they've ever had. The dashboard shows at-risk students, class-wide confusion patterns, individual concept mastery, and every AI-student conversation. The agent can even schedule Google Calendar meetings between teachers and struggling students, with the student's memory profile pre-loaded in the meeting description. Teachers go from zero visibility to total visibility with zero additional work.">
+  <h3>Teacher Experience</h3>
+  <h1>More visibility. <span class="accent">Zero additional work.</span></h1>
+  <div class="grid2" style="margin-top: 0.75rem;">
+    <div>
+      <div class="card" style="margin-bottom: 0.75rem;">
+        <h4>At-Risk Alerts</h4>
+        <p class="small">Automatic detection of struggling students with severity levels and recommended interventions. Teacher is notified before students fall behind.</p>
+      </div>
+      <div class="card" style="margin-bottom: 0.75rem;">
+        <h4>Concept Heatmap</h4>
+        <p class="small">Class-wide view of which concepts generate the most confusion. Helps teachers prioritize instruction and identify curriculum gaps.</p>
+      </div>
+      <div class="card">
+        <h4>Conversation Logs</h4>
+        <p class="small">Every AI-student interaction, searchable and filterable. Teachers see exactly what students ask, how the AI responds, and where students struggle.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom: 0.75rem;">
+        <h4>Student Profiles</h4>
+        <p class="small">Individual cards with engagement level, concept mastery graph, grade trajectory, and narrative summary of learning patterns.</p>
+      </div>
+      <div class="card" style="padding: 0.5rem; overflow: hidden; margin-bottom: 0.75rem;">
+        <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #F15524; padding: 0.5rem 0.5rem 0.25rem;">Command Center + Integrations</div>
+        <video controls muted preload="metadata" src="clip-command-center.mp4" style="width: 100%; border-radius: 8px;"></video>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 6: Research ===== -->
+<div class="slide dark" data-notes="We don't ask you to believe our tutor works — we designed it to prove whether it works. Our three-arm ablation study isolates the effect of each component. The control group gets a base LLM. Treatment A adds memory. Treatment B adds the full self-improvement loop. We measure interaction quality scores, grade trajectories, and concept mastery progression. This is the rigor that district administrators and EdTech procurement teams expect. Our paper targets AIED 2026 in Seoul.">
+  <h3>Research</h3>
+  <h1>Efficacy by design, <span class="accent">not by anecdote.</span></h1>
+  <div class="grid2" style="margin-top: 0.75rem;">
+    <div>
+      <div class="card" style="margin-bottom: 0.75rem;">
+        <h4 style="color: #F15524;">Three-Arm Ablation Study</h4>
+        <div style="margin-top: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
+            <span style="background: #333; color: #999; padding: 0.25rem 0.6rem; border-radius: 5px; font-size: 0.7rem; font-weight: 600; min-width: 60px; text-align: center;">Control</span>
+            <span class="small" style="color: #bbb;">Base LLM only — no memory, no evolution</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
+            <span style="background: rgba(241,85,36,0.15); color: #F15524; padding: 0.25rem 0.6rem; border-radius: 5px; font-size: 0.7rem; font-weight: 600; min-width: 60px; text-align: center;">Group A</span>
+            <span class="small" style="color: #bbb;">+ Semantic memory + student profiles + context</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <span style="background: #F15524; color: #fff; padding: 0.25rem 0.6rem; border-radius: 5px; font-size: 0.7rem; font-weight: 600; min-width: 60px; text-align: center;">Group B</span>
+            <span class="small" style="color: #bbb;">+ UCB1 strategies + scoring + evolution</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h4 style="color: #F15524;">Outcome Measures</h4>
+        <p class="small">Interaction quality scores · Grade trajectory (pre/post) · Concept mastery progression · Student engagement frequency</p>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <h4 style="color: #F15524;">AIED 2026</h4>
+          <p class="small" style="font-family: 'EB Garamond', Georgia, serif; font-style: italic; font-size: 0.95rem;">"Learning Agents That Learn"</p>
+          <p class="small">Targeting the top AI in Education conference. Seoul, 2026.</p>
+        </div>
+        <div style="margin-top: 1rem;">
+          <h4 style="color: #F15524;">IRB Application</h4>
+          <p class="small">Faculty sponsor at Gustavus Adolphus College volunteered to sponsor the application after reviewing our study design.</p>
+        </div>
+        <div style="margin-top: 1rem;">
+          <h4 style="color: #F15524;">Feature Gating</h4>
+          <p class="small">Built-in ablation infrastructure: control, treatment_memory, treatment_full groups with randomized student assignment.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 7: Market Sizing ===== -->
+<div class="slide light" data-notes="K-12 alone is 50 million students. At $10 per student per year, that's $500 million. Higher ed adds another billion. The important number is the SAM: districts that are already spending on adaptive tools. They have budget line items for IXL, DreamBox, Lexia. We're not creating a new budget category — we're competing for dollars that are already being spent, with a product that's demonstrably better. Districts can use ESSA Title IV-A funds to purchase EdTech tools like ours.">
+  <h3>Market</h3>
+  <h1><span class="accent">$500M+</span> market. Existing budgets.</h1>
+  <div class="grid2" style="margin-top: 0.75rem;">
+    <div>
+      <svg viewBox="0 0 280 280" style="width: 100%; max-width: 260px; margin: 0 auto; display: block;">
+        <circle cx="140" cy="140" r="130" fill="rgba(241,85,36,0.05)" stroke="#F15524" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="140" y="35" text-anchor="middle" fill="#F15524" font-size="10.5" font-family="Inter" font-weight="600">TAM: $500M+ (K-12)</text>
+        <text x="140" y="48" text-anchor="middle" fill="#999" font-size="8.5" font-family="Inter">50M US K-12 + 20M higher ed</text>
+        <circle cx="140" cy="155" r="82" fill="rgba(241,85,36,0.07)" stroke="#F15524" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="140" y="105" text-anchor="middle" fill="#F15524" font-size="10.5" font-family="Inter" font-weight="600">SAM: $50M</text>
+        <text x="140" y="118" text-anchor="middle" fill="#999" font-size="8.5" font-family="Inter">Districts with EdTech budgets</text>
+        <circle cx="140" cy="185" r="35" fill="rgba(241,85,36,0.14)" stroke="#F15524" stroke-width="1.5"/>
+        <text x="140" y="182" text-anchor="middle" fill="#F15524" font-size="10" font-family="Inter" font-weight="700">SOM Yr 1</text>
+        <text x="140" y="195" text-anchor="middle" fill="#D94A1C" font-size="8.5" font-family="Inter">$500K · 10 districts</text>
+      </svg>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom: 0.75rem;">
+        <h4 style="color: #F15524; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em;">Why Now?</h4>
+        <p class="small" style="margin-top: 0.4rem;"><strong>AI costs dropped 90%</strong> in 2 years. Per-student API costs: ~$0.50/year.</p>
+        <p class="small"><strong>LMS ecosystems are mature.</strong> Canvas &amp; Moodle support LTI 1.3 natively.</p>
+        <p class="small"><strong>Districts are actively seeking AI solutions</strong> they can control and monitor.</p>
+      </div>
+      <div class="card">
+        <h4 style="color: #F15524; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em;">Funding Sources</h4>
+        <p class="small" style="margin-top: 0.4rem;"><strong>ESSA Title IV-A</strong> — Federal funds for EdTech purchases.</p>
+        <p class="small"><strong>Existing line items</strong> — Districts already pay $5-20/student for IXL, DreamBox, Lexia. Replacement, not new spend.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 8: Business Model ===== -->
+<div class="slide dark" data-notes="We sell per-seat annual subscriptions to school districts. K-12 pricing is $5 to $15 per student per year. A district with 10,000 students is a $50K to $150K annual contract. Our gross margins are 85%+ because AI API costs are roughly 50 cents per student per year and infrastructure is about 25 cents. EdTech district contracts typically renew at 90%+, giving us a strong LTV/CAC ratio.">
+  <h3>Business Model</h3>
+  <h1>Per-seat SaaS. <span class="accent">85%+ gross margin.</span></h1>
+  <div class="grid2" style="margin-top: 0.75rem;">
+    <div>
+      <div class="card" style="margin-bottom: 0.75rem;">
+        <h4 style="color: #F15524; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em;">Pricing</h4>
+        <p class="small" style="margin-top: 0.4rem;"><strong style="color: #fff;">K-12:</strong> $5-15/student/year (volume discounts at district level)</p>
+        <p class="small"><strong style="color: #fff;">Higher Ed:</strong> $500-2,000/course/semester</p>
+        <p class="small dim" style="margin-top: 0.4rem;">Mid-size district (10K students) = $50K-$150K/year</p>
+      </div>
+      <div class="card">
+        <h4 style="color: #F15524; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em;">Unit Economics</h4>
+        <p class="small" style="margin-top: 0.4rem;"><strong style="color:#fff;">API cost:</strong> ~$0.50/student/yr &nbsp;·&nbsp; <strong style="color:#fff;">Infra:</strong> ~$0.25/student/yr</p>
+        <p class="small"><strong style="color:#fff;">Gross margin:</strong> <span style="color: #10B981; font-weight: 700;">85%+</span></p>
+        <p class="small"><strong style="color:#fff;">Contract renewal:</strong> 90%+ (EdTech norm)</p>
+        <p class="small"><strong style="color:#fff;">LTV/CAC target:</strong> 5:1</p>
+      </div>
+    </div>
+    <div>
+      <h4 style="color: #fff; font-size: 0.75rem; margin-bottom: 0.4rem;">Revenue Projections (ARR)</h4>
+      <div class="bar-chart" style="height: 160px;">
+        <div class="bar-col">
+          <div class="bar-val">$500K</div>
+          <div class="bar" style="height: 15%;"></div>
+          <div class="bar-label">Year 1<br><span style="color:#666;">10 districts</span></div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-val">$2M</div>
+          <div class="bar" style="height: 45%;"></div>
+          <div class="bar-label">Year 2<br><span style="color:#666;">40 districts</span></div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-val">$8M</div>
+          <div class="bar" style="height: 100%;"></div>
+          <div class="bar-label">Year 3<br><span style="color:#666;">150+ districts<br>+ higher ed</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 9: Competitive Positioning ===== -->
+<div class="slide light" data-notes="This 2x2 tells the story. The established EdTech players — IXL, DreamBox — are LMS-integrated but static. ChatGPT and Claude are powerful but standalone with zero school visibility. Nobody occupies the top-right quadrant: LMS-integrated AND self-improving. That's where Docere sits. Khanmigo comes closest but requires switching to Khan Academy and has no evolution loop. Carnegie Learning has deep adaptive tech but it's pre-LLM and takes months to integrate.">
+  <h3>Competition</h3>
+  <h1>The EdTech landscape. <span class="accent">Our position.</span></h1>
+  <div class="grid2" style="margin-top: 0.75rem;">
+    <div>
+      <!-- 2x2 Matrix -->
+      <div class="matrix">
+        <div></div>
+        <div class="axis-label">Static</div>
+        <div class="axis-label">Self-Improving</div>
+        <div class="axis-label y">LMS-Integrated</div>
+        <div class="quadrant">
+          <div class="q-title" style="color: #888;">IXL, DreamBox, Lexia</div>
+          <div class="q-items">Integrated but never improve.<br>Same experience year over year.</div>
+        </div>
+        <div class="quadrant highlight">
+          <svg style="width: 24px; height: 24px; margin-bottom: 0.2rem;" viewBox="0 0 200 200"><defs><ellipse id="pm" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#pm" transform="rotate(0 100 100)"/><use href="#pm" transform="rotate(45 100 100)"/><use href="#pm" transform="rotate(90 100 100)"/><use href="#pm" transform="rotate(135 100 100)"/></g></svg>
+          <div class="q-title" style="color: #F15524;">Docere</div>
+          <div class="q-items" style="color: #F15524;">LMS-native + self-improving.<br>Only player here.</div>
+        </div>
+        <div class="axis-label y">Standalone</div>
+        <div class="quadrant">
+          <div class="q-title" style="color: #888;">ChatGPT, Claude</div>
+          <div class="q-items">Powerful but no school visibility.<br>No outcome tracking.</div>
+        </div>
+        <div class="quadrant">
+          <div class="q-title" style="color: #888;">(Empty)</div>
+          <div class="q-items">No standalone tool<br>self-improves on teaching.</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom: 0.6rem;">
+        <h4>Khanmigo</h4>
+        <p class="small">Good pedagogy, but requires switching to Khan Academy platform. No self-improvement loop. No LMS integration.</p>
+      </div>
+      <div class="card" style="margin-bottom: 0.6rem;">
+        <h4>Carnegie Learning</h4>
+        <p class="small">Deep adaptive technology, but pre-LLM era. 6-12 month implementation cycles. Expensive enterprise sales.</p>
+      </div>
+      <div class="card">
+        <h4>Cognii</h4>
+        <p class="small">NLP-based assessment. Enterprise-only. Not LLM-native. Limited teacher dashboard. No strategy evolution.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 10: Go-to-Market ===== -->
+<div class="slide dark" data-notes="Our go-to-market starts bottom-up. A teacher tries Docere for free. They see the dashboard, see their students getting better help. They bring it to their principal. That's exactly how our current two schools happened — both came from a single teacher trying it. Phase 2 is conversion: once we have outcome data, we go to the district office with a case study. Phase 3 is scaling through conferences, LMS marketplaces, and reseller partnerships.">
+  <h3>Go-to-Market</h3>
+  <h1>Bottom-up adoption. <span class="accent">District-level revenue.</span></h1>
+  <div class="grid3" style="margin-top: 0.75rem;">
+    <div class="card">
+      <h4 style="color: #F15524;">Phase 1 — Prove</h4>
+      <p class="small" style="color: #bbb;"><strong style="color: #fff;">Q1-Q2 2026</strong></p>
+      <p class="small">Free pilots at 5-10 MN schools. Collect outcome data. Build grade-comparison case studies.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: #F15524;">Phase 2 — Convert</h4>
+      <p class="small" style="color: #bbb;"><strong style="color: #fff;">Q3-Q4 2026</strong></p>
+      <p class="small">First paid district contracts. Lead with evidence: "Docere students scored X% higher on unit tests."</p>
+    </div>
+    <div class="card">
+      <h4 style="color: #F15524;">Phase 3 — Scale</h4>
+      <p class="small" style="color: #bbb;"><strong style="color: #fff;">2027+</strong></p>
+      <p class="small">Multi-district deals. LMS marketplace listings. State-level contracts. Reseller partnerships.</p>
+    </div>
+  </div>
+  <div style="margin-top: 1rem;">
+    <span class="tag">Teacher-to-admin word of mouth (proven)</span>
+    <span class="tag">ISTE &amp; AIED conferences</span>
+    <span class="tag">Academic publications</span>
+    <span class="tag">Canvas App Center</span>
+    <span class="tag">Moodle Plugin Directory</span>
+  </div>
+</div>
+
+<!-- ===== SLIDE 11: Compliance & Trust ===== -->
+<div class="slide light" data-notes="District procurement teams care about three things: FERPA, data security, and control. Docere is FERPA-compliant by design — student data flows through authenticated LTI channels and never leaves the school's data scope. The AI is pedagogically constrained: it uses Socratic questioning and can't be tricked into giving direct answers. Teachers see every interaction. We're on a path to SOC 2 Type II certification.">
+  <h3>Compliance</h3>
+  <h1>Built for <span class="accent">district procurement.</span></h1>
+  <div class="grid4" style="margin-top: 1rem;">
+    <div class="card compliance-card">
+      <div class="c-icon">&#128274;</div>
+      <h4>FERPA</h4>
+      <p class="small">No student data leaves the LMS scope. JWT auth. Role-based access. All data flows through authenticated LTI channels.</p>
+    </div>
+    <div class="card compliance-card">
+      <div class="c-icon">&#128118;</div>
+      <h4>COPPA Ready</h4>
+      <p class="small">Under-13 protections built in. No direct data collection from minors. Parental consent framework.</p>
+    </div>
+    <div class="card compliance-card">
+      <div class="c-icon">&#128737;</div>
+      <h4>SOC 2 Path</h4>
+      <p class="small">Architecture designed for SOC 2 Type II certification. Audit trail on all data access. Encryption at rest and in transit.</p>
+    </div>
+    <div class="card compliance-card">
+      <div class="c-icon">&#127463;</div>
+      <h4>Data Sovereignty</h4>
+      <p class="small">All data stored in US regions. No training on student data. Students can't override Socratic mode.</p>
+    </div>
+  </div>
+  <div class="callout" style="max-width: 650px; margin-top: 1rem;">
+    <p><strong class="accent">Pedagogical guardrails:</strong> The AI never gives answers directly. Teachers can see every interaction. Parents can request data deletion. Students cannot bypass Socratic tutoring mode.</p>
+  </div>
+</div>
+
+<!-- ===== SLIDE 12: Architecture ===== -->
+<div class="slide dark" data-notes="The system is production-grade Python — async FastAPI with PostgreSQL, Qdrant vector DB, and Redis. The tutoring pipeline runs in under a second: memory retrieval, strategy selection, LLM call, response delivery, and async post-processing for scoring and memory capture. The strategy selection uses a contextual UCB1 bandit across 27 student state buckets — confusion level, experience level, and quality level — so the system learns different strategies for different types of students.">
+  <h3>Architecture</h3>
+  <h1>Production-grade. <span class="accent">Full-stack.</span></h1>
+  <div style="max-width: 650px; margin-top: 1rem;">
+    <div class="arch-row">
+      <div class="arch-box" style="flex: 2;">
+        <div class="ab-title">Frontend</div>
+        <div class="ab-items">React 19 · TypeScript · Tailwind CSS · Three.js (3D graphs) · Vite</div>
+      </div>
+    </div>
+    <div class="arch-connector">&darr;</div>
+    <div class="arch-row">
+      <div class="arch-box" style="flex: 2;">
+        <div class="ab-title">API Layer</div>
+        <div class="ab-items">FastAPI (async) · 50+ endpoints · JWT + LTI 1.3 auth · Rate limiting · CSP headers</div>
+      </div>
+    </div>
+    <div class="arch-connector">&darr;</div>
+    <div class="arch-row">
+      <div class="arch-box">
+        <div class="ab-title">Tutoring Agent</div>
+        <div class="ab-items">LangGraph · Memory retrieval · UCB1 strategy · Claude LLM · Scoring</div>
+      </div>
+      <div class="arch-box">
+        <div class="ab-title">Classroom Agent</div>
+        <div class="ab-items">Meta-queries · At-risk detection · Concept heatmaps · Alerts</div>
+      </div>
+    </div>
+    <div class="arch-connector">&darr;</div>
+    <div class="arch-row">
+      <div class="arch-box">
+        <div class="ab-title">PostgreSQL</div>
+        <div class="ab-items">15 tables · Alembic · Users, Courses, Grades, Strategies</div>
+      </div>
+      <div class="arch-box">
+        <div class="ab-title">Qdrant</div>
+        <div class="ab-items">Vector DB · 1024-dim Voyage AI embeddings · Semantic search</div>
+      </div>
+      <div class="arch-box">
+        <div class="ab-title">Redis</div>
+        <div class="ab-items">ARQ task queue · Background sync · Strategy evolution · Cache</div>
+      </div>
+    </div>
+    <div class="arch-connector">&darr;</div>
+    <div class="arch-row">
+      <div class="arch-box">
+        <div class="ab-title">Canvas Adapter</div>
+        <div class="ab-items">LTI 1.3 · REST API · Webhooks</div>
+      </div>
+      <div class="arch-box">
+        <div class="ab-title">Moodle Adapter</div>
+        <div class="ab-items">LTI 1.3 · Web Services API · Webhooks</div>
+      </div>
+      <div class="arch-box">
+        <div class="ab-title">Google APIs</div>
+        <div class="ab-items">Calendar · Sheets · Drive · OAuth 2.0</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 13: Traction ===== -->
+<div class="slide light" data-notes="We're not building a prototype — we're running a product. Over 500 students across two Minnesota middle schools. The system has been deployed since 2025. We've won $10,000 in pitch competitions and have a research paper targeting the top conference in AI in Education. A professor volunteered to sponsor our IRB application. All code written by founders — no outsourced development.">
+  <h3>Traction</h3>
+  <h1>Real schools. Real students. <span class="accent">Real results.</span></h1>
+  <div class="metrics-row" style="margin-top: 0.75rem;">
+    <div class="metric"><div class="num">500+</div><div class="label">Students</div></div>
+    <div class="metric"><div class="num">2</div><div class="label">Schools Live</div></div>
+    <div class="metric"><div class="num">50+</div><div class="label">API Endpoints</div></div>
+    <div class="metric"><div class="num">$10K</div><div class="label">Prize Money</div></div>
+    <div class="metric"><div class="num">0</div><div class="label">Non-Founder Code</div></div>
+  </div>
+  <div class="timeline">
+    <div class="tl-item"><div class="tl-date">Early 2024</div><div class="tl-text">v1 built — Node.js<br>coding education platform</div></div>
+    <div class="tl-item"><div class="tl-date">Mid 2024</div><div class="tl-text">Kofi joins · Research<br>begins · IEEE publication</div></div>
+    <div class="tl-item"><div class="tl-date">2025</div><div class="tl-text">Deployed in 2<br>MN middle schools</div></div>
+    <div class="tl-item"><div class="tl-date">2026</div><div class="tl-text">v2 agent system<br>AIED paper · Pitch comps</div></div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 14: Team ===== -->
+<div class="slide dark" data-notes="What makes us different from other EdTech founders: we've actually been in the classrooms. I've spent hundreds of hours watching middle school students use AI tools. That's how we know the real problem isn't AI access — it's AI quality and teacher visibility. Kofi designed our research methodology and brings published ML expertise. Our faculty advisor volunteered to help — he came to us after seeing the research design.">
+  <h3>Team</h3>
+  <h1>Builders who've been <span class="accent">in the classroom.</span></h1>
+  <div class="grid2" style="margin-top: 0.75rem;">
+    <div class="card" style="border-top: 3px solid #F15524;">
+      <h4 style="color: #fff;">Youdahe Asfaw <span style="font-weight: 400; color: #888; font-size: 0.82rem;">— Founder</span></h4>
+      <p class="small">Built entire platform from scratch — v1 (Node.js, 2 schools) and v2 (Python/FastAPI agent system). 2+ years building EdTech. Hundreds of hours in middle school classrooms observing AI usage.</p>
+      <div style="margin-top: 0.4rem;">
+        <span class="tag">ML Research @ Hugging Face</span>
+        <span class="tag">Software @ Medtronic (AI)</span>
+        <span class="tag">Code2040 Fellow</span>
+      </div>
+    </div>
+    <div class="card" style="border-top: 3px solid #F15524;">
+      <h4 style="color: #fff;">Kofi Osei <span style="font-weight: 400; color: #888; font-size: 0.82rem;">— Co-founder</span></h4>
+      <p class="small">Research &amp; ML lead. Published IEEE researcher (Adaptive Mixture of Experts). Designed ablation study methodology. 1.5 years teaching experience as TA.</p>
+      <div style="margin-top: 0.4rem;">
+        <span class="tag">Published IEEE Researcher</span>
+        <span class="tag">Software @ HashiCorp</span>
+        <span class="tag">Goldman Sachs Emerging Leaders</span>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top: 0.75rem; border: 1px solid rgba(241,85,36,0.2); background: rgba(241,85,36,0.04);">
+    <h4 style="color: #F15524; font-size: 0.8rem;">Faculty Advisor</h4>
+    <p class="small" style="color: #ccc;">Professor at Gustavus Adolphus College — IRB sponsor. Volunteered to support the research after reviewing our study design. Co-author on AIED 2026 paper.</p>
+  </div>
+</div>
+
+<!-- ===== SLIDE 15: The Vision ===== -->
+<div class="slide orange" data-notes="The vision is simple: every student, regardless of where they live or what their family can afford, deserves an AI tutor that remembers their history, adapts to their needs, and gets better at teaching them over time. We've built it. It's running in two schools today. We're ready to scale it to every district in the country. Thank you.">
+  <div style="text-align: center;">
+    <svg style="width: 72px; height: 72px; margin-bottom: 1.25rem;" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="pw" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#fff"><use href="#pw" transform="rotate(0 100 100)"/><use href="#pw" transform="rotate(45 100 100)"/><use href="#pw" transform="rotate(90 100 100)"/><use href="#pw" transform="rotate(135 100 100)"/></g></svg>
+    <h1 style="font-size: 2.4rem; max-width: 700px; margin: 0 auto 0.75rem;">Every student deserves a tutor that learns what works for them.</h1>
+    <p style="font-size: 1.3rem; font-family: 'EB Garamond', Georgia, serif; max-width: none; opacity: 0.85; margin-bottom: 1.5rem;">We built it. It's live. Let's scale it.</p>
+    <p class="dim" style="font-size: 0.85rem; max-width: none;">Youdahe Asfaw &amp; Kofi Osei &nbsp;·&nbsp; Gustavus Adolphus College &nbsp;·&nbsp; docere.ai</p>
+  </div>
+</div>
+
+</div><!-- end .deck -->
+
+<div class="counter"><span id="current">1</span> / <span id="total"></span></div>
+<div class="nav">
+  <button onclick="prev()" aria-label="Previous slide">&larr;</button>
+  <button onclick="next()" aria-label="Next slide">&rarr;</button>
+</div>
+<div class="notes-overlay" id="notes"></div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const progress = document.getElementById('progress');
+const notesEl = document.getElementById('notes');
+let idx = 0;
+let notesVisible = false;
+document.getElementById('total').textContent = slides.length;
+
+function show(i) {
+  slides.forEach(s => s.classList.remove('active'));
+  slides[i].classList.add('active');
+  document.getElementById('current').textContent = i + 1;
+  progress.style.width = ((i + 1) / slides.length * 100) + '%';
+  const note = slides[i].getAttribute('data-notes');
+  notesEl.innerHTML = '<div class="notes-label">Speaker Notes (N)</div>' + (note || '<em>No notes.</em>');
+}
+
+function next() { if (idx < slides.length - 1) { idx++; show(idx); } }
+function prev() { if (idx > 0) { idx--; show(idx); } }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+  if (e.key === 'n' || e.key === 'N') { notesVisible = !notesVisible; notesEl.classList.toggle('show', notesVisible); }
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; });
+document.addEventListener('touchend', e => {
+  const diff = touchStartX - e.changedTouches[0].screenX;
+  if (Math.abs(diff) > 50) { diff > 0 ? next() : prev(); }
+});
+
+show(0);
+</script>
+</body>
+</html>

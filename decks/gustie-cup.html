@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docere — Gustie Entrepreneur Cup 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }
+  .deck { width: 100vw; height: 100vh; position: relative; }
+
+  /* — Slide base — */
+  .slide { width: 100vw; height: 100vh; display: none; flex-direction: column; justify-content: center; padding: 7vh 8vw; position: absolute; top: 0; left: 0; }
+  .slide.active { display: flex; }
+
+  /* — Theme variants — */
+  .slide.light { background: #ffffff; color: #1a1a1a; }
+  .slide.light h1, .slide.light h2 { color: #1a1a1a; }
+  .slide.light p { color: #444; }
+  .slide.light .card { background: #f7f7f4; border: 1px solid #e5e5e0; }
+  .slide.light .card h4 { color: #1a1a1a; }
+  .slide.light .card p { color: #666; }
+  .slide.light .dim { color: #999; }
+
+  .slide.dark { background: #1a1a18; color: #e8e8e8; }
+  .slide.dark h1, .slide.dark h2 { color: #fff; }
+  .slide.dark p { color: #b0b0b0; }
+  .slide.dark .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); }
+  .slide.dark .card h4 { color: #fff; }
+  .slide.dark .card p { color: #999; }
+  .slide.dark .dim { color: #555; }
+
+  .slide.orange { background: #F15524; color: #fff; }
+  .slide.orange h1, .slide.orange h2, .slide.orange p { color: #fff; }
+
+  .slide.light-orange { background: #FDE8E0; color: #1a1a1a; }
+  .slide.light-orange h1, .slide.light-orange h2 { color: #1a1a1a; }
+  .slide.light-orange p { color: #444; }
+  .slide.light-orange .card { background: #fff; border: 1px solid rgba(241,85,36,0.15); }
+  .slide.light-orange .card h4 { color: #1a1a1a; }
+  .slide.light-orange .card p { color: #555; }
+
+  /* — Typography — */
+  h1 { font-family: 'EB Garamond', Georgia, serif; font-size: 3rem; font-weight: 400; margin-bottom: 1.2rem; line-height: 1.15; }
+  h2 { font-family: 'EB Garamond', Georgia, serif; font-size: 2.2rem; font-weight: 400; margin-bottom: 1.5rem; line-height: 1.2; }
+  h3 { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; color: #F15524; margin-bottom: 1.2rem; }
+  h4 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.6rem; }
+  p { font-size: 1.05rem; line-height: 1.7; max-width: 720px; margin-bottom: 0.75rem; }
+  .accent { color: #F15524; }
+
+  /* — Grids — */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; margin-top: 1rem; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; margin-top: 1rem; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 1rem; }
+  .grid5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.2rem; margin-top: 1rem; }
+
+  /* — Cards — */
+  .card { border-radius: 14px; padding: 1.75rem; transition: transform 0.2s; }
+  .card-top { border-top: 3px solid #F15524; }
+
+  /* — Metric cards — */
+  .metric { text-align: center; padding: 1.5rem; }
+  .metric .num { font-size: 3rem; font-weight: 700; color: #F15524; line-height: 1; margin-bottom: 0.3rem; }
+  .metric .label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em; color: #888; }
+
+  /* — Tags �� */
+  .tag { display: inline-block; font-size: 0.7rem; padding: 0.25rem 0.75rem; border-radius: 20px; background: rgba(241,85,36,0.1); color: #F15524; border: 1px solid rgba(241,85,36,0.2); margin-right: 0.5rem; margin-bottom: 0.5rem; font-weight: 500; }
+
+  /* — Flow diagram — */
+  .flow { display: flex; align-items: center; gap: 0.75rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .flow-step { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1.25rem 1.5rem; text-align: center; min-width: 140px; flex: 1; }
+  .slide.light .flow-step { background: #f7f7f4; border: 1px solid #e5e5e0; }
+  .flow-step .fnum { font-size: 0.7rem; font-weight: 600; color: #F15524; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.4rem; }
+  .flow-step .ftitle { font-size: 1rem; font-weight: 600; color: inherit; margin-bottom: 0.25rem; }
+  .flow-step .fdesc { font-size: 0.8rem; color: #999; }
+  .slide.light .flow-step .fdesc { color: #888; }
+  .flow-arrow { color: #F15524; font-size: 1.4rem; font-weight: 300; }
+
+  /* — Stat bar — */
+  .stat-bar { display: flex; gap: 2rem; margin-top: 2rem; font-size: 0.85rem; color: #888; }
+  .stat-bar span { display: flex; align-items: center; gap: 0.4rem; }
+  .stat-bar .dot { width: 6px; height: 6px; border-radius: 50%; background: #F15524; }
+
+  /* — Video placeholder — */
+  .video-slot { width: 100%; max-width: 640px; margin: 1.5rem auto 0; border-radius: 12px; overflow: hidden; }
+  .video-slot video { width: 100%; display: block; border-radius: 12px; }
+
+  /* — Callout — */
+  .callout { background: rgba(241,85,36,0.06); border-left: 3px solid #F15524; border-radius: 0 10px 10px 0; padding: 1.25rem 1.5rem; margin-top: 1.5rem; }
+  .slide.dark .callout { background: rgba(241,85,36,0.08); }
+  .callout p { margin: 0; font-size: 0.95rem; color: #666; }
+  .slide.dark .callout p { color: #ccc; }
+
+  /* — Quote — */
+  .quote { font-family: 'EB Garamond', Georgia, serif; font-style: italic; font-size: 1.2rem; color: #888; margin-top: 1.5rem; max-width: 500px; }
+  .quote::before { content: '\201C'; color: #F15524; font-size: 2rem; line-height: 0; vertical-align: -0.3em; margin-right: 0.1em; }
+
+  /* — Logo — */
+  .logo-sm { width: 36px; height: 36px; }
+  .logo-lg { width: 80px; height: 80px; margin-bottom: 1rem; }
+  .logo-xl { width: 100px; height: 100px; margin-bottom: 1.5rem; }
+
+  /* — Founder cards — */
+  .founder { display: flex; gap: 1rem; align-items: flex-start; }
+  .founder-info h4 { margin-bottom: 0.25rem; }
+  .founder-info p { font-size: 0.85rem; margin-bottom: 0; }
+  .founder-info .creds { font-size: 0.78rem; color: #999; margin-top: 0.3rem; }
+
+  /* — Progress bar — */
+  #progress { position: fixed; top: 0; left: 0; height: 3px; background: #F15524; transition: width 0.4s ease; z-index: 200; }
+
+  /* — Navigation — */
+  .counter { position: fixed; bottom: 2rem; left: 3rem; font-size: 0.8rem; color: #666; z-index: 100; }
+  .slide.dark ~ .counter, .slide.orange ~ .counter { color: #444; }
+  .nav { position: fixed; bottom: 1.7rem; right: 3rem; display: flex; gap: 0.6rem; z-index: 100; }
+  .nav button { background: rgba(128,128,128,0.1); border: 1px solid rgba(128,128,128,0.2); color: #999; width: 40px; height: 40px; border-radius: 10px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .nav button:hover { background: rgba(241,85,36,0.15); color: #F15524; border-color: rgba(241,85,36,0.3); }
+
+  /* — Speaker notes overlay — */
+  .notes-overlay { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.88); color: #e0e0e0; padding: 1.5rem 3rem; font-size: 0.85rem; line-height: 1.6; z-index: 150; max-height: 30vh; overflow-y: auto; border-top: 2px solid #F15524; }
+  .notes-overlay.show { display: block; }
+  .notes-overlay .notes-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F15524; margin-bottom: 0.5rem; }
+
+  /* — Animations — */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  .slide.active > * { animation: fadeIn 0.4s ease-out both; }
+  .slide.active > *:nth-child(2) { animation-delay: 0.08s; }
+  .slide.active > *:nth-child(3) { animation-delay: 0.16s; }
+  .slide.active > *:nth-child(4) { animation-delay: 0.22s; }
+  .slide.active > *:nth-child(5) { animation-delay: 0.28s; }
+  .slide.active > *:nth-child(6) { animation-delay: 0.34s; }
+  .slide.active > *:nth-child(7) { animation-delay: 0.40s; }
+
+  /* — Logo carousel — */
+  .logo-strip { overflow: hidden; position: relative; margin-top: 1.25rem; padding: 0.6rem 0; }
+  .logo-strip::before, .logo-strip::after { content: ''; position: absolute; top: 0; bottom: 0; width: 60px; z-index: 2; pointer-events: none; }
+  .logo-strip::before { left: 0; background: linear-gradient(90deg, #1a1a18, transparent); }
+  .logo-strip::after { right: 0; background: linear-gradient(270deg, #1a1a18, transparent); }
+  .logo-track { display: flex; gap: 3rem; animation: scrollLogos 18s linear infinite; width: max-content; }
+  .logo-track:hover { animation-play-state: paused; }
+  @keyframes scrollLogos { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+  .logo-item { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+  .logo-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.65rem; color: #fff; }
+  .logo-name { font-size: 0.75rem; color: #888; font-weight: 500; white-space: nowrap; }
+
+  /* — Node graph — */
+  .node-graph { position: relative; width: 100%; max-width: 800px; height: 420px; margin: 0.5rem auto 0; }
+  .center-node { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 120px; height: 120px; border-radius: 50%; background: #F15524; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 60px rgba(241,85,36,0.35); z-index: 10; }
+  .center-node svg { width: 60px; height: 60px; }
+  .question-node { position: absolute; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 0.9rem 1.1rem; font-size: 0.82rem; color: #ddd; line-height: 1.45; max-width: 220px; transition: transform 0.2s, border-color 0.2s; }
+  .question-node:hover { transform: scale(1.04); border-color: rgba(241,85,36,0.4); }
+  .question-node .q-icon { color: #F15524; font-weight: 700; margin-right: 0.3rem; }
+  .node-line { position: absolute; z-index: 1; }
+
+  /* — Big stat — */
+  .big-stat { font-size: 5rem; font-weight: 700; color: #F15524; line-height: 1; margin-bottom: 0.5rem; }
+  .big-stat-label { font-size: 1.1rem; color: #888; margin-bottom: 1.5rem; max-width: 600px; }
+
+  /* — Print — */
+  @media print {
+    .slide { display: flex !important; position: relative !important; height: auto; min-height: 100vh; page-break-after: always; }
+    .nav, .counter, #progress, .notes-overlay { display: none !important; }
+    body { overflow: visible; }
+    .deck { height: auto; }
+  }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div class="deck">
+
+<!-- ══════════════════════════════════════ -->
+<!-- SLIDE 1: Landing                      -->
+<!-- ════════════��═════════���═══════════════ -->
+<div class="slide light active" data-notes="Good afternoon. I'm Youdahe Asfaw, and this is my co-founder Kofi Osei. We're computer science students at Gustavus, and for the last two years we've been building Docere — an AI tutor that's already live in two Minnesota middle schools with over 500 students.">
+  <svg class="logo-xl" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="p" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#p" transform="rotate(0 100 100)"/><use href="#p" transform="rotate(45 100 100)"/><use href="#p" transform="rotate(90 100 100)"/><use href="#p" transform="rotate(135 100 100)"/></g></svg>
+  <h1>Docere</h1>
+  <p style="font-size: 1.35rem; color: #666; max-width: 600px; font-family: 'EB Garamond', Georgia, serif;">The AI tutor that actually teaches.</p>
+  <p style="font-size: 0.9rem; color: #999; margin-top: 0.5rem;">Youdahe Asfaw &amp; Kofi Osei &nbsp;&middot;&nbsp; Gustavus Adolphus College</p>
+  <div class="stat-bar">
+    <span><span class="dot"></span> 500+ students</span>
+    <span><span class="dot"></span> 2 schools deployed</span>
+    <span><span class="dot"></span> $10K in prizes won</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SLIDE 2: Introduction / Team          -->
+<!-- ════��═══════════════��═════════════════ -->
+<div class="slide dark" style="padding: 4vh 6vw;" data-notes="Let me introduce our team. I'm Youdahe — I built the entire Docere platform over two years. Before this I did ML research at Hugging Face, built cognitive software at Medtronic, and presented research at UChicago and Johns Hopkins. Kofi is our research lead — he's done published research on precipitation forecasting using transformers and multi-modal systems, and was previously a software engineer at HashiCorp.">
+  <h3>The Team</h3>
+  <h1>Built by researchers, for <span class="accent">classrooms.</span></h1>
+  <div style="display: flex; gap: 1rem; margin-top: 0.75rem;">
+    <div class="card" style="flex: 1; padding: 1.25rem; display: flex; gap: 1rem; align-items: flex-start;">
+      <div style="min-width: 80px; height: 80px; background: rgba(241,85,36,0.08); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.7rem;">Photo</div>
+      <div>
+        <h4 style="color: #fff; font-size: 1rem; margin-bottom: 0.15rem;">Youdahe Asfaw</h4>
+        <p style="font-size: 0.72rem; color: #F15524; margin: 0 0 0.3rem; font-weight: 600;">Founder &amp; CTO</p>
+        <p style="font-size: 0.78rem; color: #aaa; margin: 0 0 0.3rem; max-width: none;">Built the entire platform from scratch. 2+ years in EdTech. Hundreds of hours in classrooms. Presented research at UChicago and Johns Hopkins.</p>
+        <p style="font-size: 0.68rem; color: #666; margin: 0;">ML Research @ Hugging Face &nbsp;&middot;&nbsp; Medtronic (AI) &nbsp;&middot;&nbsp; Code2040</p>
+      </div>
+    </div>
+    <div class="card" style="flex: 1; padding: 1.25rem; display: flex; gap: 1rem; align-items: flex-start;">
+      <div style="min-width: 80px; height: 80px; background: rgba(241,85,36,0.08); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.7rem;">Photo</div>
+      <div>
+        <h4 style="color: #fff; font-size: 1rem; margin-bottom: 0.15rem;">Kofi Osei</h4>
+        <p style="font-size: 0.72rem; color: #F15524; margin: 0 0 0.3rem; font-weight: 600;">Co-founder &amp; Research Lead</p>
+        <p style="font-size: 0.78rem; color: #aaa; margin: 0 0 0.3rem; max-width: none;">Research on precipitation forecasting using transformers and multi-modal systems. Published in IEEE. Co-leads AIED 2026 paper.</p>
+        <p style="font-size: 0.68rem; color: #666; margin: 0;">SWE @ HashiCorp &nbsp;&middot;&nbsp; Goldman Sachs &nbsp;&middot;&nbsp; IEEE Published &nbsp;&middot;&nbsp; Code2040</p>
+      </div>
+    </div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.6rem; margin-top: 0.75rem;">
+    <div class="card" style="padding: 0.9rem; text-align: center;"><img src="logos/uw.png" alt="" style="width: 24px; height: 24px; border-radius: 5px; margin-bottom: 0.4rem;"><h4 style="color: #fff; font-size: 0.85rem; margin-bottom: 0.15rem;">Kevin Thai</h4><p style="font-size: 0.65rem; color: #F15524; margin: 0 0 0.2rem; font-weight: 500;">Frontend</p><p style="font-size: 0.6rem; color: #666; margin: 0;">Univ. of Washington</p></div>
+    <div class="card" style="padding: 0.9rem; text-align: center;"><img src="logos/fiu.png" alt="" style="width: 24px; height: 24px; border-radius: 5px; margin-bottom: 0.4rem;"><h4 style="color: #fff; font-size: 0.85rem; margin-bottom: 0.15rem;">Christie</h4><p style="font-size: 0.65rem; color: #F15524; margin: 0 0 0.2rem; font-weight: 500;">Frontend</p><p style="font-size: 0.6rem; color: #666; margin: 0;">Florida International</p></div>
+    <div class="card" style="padding: 0.9rem; text-align: center;"><img src="logos/berkeley.png" alt="" style="width: 24px; height: 24px; border-radius: 5px; margin-bottom: 0.4rem;"><h4 style="color: #fff; font-size: 0.85rem; margin-bottom: 0.15rem;">Luke</h4><p style="font-size: 0.65rem; color: #F15524; margin: 0 0 0.2rem; font-weight: 500;">Research</p><p style="font-size: 0.6rem; color: #666; margin: 0;">UC Berkeley</p></div>
+    <div class="card" style="padding: 0.9rem; text-align: center;"><img src="logos/uw.png" alt="" style="width: 24px; height: 24px; border-radius: 5px; margin-bottom: 0.4rem;"><h4 style="color: #fff; font-size: 0.85rem; margin-bottom: 0.15rem;">Jayviont Haing</h4><p style="font-size: 0.65rem; color: #F15524; margin: 0 0 0.2rem; font-weight: 500;">Engineering</p><p style="font-size: 0.6rem; color: #666; margin: 0;">Univ. of Washington</p></div>
+    <div class="card" style="padding: 0.9rem; text-align: center;"><img src="logos/aamu.png" alt="" style="width: 24px; height: 24px; border-radius: 5px; margin-bottom: 0.4rem;"><h4 style="color: #fff; font-size: 0.85rem; margin-bottom: 0.15rem;">Noah Moore</h4><p style="font-size: 0.65rem; color: #F15524; margin: 0 0 0.2rem; font-weight: 500;">Engineering</p><p style="font-size: 0.6rem; color: #666; margin: 0;">Alabama A&amp;M</p></div>
+    <div class="card" style="padding: 0.9rem; text-align: center;"><img src="logos/wakeforest.png" alt="" style="width: 24px; height: 24px; border-radius: 5px; margin-bottom: 0.4rem;"><h4 style="color: #fff; font-size: 0.85rem; margin-bottom: 0.15rem;">Joshua Ekoja</h4><p style="font-size: 0.65rem; color: #F15524; margin: 0 0 0.2rem; font-weight: 500;">Engineering</p><p style="font-size: 0.6rem; color: #666; margin: 0;">Wake Forest</p></div>
+  </div>
+  <div class="logo-strip" style="margin-top: 0.6rem;">
+    <div class="logo-track">
+      <div class="logo-item"><img src="logos/huggingface.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">Hugging Face</div></div>
+      <div class="logo-item"><img src="logos/medtronic.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">Medtronic</div></div>
+      <div class="logo-item"><img src="logos/medica.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">Medica</div></div>
+      <div class="logo-item"><img src="logos/goldmansachs.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">Goldman Sachs</div></div>
+      <div class="logo-item"><img src="logos/ibm.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">IBM</div></div>
+      <div class="logo-item"><img src="logos/code2040.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">Code2040</div></div>
+      <div class="logo-item"><img src="logos/ieee.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">IEEE</div></div>
+      <div class="logo-item"><img src="logos/huggingface.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">Hugging Face</div></div>
+      <div class="logo-item"><img src="logos/medtronic.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">Medtronic</div></div>
+      <div class="logo-item"><img src="logos/medica.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">Medica</div></div>
+      <div class="logo-item"><img src="logos/goldmansachs.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">Goldman Sachs</div></div>
+      <div class="logo-item"><img src="logos/ibm.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">IBM</div></div>
+      <div class="logo-item"><img src="logos/code2040.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">Code2040</div></div>
+      <div class="logo-item"><img src="logos/ieee.png" alt="" style="width:28px;height:28px;border-radius:6px;"><div class="logo-name">IEEE</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════�� -->
+<!-- SLIDE 3: Historical Context           -->
+<!-- ══════════════════════════════════════ -->
+<div class="slide dark" data-notes="Before we talk about what we're building, let me take you back. In 470 BC, Socrates taught through dialogue — one teacher, one student, one question at a time. That personal model was the gold standard. Then the Industrial Age came and we needed to educate millions, so we built factories for learning. Same pace, same content, same test for every student. We added textbooks, computers, online platforms — but the core model never changed.">
+  <h3>A 2,000-Year-Old Problem</h3>
+  <h1>The best education has always been <span class="accent">one-on-one.</span></h1>
+  <div style="display: flex; gap: 3rem; margin-top: 1.5rem; align-items: stretch;">
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 1.25rem;">
+      <div style="display: flex; gap: 1.25rem; align-items: flex-start;">
+        <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;"><div style="width: 44px; height: 44px; background: rgba(241,85,36,0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center;"><span style="font-size: 1.4rem;">&#127979;</span></div><div style="width: 2px; height: 28px; background: rgba(255,255,255,0.08); margin-top: 0.4rem;"></div></div>
+        <div><p style="font-size: 0.7rem; color: #F15524; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.25rem;">470 BC — Socrates</p><h4 style="color: #fff; margin-bottom: 0.2rem;">Teaching through dialogue</h4><p style="font-size: 0.88rem; color: #999; margin: 0;">One teacher, one student, one question at a time. Learning was a conversation. The gold standard of education.</p></div>
+      </div>
+      <div style="display: flex; gap: 1.25rem; align-items: flex-start;">
+        <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;"><div style="width: 44px; height: 44px; background: rgba(241,85,36,0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center;"><span style="font-size: 1.4rem;">&#9881;&#65039;</span></div><div style="width: 2px; height: 28px; background: rgba(255,255,255,0.08); margin-top: 0.4rem;"></div></div>
+        <div><p style="font-size: 0.7rem; color: #F15524; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.25rem;">1800s — Industrial Age</p><h4 style="color: #fff; margin-bottom: 0.2rem;">We traded personalization for scale</h4><p style="font-size: 0.88rem; color: #999; margin: 0;">We needed to educate millions. So we put 30 kids in a room with one teacher. Same pace, same content, same test.</p></div>
+      </div>
+      <div style="display: flex; gap: 1.25rem; align-items: flex-start;">
+        <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;"><div style="width: 44px; height: 44px; background: rgba(241,85,36,0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center;"><span style="font-size: 1.4rem;">&#128187;</span></div></div>
+        <div><p style="font-size: 0.7rem; color: #F15524; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.25rem;">1900s–2000s — Standardized</p><h4 style="color: #fff; margin-bottom: 0.2rem;">New tools, same model</h4><p style="font-size: 0.88rem; color: #999; margin: 0;">Textbooks, computers, online platforms. Efficient — but the personal connection Socrates had? Gone.</p></div>
+      </div>
+    </div>
+    <div style="flex: 1; display: flex; align-items: center;">
+      <div style="background: rgba(241,85,36,0.06); border: 1px solid rgba(241,85,36,0.15); border-radius: 16px; padding: 2rem;">
+        <p style="font-family: 'EB Garamond', Georgia, serif; font-size: 1.6rem; color: #fff; line-height: 1.35; margin-bottom: 1rem;">Every leap in education changed the tools.</p>
+        <p style="font-family: 'EB Garamond', Georgia, serif; font-size: 1.6rem; color: #F15524; line-height: 1.35; margin-bottom: 0;">But none of them changed the model.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════���══════════════════════════════��� -->
+<!-- SLIDE 4: Digital Shift / LMS          -->
+<!-- ════════════════════════��═════════════ -->
+<div class="slide light" data-notes="Then schools went digital. They adopted Learning Management Systems — Canvas, Moodle, Blackboard, Google Classroom — to move courses online. Assignments, grades, materials, all in one place. But the model stayed the same: one-size-fits-all. The LMS digitized the factory. It didn't fix it.">
+  <h3>The Digital Shift</h3>
+  <h1>Then we digitized the <span class="accent">factory.</span></h1>
+  <p style="max-width: 600px;">Schools adopted Learning Management Systems to move courses online. Assignments, grades, materials — all in one place. But the model stayed the same: one-size-fits-all.</p>
+  <div class="callout" style="max-width: 600px;">
+    <p><strong class="accent">The LMS digitized the classroom.</strong> It didn't personalize it. Every student still gets the same content at the same pace.</p>
+  </div>
+</div>
+
+<!-- ═════════════════���════════════════════ -->
+<!-- SLIDE 5: What is an LMS?              -->
+<!-- ══════��═════════════════��═════════════ -->
+<div class="slide light" data-notes="For anyone unfamiliar — an LMS is a Learning Management System. It's the software every school uses to run courses. Think of it as the operating system for education. Canvas, Moodle, Blackboard, Google Classroom — these cover 95% or more of US schools. They handle course materials, grades and submissions, and student rosters. This is where teachers and students already live every day.">
+  <h3>For Context</h3>
+  <h1>What is an <span class="accent">LMS?</span></h1>
+  <p>A <strong>Learning Management System</strong> is the software every school uses to run courses — the operating system for education.</p>
+  <div class="grid3" style="margin-top: 1rem;">
+    <div class="card"><h4>Course Materials</h4><p style="font-size: 0.92rem;">Syllabi, assignments, readings — uploaded and organized by the instructor.</p></div>
+    <div class="card"><h4>Grades &amp; Submissions</h4><p style="font-size: 0.92rem;">Students submit work, instructors grade it. The gradebook is the system of record.</p></div>
+    <div class="card"><h4>Rosters &amp; Enrollment</h4><p style="font-size: 0.92rem;">Every student, every section, every role — managed in one place.</p></div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem; margin-top: 1.25rem;">
+    <div style="background: #f7f7f4; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1.1rem 0.75rem; text-align: center;"><img src="logos/canvas.png" alt="Canvas" style="width: 48px; height: 48px; margin: 0 auto 0.5rem; border-radius: 10px; display: block; object-fit: contain;"><div style="font-size: 0.82rem; font-weight: 600;">Canvas</div></div>
+    <div style="background: #f7f7f4; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1.1rem 0.75rem; text-align: center;"><img src="logos/moodle.png" alt="Moodle" style="width: 48px; height: 48px; margin: 0 auto 0.5rem; border-radius: 10px; display: block; object-fit: contain;"><div style="font-size: 0.82rem; font-weight: 600;">Moodle</div></div>
+    <div style="background: #f7f7f4; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1.1rem 0.75rem; text-align: center;"><img src="logos/blackboard.png" alt="Blackboard" style="width: 48px; height: 48px; margin: 0 auto 0.5rem; border-radius: 10px; display: block; object-fit: contain;"><div style="font-size: 0.82rem; font-weight: 600;">Blackboard</div></div>
+    <div style="background: #f7f7f4; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1.1rem 0.75rem; text-align: center;"><img src="logos/d2l.png" alt="D2L" style="width: 48px; height: 48px; margin: 0 auto 0.5rem; border-radius: 10px; display: block; object-fit: contain;"><div style="font-size: 0.82rem; font-weight: 600;">Brightspace</div></div>
+    <div style="background: #f7f7f4; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1.1rem 0.75rem; text-align: center;"><img src="logos/schoology.png" alt="Schoology" style="width: 48px; height: 48px; margin: 0 auto 0.5rem; border-radius: 10px; display: block; object-fit: contain;"><div style="font-size: 0.82rem; font-weight: 600;">Schoology</div></div>
+    <div style="background: #f7f7f4; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1.1rem 0.75rem; text-align: center;"><img src="logos/google.png" alt="Google" style="width: 48px; height: 48px; margin: 0 auto 0.5rem; border-radius: 10px; display: block; object-fit: contain;"><div style="font-size: 0.82rem; font-weight: 600;">Google Classroom</div></div>
+  </div>
+  <p class="dim" style="font-size: 0.78rem; margin-top: 0.75rem; text-align: center; max-width: none;">These platforms cover <strong class="accent">95%+ of US schools.</strong></p>
+</div>
+
+<!-- ═════════���════════════════════════════ -->
+<!-- SLIDE 6: AI in Education              -->
+<!-- ════��═════════════════════════════════ -->
+<div class="slide orange" data-notes="Then, almost overnight, something changed. ChatGPT launched in November 2022. Within two months — 100 million users. Learning is the number one use case on the platform. 84% of high school students use AI for schoolwork. 18 million AI queries per day from student devices. For the first time, every student could talk to a tutor that's endlessly patient and available 24/7. But nobody connected it to the classroom. And that's where the problems start.">
+  <h1 style="font-size: 4rem; margin-bottom: 1rem;">Then came AI.</h1>
+  <p style="font-size: 1.2rem; opacity: 0.92; max-width: 650px; margin-bottom: 2.5rem;">In November 2022, ChatGPT launched. Within two months — 100 million users. The fastest adoption of any technology in human history.</p>
+  <div style="display: flex; gap: 2rem; margin-bottom: 2rem;">
+    <div style="background: rgba(255,255,255,0.15); border-radius: 14px; padding: 1.5rem; flex: 1; text-align: center;"><div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.25rem;">#1</div><p style="font-size: 0.9rem; opacity: 0.9; margin: 0;">Learning is the <strong>top use case</strong> on ChatGPT</p></div>
+    <div style="background: rgba(255,255,255,0.15); border-radius: 14px; padding: 1.5rem; flex: 1; text-align: center;"><div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.25rem;">84%</div><p style="font-size: 0.9rem; opacity: 0.9; margin: 0;">of high school students use AI for schoolwork</p></div>
+    <div style="background: rgba(255,255,255,0.15); border-radius: 14px; padding: 1.5rem; flex: 1; text-align: center;"><div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.25rem;">18M</div><p style="font-size: 0.9rem; opacity: 0.9; margin: 0;">AI queries per day from student devices</p></div>
+  </div>
+  <p style="font-size: 1.3rem; font-family: 'EB Garamond', Georgia, serif; opacity: 0.95; max-width: 700px;">For the first time, every student could talk to an AI that's endlessly patient and available 24/7. <strong>But nobody connected it to the classroom.</strong></p>
+</div>
+
+<!-- ════════════════���═════════════════════ -->
+<!-- SLIDE 7: Student Pain Points          -->
+<!-- ═════��════════════════���═══════════════ -->
+<div class="slide dark" data-notes="Here's what students are dealing with. These LMS systems plus generic AI tools create four major problems. No personalization — every student gets the same content. AI gives answers, not understanding — ChatGPT solves it for you but you learn nothing. No memory between sessions — every chat starts from scratch. And no connection to your actual course — it doesn't know your syllabus or your assignment.">
+  <h3>The Problem — Students</h3>
+  <h1>AI remembers your name.<br><span class="accent">It still doesn't know your classroom.</span></h1>
+  <div class="grid2" style="margin-top: 1rem;">
+    <div class="card card-top"><h4>No personalization</h4><p style="font-size: 0.92rem;">Every student gets the same content at the same pace. Struggling? Too bad. Bored? Also too bad.</p></div>
+    <div class="card card-top"><h4>AI gives answers, not understanding</h4><p style="font-size: 0.92rem;">ChatGPT solves the problem for you. You get the grade but learn nothing. The next exam? Lost.</p></div>
+    <div class="card card-top"><h4>No memory between sessions</h4><p style="font-size: 0.92rem;">Every time you open a chatbot, it's a blank slate. It doesn't remember what you struggled with last week.</p></div>
+    <div class="card card-top"><h4>No connection to your course</h4><p style="font-size: 0.92rem;">Generic AI doesn't know your syllabus, your assignment, or what your professor expects.</p></div>
+  </div>
+</div>
+
+<!-- ═══════════════���══════════════════════ -->
+<!-- SLIDE 8: Teacher Pain Points          -->
+<!-- ══════════════════════════════════════ -->
+<div class="slide light" data-notes="Now the other side — teachers. 84% of students use AI, but only 26% of teachers have ever caught it. 40% of schools have banned AI while their students use it anyway. 68% of teachers received zero AI training. Teachers have zero visibility into how students use AI. They can't tell who's learning and who's copying. They spend hours on manual grade tracking. At-risk students are discovered too late.">
+  <h3>The Problem — Teachers</h3>
+  <h1>Millions of students use AI every day.<br><span class="accent">Their teachers can't see any of it.</span></h1>
+  <div class="grid2" style="margin-top: 1rem; gap: 3rem;">
+    <div>
+      <div style="display: flex; gap: 1.25rem; margin-bottom: 1.5rem;">
+        <div class="card metric" style="flex: 1; padding: 1rem;"><div class="num" style="font-size: 2.2rem;">84%</div><div class="label" style="font-size: 0.68rem;">of students use AI</div></div>
+        <div class="card metric" style="flex: 1; padding: 1rem;"><div class="num" style="font-size: 2.2rem;">26%</div><div class="label" style="font-size: 0.68rem;">of teachers caught it</div></div>
+      </div>
+      <div class="callout" style="margin-top: 0;"><p style="font-size: 0.9rem;"><strong class="accent">That means:</strong> for every student a teacher catches using AI, there are <strong>three more</strong> they never see.</p></div>
+    </div>
+    <div>
+      <div class="card" style="height: 100%;">
+        <h4 style="color: #F15524; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem;">What teachers are dealing with</h4>
+        <p style="font-size: 0.92rem; margin-bottom: 0.6rem;"><strong>40% of schools</strong> have banned AI — while <strong class="accent">84%</strong> of students use it anyway.</p>
+        <p style="font-size: 0.92rem; margin-bottom: 0.6rem;"><strong>68% of teachers</strong> received <strong class="accent">zero training</strong> on AI this year.</p>
+        <p style="font-size: 0.92rem; margin-bottom: 0.6rem;"><strong>50% of teachers</strong> say AI made them <strong class="accent">more distrustful</strong> of student work.</p>
+        <div style="border-top: 1px solid #e5e5e0; padding-top: 0.75rem;"><p style="font-size: 0.88rem; color: #888; margin: 0;">It's a <strong>complete black box.</strong></p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════��══════════════ -->
+<!-- SLIDE 9: Bridge — What If?            -->
+<!-- ═══════��══════════════════════════════ -->
+<div class="slide dark" data-notes="So what if there was a system that could do all of this? What if there was something that didn't just answer questions, but actually knew your classroom? That remembered every interaction? That teachers could see and trust? That's what we built.">
+  <h2 style="text-align: center; margin-bottom: 0.5rem; font-size: 1.8rem; color: #999;">What if there was a system that could...</h2>
+  <div class="node-graph">
+    <svg class="node-line" width="100%" height="100%" style="position: absolute; top: 0; left: 0; z-index: 1;"><line x1="400" y1="210" x2="110" y2="55" stroke="rgba(241,85,36,0.2)" stroke-width="1.5"/><line x1="400" y1="210" x2="690" y2="55" stroke="rgba(241,85,36,0.2)" stroke-width="1.5"/><line x1="400" y1="210" x2="55" y2="245" stroke="rgba(241,85,36,0.2)" stroke-width="1.5"/><line x1="400" y1="210" x2="745" y2="245" stroke="rgba(241,85,36,0.2)" stroke-width="1.5"/><line x1="400" y1="210" x2="110" y2="385" stroke="rgba(241,85,36,0.2)" stroke-width="1.5"/><line x1="400" y1="210" x2="690" y2="385" stroke="rgba(241,85,36,0.2)" stroke-width="1.5"/></svg>
+    <div class="center-node"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><ellipse id="q" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#fff"><use href="#q" transform="rotate(0 100 100)"/><use href="#q" transform="rotate(45 100 100)"/><use href="#q" transform="rotate(90 100 100)"/><use href="#q" transform="rotate(135 100 100)"/></g></svg></div>
+    <div class="question-node" style="top: 15px; left: 0;"><span class="q-icon">?</span> Remember every conversation with a student — and actually <strong>learn</strong> from each one?</div>
+    <div class="question-node" style="top: 15px; right: 0;"><span class="q-icon">?</span> Already know your classroom — <strong>without</strong> anyone having to set anything up?</div>
+    <div class="question-node" style="top: 50%; left: 0; transform: translateY(-50%);"><span class="q-icon">?</span> Show teachers exactly which students are struggling — <strong>before</strong> they fall behind?</div>
+    <div class="question-node" style="top: 50%; right: 0; transform: translateY(-50%);"><span class="q-icon">?</span> Guide students to the answer through questions — instead of just <strong>handing it</strong> to them?</div>
+    <div class="question-node" style="bottom: 5px; left: 0;"><span class="q-icon">?</span> Connect directly to grades, assignments, and materials — <strong>automatically?</strong></div>
+    <div class="question-node" style="bottom: 5px; right: 0;"><span class="q-icon">?</span> Prove whether its teaching actually <strong>worked</strong> — with real data?</div>
+  </div>
+</div>
+
+<!-- ══════════��═══════════════════���═══════ -->
+<!-- SLIDE 10: Introducing Docere          -->
+<!-- ══════��═══════════════════════════════ -->
+<div class="slide orange" data-notes="That system exists. We built it. It's called Docere — Latin for 'to teach.' Docere connects directly to your school's LMS, builds a brain for every student, teaches through questioning instead of answering, and gets smarter every week based on whether students actually learn.">
+  <svg class="logo-xl" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 0.5rem;"><defs><ellipse id="r" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#fff"><use href="#r" transform="rotate(0 100 100)"/><use href="#r" transform="rotate(45 100 100)"/><use href="#r" transform="rotate(90 100 100)"/><use href="#r" transform="rotate(135 100 100)"/></g></svg>
+  <h1 style="font-size: 3.5rem; margin-bottom: 0.5rem;">Introducing Docere.</h1>
+  <p style="font-size: 1.15rem; opacity: 0.9; max-width: 650px; font-family: 'EB Garamond', Georgia, serif; margin-bottom: 2rem;">Latin for <em>"to teach."</em> An AI tutor that connects to your classroom, builds a brain for every student, and gets smarter the more it teaches.</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+    <div style="background: rgba(255,255,255,0.12); border-radius: 14px; padding: 1.5rem;"><div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;"><span style="background: rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem;">1</span><h4 style="margin: 0; font-size: 1rem;">Connect to your classroom</h4></div><p style="font-size: 0.88rem; opacity: 0.9; margin: 0;">Plugs directly into your school's LMS. One click. Nothing new to learn.</p></div>
+    <div style="background: rgba(255,255,255,0.12); border-radius: 14px; padding: 1.5rem;"><div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;"><span style="background: rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem;">2</span><h4 style="margin: 0; font-size: 1rem;">Build an artificial brain</h4></div><p style="font-size: 0.88rem; opacity: 0.9; margin: 0;">A <strong>classroom brain</strong> for the course, and a <strong>student brain</strong> for each learner — tracking what they know, struggle with, and how they learn best.</p></div>
+    <div style="background: rgba(255,255,255,0.12); border-radius: 14px; padding: 1.5rem;"><div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;"><span style="background: rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem;">3</span><h4 style="margin: 0; font-size: 1rem;">Teach, don't tell</h4></div><p style="font-size: 0.88rem; opacity: 0.9; margin: 0;">Guides students to figure it out themselves through questions — grounded in their real coursework.</p></div>
+    <div style="background: rgba(255,255,255,0.12); border-radius: 14px; padding: 1.5rem;"><div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;"><span style="background: rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem;">4</span><h4 style="margin: 0; font-size: 1rem;">Get smarter every week</h4></div><p style="font-size: 0.88rem; opacity: 0.9; margin: 0;">Measures whether its teaching helps. Strategies that improve grades grow stronger. Strategies that don't get replaced.</p></div>
+  </div>
+</div>
+
+<!-- ��═════════════════════════════════════ -->
+<!-- SLIDE 11: How It Works / Zero Setup   -->
+<!-- ════���════════════════��════════════════ -->
+<div class="slide light" data-notes="Here's how it works. A teacher adds Docere the same way they'd add Turnitin or Zoom — one click in their LMS. The moment it's connected, everything syncs automatically: courses, assignments, grades, rosters, PDFs, syllabi. When a student opens Docere, it already knows their class, their deadline, their grade history, and what they struggled with. Zero setup. Works in minutes.">
+  <h3>How It Works</h3>
+  <h1>Docere lives inside the tools <span class="accent">schools already use.</span></h1>
+  <div class="grid2" style="margin-top: 1.25rem; gap: 3rem;">
+    <div>
+      <div style="display: flex; gap: 1rem; margin-bottom: 1.25rem;"><div style="min-width: 44px; height: 44px; background: rgba(241,85,36,0.08); border-radius: 10px; display: flex; align-items: center; justify-content: center;"><span style="color: #F15524; font-size: 1.3rem; font-weight: 700;">1</span></div><div><h4 style="margin-bottom: 0.15rem;">One click to add it</h4><p style="font-size: 0.88rem; margin: 0;">A teacher adds Docere like any other tool. No IT tickets. No training.</p></div></div>
+      <div style="display: flex; gap: 1rem; margin-bottom: 1.25rem;"><div style="min-width: 44px; height: 44px; background: rgba(241,85,36,0.08); border-radius: 10px; display: flex; align-items: center; justify-content: center;"><span style="color: #F15524; font-size: 1.3rem; font-weight: 700;">2</span></div><div><h4 style="margin-bottom: 0.15rem;">Everything syncs automatically</h4><p style="font-size: 0.88rem; margin: 0;">Courses, assignments, grades, rosters, PDFs — pulled in real time.</p></div></div>
+      <div style="display: flex; gap: 1rem; margin-bottom: 1.25rem;"><div style="min-width: 44px; height: 44px; background: rgba(241,85,36,0.08); border-radius: 10px; display: flex; align-items: center; justify-content: center;"><span style="color: #F15524; font-size: 1.3rem; font-weight: 700;">3</span></div><div><h4 style="margin-bottom: 0.15rem;">The tutor already knows your classroom</h4><p style="font-size: 0.88rem; margin: 0;">Assignment, deadline, grade history, past struggles — no context needed.</p></div></div>
+      <div class="callout" style="margin-top: 0.5rem;"><p style="font-size: 0.85rem;"><strong class="accent">Why this matters:</strong> Competitors require a whole new platform. Docere works in minutes, inside tools teachers already know.</p></div>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: center;">
+      <div style="width: 100%; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.12);"><img src="student-screenshot.png" alt="Docere student chat view" style="width: 100%; display: block; border-radius: 14px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════��═══════════════���═══════════ -->
+<!-- SLIDE 12: Technical Overview          -->
+<!-- ══���═══════════════════════════════════ -->
+<div class="slide dark" data-notes="Here's what makes Docere truly different. It's backed by months of research on a proprietary algorithm. After every session, the system evaluates itself. Those scores link to real grades. Every week, the best teaching strategies are mutated and evolved. Weak ones are pruned. The tutor literally rewrites its own teaching playbook. We use Bayesian Knowledge Tracing for per-concept mastery, UCB1 multi-armed bandit for strategy selection across 27 context buckets, and semantic memory so the tutor recalls by meaning, not just recency.">
+  <h3>Under the Hood</h3>
+  <h1>Backed by months of research on a <span class="accent">proprietary algorithm.</span></h1>
+  <div class="flow" style="margin-top: 2rem;">
+    <div class="flow-step"><div class="fnum">Step 1</div><div class="ftitle" style="color:#fff;">Auto-Sync</div><div class="fdesc">Pulls courses, grades, &amp; materials from the LMS</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><div class="fnum">Step 2</div><div class="ftitle" style="color:#fff;">Smart Tutoring</div><div class="fdesc">Guides students with questions, grounded in real coursework</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><div class="fnum">Step 3</div><div class="ftitle" style="color:#fff;">Self-Evaluate</div><div class="fdesc">Every interaction scored: did the student actually learn?</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><div class="fnum">Step 4</div><div class="ftitle" style="color:#fff;">Evolve</div><div class="fdesc">Best strategies grow, worst are replaced — every week</div></div>
+  </div>
+  <div class="grid2" style="margin-top: 1.5rem;">
+    <div class="card"><h4 style="color: #F15524;">Bayesian Knowledge Tracing</h4><p style="font-size: 0.88rem;">Per-concept mastery tracking using probabilistic inference — not just quiz scores.</p></div>
+    <div class="card"><h4 style="color: #F15524;">UCB1 Strategy Selection</h4><p style="font-size: 0.88rem;">Multi-armed bandit selects the best teaching strategy. 27 context buckets, 5+ evolved strategies.</p></div>
+  </div>
+  <div class="callout" style="max-width: 680px; margin-top: 1rem;"><p><strong style="color: #F15524;">The key difference:</strong> Every other AI tutor is the same today as it was a year ago. Docere rewrites its own teaching strategies based on real outcomes.</p></div>
+</div>
+
+<!-- ═══���═══════════════════���══════════════ -->
+<!-- SLIDE 13: Competitors                 -->
+<!-- ══════════════════════════════════════ -->
+<div class="slide dark" data-notes="Everyone's building AI for education. But nobody is connecting it to the classroom. General AI tools like ChatGPT are powerful but know nothing about your courses. Education tools like Khanmigo are built for learning but require a whole separate platform. None of them measure whether the student actually learned. None of them improve over time. That's the gap.">
+  <h3>The Product Problem</h3>
+  <h1>Everyone's building AI for education.<br><span class="accent">Nobody's connecting it to the classroom.</span></h1>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem;">
+    <div class="card" style="border-top: 3px solid #555;">
+      <h4 style="color: #888; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem;">General AI Tools</h4>
+      <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap;"><span class="tag" style="background: rgba(255,255,255,0.05); color: #999; border-color: rgba(255,255,255,0.1);">ChatGPT</span><span class="tag" style="background: rgba(255,255,255,0.05); color: #999; border-color: rgba(255,255,255,0.1);">Claude</span><span class="tag" style="background: rgba(255,255,255,0.05); color: #999; border-color: rgba(255,255,255,0.1);">Gemini</span></div>
+      <p style="font-size: 0.85rem; color: #888; margin-bottom: 0.4rem;">&#x2717;&nbsp; No connection to assignments or grades</p>
+      <p style="font-size: 0.85rem; color: #888; margin-bottom: 0.4rem;">&#x2717;&nbsp; No memory of what you studied last week</p>
+      <p style="font-size: 0.85rem; color: #888; margin-bottom: 0.4rem;">&#x2717;&nbsp; Teachers have zero visibility</p>
+      <p style="font-size: 0.85rem; color: #888; margin-bottom: 0;">&#x2717;&nbsp; Same generic response to every student</p>
+    </div>
+    <div class="card" style="border-top: 3px solid #555;">
+      <h4 style="color: #888; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem;">Education AI Tools</h4>
+      <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap;"><span class="tag" style="background: rgba(255,255,255,0.05); color: #999; border-color: rgba(255,255,255,0.1);">Khanmigo</span><span class="tag" style="background: rgba(255,255,255,0.05); color: #999; border-color: rgba(255,255,255,0.1);">Cognii</span><span class="tag" style="background: rgba(255,255,255,0.05); color: #999; border-color: rgba(255,255,255,0.1);">Carnegie Learning</span></div>
+      <p style="font-size: 0.85rem; color: #888; margin-bottom: 0.4rem;">&#x2717;&nbsp; Whole separate platform to manage</p>
+      <p style="font-size: 0.85rem; color: #888; margin-bottom: 0.4rem;">&#x2717;&nbsp; Doesn't connect to your grading or materials</p>
+      <p style="font-size: 0.85rem; color: #888; margin-bottom: 0.4rem;">&#x2717;&nbsp; Teachers need training on a new system</p>
+      <p style="font-size: 0.85rem; color: #888; margin-bottom: 0;">&#x2717;&nbsp; The AI never improves — same tutor forever</p>
+    </div>
+  </div>
+  <div class="callout" style="max-width: none; margin-top: 1.5rem;"><p><strong style="color: #F15524;">The gap:</strong> Nobody has built an AI tutor that lives inside the tools schools already use, connects to real coursework, gives teachers visibility, <em>and</em> gets better at teaching over time.</p></div>
+</div>
+
+<!-- ════��═══════��═════════════════════════ -->
+<!-- SLIDE 14: Why / Origin Story          -->
+<!-- ══════════��═══════════════════════════ -->
+<div class="slide light" data-notes="We didn't set out to build an AI tutor for every subject. We started as a coding education platform — an AI tutor for computer science. And it worked. Students were learning. Teachers loved it. Then something interesting happened. Teachers started asking: can you make this for my math class? My Spanish students need this more than the CS kids. That's when we realized — the problem isn't coding education. The problem is education.">
+  <h3>Our Origin</h3>
+  <h1>We didn't plan this.<br><span class="accent">Teachers asked for it.</span></h1>
+  <div class="grid2" style="margin-top: 1rem; gap: 3rem;">
+    <div>
+      <p style="font-size: 1.05rem; margin-bottom: 1.25rem;">We started as a <strong>coding education platform</strong> — an AI tutor for CS students. It worked. Then something happened.</p>
+      <div class="card" style="border-left: 3px solid #F15524; margin-bottom: 1rem;">
+        <p class="quote" style="margin: 0;">Can you make this work for my math class?</p>
+        <p style="font-size: 0.78rem; color: #999; margin-top: 0.3rem; margin-bottom: 0;">— 7th grade teacher, Minnesota</p>
+      </div>
+      <div class="card" style="border-left: 3px solid #F15524;">
+        <p class="quote" style="margin: 0;">My Spanish students need this more than the CS kids.</p>
+        <p style="font-size: 0.78rem; color: #999; margin-top: 0.3rem; margin-bottom: 0;">— Language arts teacher, Minnesota</p>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: center;">
+      <div style="background: #f7f7f4; border: 1px solid #e5e5e0; border-radius: 16px; padding: 2.5rem; text-align: center;">
+        <p style="font-family: 'EB Garamond', Georgia, serif; font-size: 1.8rem; color: #1a1a1a; line-height: 1.3; margin-bottom: 0.5rem;">The problem isn't coding education.</p>
+        <p style="font-family: 'EB Garamond', Georgia, serif; font-size: 1.8rem; color: #F15524; line-height: 1.3; margin-bottom: 0;">The problem is <em>education.</em></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════���═══════════════════════════ -->
+<!-- SLIDE 15: Traction                    -->
+<!-- ══════════════════════════════════════ -->
+<div class="slide light" data-notes="We're live in two Minnesota middle schools with over 500 students. Teachers did zero setup. We've captured over 10,000 memories — that's 10,000 times Docere learned something about a student. We've won 10 thousand dollars in pitch competitions. 50 million K-12 students in the US. At 10 dollars per student per year, that's a 500 million dollar addressable market. The AI in education market is projected to grow to 73 billion dollars by 2033.">
+  <h3>Traction &amp; Market</h3>
+  <h1>Where we are. <span class="accent">Where we're going.</span></h1>
+  <div class="grid2" style="margin-top: 1rem; gap: 2.5rem;">
+    <div>
+      <div style="border-radius: 14px; overflow: hidden; margin-bottom: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08);"><img src="IMG_2423.jpeg" alt="Docere in the classroom" style="width: 100%; display: block;"></div>
+      <div style="display: flex; gap: 0.6rem; justify-content: center;">
+        <div class="card metric" style="flex: 1; padding: 0.6rem 0.4rem;"><div class="num" style="font-size: 1.6rem;">500+</div><div class="label" style="font-size: 0.65rem;">Students</div></div>
+        <div class="card metric" style="flex: 1; padding: 0.6rem 0.4rem;"><div class="num" style="font-size: 1.6rem;">2</div><div class="label" style="font-size: 0.65rem;">Schools</div></div>
+        <div class="card metric" style="flex: 1; padding: 0.6rem 0.4rem;"><div class="num" style="font-size: 1.6rem;">10K+</div><div class="label" style="font-size: 0.65rem;">Memories</div></div>
+        <div class="card metric" style="flex: 1; padding: 0.6rem 0.4rem;"><div class="num" style="font-size: 1.6rem;">$10K</div><div class="label" style="font-size: 0.65rem;">Prizes</div></div>
+        <div class="card metric" style="flex: 1; padding: 0.6rem 0.4rem;"><div class="num" style="font-size: 1.6rem;">0 min</div><div class="label" style="font-size: 0.65rem;">Setup</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="padding: 1.5rem;">
+        <h4 style="color: #F15524; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 0.75rem;">Market Opportunity</h4>
+        <p style="margin-bottom: 0.4rem;"><strong style="font-size: 1.6rem; color: #F15524;">50M</strong> <span style="color: #888;">K-12 students in the US</span></p>
+        <p style="margin-bottom: 0.4rem;"><strong style="font-size: 1.6rem; color: #F15524;">$500M+</strong> <span style="color: #888;">addressable market at $10/student/year</span></p>
+        <p style="margin-bottom: 0.4rem; font-size: 0.85rem; color: #888;">Districts already pay $5-20/student for IXL, DreamBox, Lexia</p>
+        <p style="margin-bottom: 0.4rem; font-size: 0.85rem; color: #888;">AI in education: <strong class="accent">$3.6B &rarr; $73.7B</strong> by 2033 <span style="color: #aaa;">(35% CAGR)</span></p>
+        <div style="margin-top: 0.75rem;"><span class="tag">AIED 2026 Paper</span><span class="tag">SaaS Model</span><span class="tag">85%+ Gross Margin</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══��════════════��══════════════════════ -->
+<!-- SLIDE 16: What's Next                 -->
+<!-- ════════════════════════��═════════════ -->
+<div class="slide light-orange" data-notes="Here's what's coming next. We're conducting an IRB-level research study — our paper 'Learning Agents that Learn' targets AIED 2026 in Seoul. We just signed a contract with Algorythm, a community of over 20,000 software engineers founded by Esco Obong, a senior engineer at Airbnb. Docere will power their learning platform's memory layer. We're also expanding into higher-ed courses at Gustavus starting Fall 2026, and converting our free pilots to paid district contracts.">
+  <h3>What's Next</h3>
+  <h1 style="color: #1a1a1a;">The <span class="accent">roadmap.</span></h1>
+  <div class="grid2" style="margin-top: 1rem; gap: 2rem;">
+    <div class="card" style="border-left: 3px solid #F15524;">
+      <h4 style="color: #F15524;">IRB Research Study</h4>
+      <p style="font-size: 0.92rem;">Formal classroom study: <em>"Learning Agents that Learn."</em> Measuring whether self-improving AI tutors improve student outcomes. Targeting <strong>AIED 2026 in Seoul.</strong></p>
+    </div>
+    <div class="card" style="border-left: 3px solid #F15524;">
+      <h4 style="color: #F15524;">Algorythm Partnership</h4>
+      <p style="font-size: 0.92rem;">Signed contract with <strong>Algorythm</strong> — a community of <strong style="color: #F15524;">20,000+ engineers</strong> founded by Esco Obong (Sr. SWE @ Airbnb). Docere powers their learning platform's memory layer.</p>
+    </div>
+    <div class="card">
+      <h4>Higher-Ed Expansion</h4>
+      <p style="font-size: 0.92rem;">Pilot Docere in college courses starting <strong>Fall 2026.</strong> Faculty conversations underway at Gustavus Adolphus College.</p>
+    </div>
+    <div class="card">
+      <h4>District Sales</h4>
+      <p style="font-size: 0.92rem;">Convert free pilots to paid contracts. Target: <strong>5 paying districts</strong> by end of FY2027 at $10/student/year.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════���════════���════════════════════ -->
+<!-- SLIDE 17: Thank You                   -->
+<!-- ═══════���════════════════���═════════════ -->
+<div class="slide light" data-notes="Thank you for your time. Our vision is simple — make memory accessible to every student and every instructor. We believe the best education is personal, and for the first time, AI makes that possible at scale. We'd love to answer any questions.">
+  <div style="display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 700px; margin: 0 auto;">
+    <svg class="logo-lg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;"><defs><ellipse id="t" cx="100" cy="100" rx="90" ry="22"/></defs><g fill="#F15524"><use href="#t" transform="rotate(0 100 100)"/><use href="#t" transform="rotate(45 100 100)"/><use href="#t" transform="rotate(90 100 100)"/><use href="#t" transform="rotate(135 100 100)"/></g></svg>
+    <h2 style="font-size: 2.5rem; margin-bottom: 0.5rem;">Thank you.</h2>
+    <p style="font-family: 'EB Garamond', Georgia, serif; font-size: 1.5rem; color: #555; max-width: 550px; line-height: 1.45; font-style: italic; margin-bottom: 2rem;">Our vision is to make memory accessible to every student and every instructor.</p>
+    <p style="font-size: 0.9rem; color: #999;">Youdahe Asfaw &amp; Kofi Osei</p>
+    <p style="font-size: 1rem; color: #F15524; font-weight: 600;">Docere — AI Tutoring That Learns</p>
+    <p style="font-size: 0.8rem; color: #bbb; margin-top: 1rem;">Gustie Entrepreneur Cup 2026 &nbsp;&middot;&nbsp; Gustavus Adolphus College</p>
+  </div>
+</div>
+
+</div><!-- end .deck -->
+
+<!-- Navigation -->
+<div class="counter"><span id="current">1</span> / <span id="total"></span></div>
+<div class="nav">
+  <button onclick="prev()" aria-label="Previous slide">&larr;</button>
+  <button onclick="next()" aria-label="Next slide">&rarr;</button>
+</div>
+<div class="notes-overlay" id="notes"></div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const progress = document.getElementById('progress');
+const notesEl = document.getElementById('notes');
+let idx = 0;
+let notesVisible = false;
+document.getElementById('total').textContent = slides.length;
+
+function show(i) {
+  slides.forEach(s => s.classList.remove('active'));
+  slides[i].classList.add('active');
+  document.getElementById('current').textContent = i + 1;
+  progress.style.width = ((i + 1) / slides.length * 100) + '%';
+  const note = slides[i].getAttribute('data-notes');
+  notesEl.innerHTML = '<div class="notes-label">Speaker Notes (press N to toggle)</div>' + (note || '<em>No notes for this slide.</em>');
+}
+
+function next() { if (idx < slides.length - 1) { idx++; show(idx); } }
+function prev() { if (idx > 0) { idx--; show(idx); } }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+  if (e.key === 'n' || e.key === 'N') {
+    notesVisible = !notesVisible;
+    notesEl.classList.toggle('show', notesVisible);
+  }
+});
+
+// Touch swipe
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; });
+document.addEventListener('touchend', e => {
+  const diff = touchStartX - e.changedTouches[0].screenX;
+  if (Math.abs(diff) > 50) { diff > 0 ? next() : prev(); }
+});
+
+show(0);
+</script>
+</body>
+</html>

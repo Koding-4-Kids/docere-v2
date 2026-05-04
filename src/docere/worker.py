@@ -243,6 +243,64 @@ async def run_lti_material_sync(
     }
 
 
+async def run_document_ingestion(
+    ctx: dict,
+    doc_id: str,
+    file_path: str,
+    student_id: str,
+    course_id: str,
+) -> dict:
+    """Background: parse, chunk, embed, and store a student-uploaded document."""
+    import os
+    import shutil
+    from datetime import datetime, timezone
+
+    from docere.core.memory.student_documents import StudentDocumentManager
+    from docere.models.document import StudentDocument
+
+    async with async_session() as db:
+        doc = await db.get(StudentDocument, __import__("uuid").UUID(doc_id))
+        if not doc:
+            logger.error("Document not found for ingestion", doc_id=doc_id)
+            return {"error": "not_found"}
+
+        doc.status = "processing"
+        doc.processing_started_at = datetime.now(timezone.utc)
+        await db.commit()
+
+        try:
+            manager = StudentDocumentManager(get_qdrant())
+            chunk_count, page_count = await manager.ingest_document(
+                doc_id, file_path, student_id, course_id
+            )
+            doc.status = "completed"
+            doc.chunk_count = chunk_count
+            doc.page_count = page_count
+            doc.processing_completed_at = datetime.now(timezone.utc)
+        except Exception as e:
+            logger.error("Document ingestion failed", doc_id=doc_id, error=str(e))
+            doc.status = "failed"
+            doc.error_message = str(e)[:500]
+
+        await db.commit()
+
+    # Clean up temp file
+    try:
+        upload_dir = os.path.dirname(file_path)
+        if os.path.isdir(upload_dir):
+            shutil.rmtree(upload_dir)
+    except Exception:
+        pass
+
+    logger.info(
+        "Document ingestion task complete",
+        doc_id=doc_id,
+        status=doc.status,
+        chunks=doc.chunk_count,
+    )
+    return {"doc_id": doc_id, "status": doc.status, "chunks": doc.chunk_count}
+
+
 # ── Worker lifecycle ──
 
 
@@ -273,6 +331,7 @@ class WorkerSettings:
         run_seed_strategies,
         run_lti_course_sync,
         run_lti_material_sync,
+        run_document_ingestion,
     ]
 
     # Scheduled cron jobs

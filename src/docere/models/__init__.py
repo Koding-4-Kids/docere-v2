@@ -13,3 +13,4 @@ from docere.models.research import StudyConfig, ResearchEvent  # noqa: F401
 from docere.models.lti_platform import LTIPlatform  # noqa: F401
 from docere.models.calendar import InstructorCalendarToken, OfficeHours, MeetingRequest  # noqa: F401
 from docere.models.flashcard import FlashcardDeck, FlashcardCard, CardReview  # noqa: F401
+from docere.models.document import StudentDocument  # noqa: F401

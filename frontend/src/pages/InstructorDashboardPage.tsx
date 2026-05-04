@@ -406,6 +406,17 @@ export function InstructorDashboardPage() {
       .catch(() => {})
   }, [courseId, graphTopology])
 
+  // Auto-switch course when the agent detects a course reference
+  useEffect(() => {
+    const last = messages[messages.length - 1]
+    if (last?.switch_course) {
+      const targetId = last.switch_course.course_id
+      // Small delay so the user sees the "Switching..." message
+      const timer = setTimeout(() => switchCourse(targetId), 600)
+      return () => clearTimeout(timer)
+    }
+  }, [messages, switchCourse])
+
   // Auto-scroll chat views
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -1127,6 +1138,13 @@ export function InstructorDashboardPage() {
                     {msg.widgets && msg.widgets.length > 0 && (
                       <div className="ml-10">
                         <InstructorWidgets widgets={msg.widgets} courseId={courseId} />
+                      </div>
+                    )}
+                    {msg.actions && msg.actions.length > 0 && (
+                      <div className="ml-10 mt-2 space-y-2 max-w-[80%]">
+                        {msg.actions.map((action, j) => (
+                          <ActionCard key={j} action={action} />
+                        ))}
                       </div>
                     )}
                     {msg.sources && msg.sources.length > 0 && (

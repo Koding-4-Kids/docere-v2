@@ -1,18 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
 import { Sidebar } from '../components/Sidebar'
-import { FlashcardReview } from '../components/FlashcardReview'
 import { FocusPage } from './FocusPage'
-import { useFlashcardDueCounts } from '../hooks/useFlashcardDueCounts'
-import { CourseSelector } from '../components/CourseSelector'
 import { ClaudeChatInput, Icons } from '../components/ClaudeChatInput'
 import { MessageBubble } from '../components/MessageBubble'
 import { StudyPanel } from '../components/StudyPanel'
 import { useTheme } from '../hooks/useTheme'
 import { useAuth } from '../AuthContext'
-import { Pencil, BookOpen, Code, Lightbulb, FileText } from 'lucide-react'
 import { MeetingScheduler } from '../components/MeetingScheduler'
+import { NotesEditor } from '../components/NotesEditor'
 import * as api from '../api'
-import type { StudyArtifact, MeetingAction, Widget } from '../api'
+import type { StudyArtifact, MeetingAction, Widget, StreamDoneMeta } from '../api'
 
 interface LocalMessage {
   id: string
@@ -39,28 +36,29 @@ interface Course {
 }
 
 const QUICK_ACTIONS = [
-  { label: 'Write', icon: Pencil, prompt: 'Help me write ' },
-  { label: 'Learn', icon: BookOpen, prompt: 'Explain the concept of ' },
-  { label: 'Code', icon: Code, prompt: 'Help me code ' },
-  { label: 'Study', icon: Lightbulb, prompt: 'Help me study for ' },
+  { label: 'Explain a concept', desc: 'Break down ideas step by step', prompt: 'Explain the concept of ' },
+  { label: 'Help me study', desc: 'Flashcards, guides, and quizzes', prompt: 'Help me study for ' },
+  { label: 'Review my work', desc: 'Get feedback on assignments', prompt: 'Can you review my work on ' },
+  { label: 'Practice problems', desc: 'Generate practice questions', prompt: 'Give me practice problems for ' },
 ]
 
-// Keywords that hint the student wants study materials
-const STUDY_KEYWORDS = /\b(flashcard|flash card|study guide|study notes|make me notes|create notes|make me slides|create slides|make me flashcards|create flashcards|generate notes|generate flashcards|generate slides|generate a study guide|study material)\b/i
+// Keywords that hint the student wants notes (routes to notes panel)
+// Keywords that hint the student wants study materials (artifact will route to correct panel)
+const STUDY_KEYWORDS = /\b(flashcard|flash card|study guide|make me slides|create slides|make me flashcards|create flashcards|generate flashcards|generate slides|generate a study guide|study material)\b/i
 
 export function ChatPage() {
   const { dark, toggle } = useTheme()
   const { user, logout } = useAuth()
   const [conversations, setConversations] = useState<LocalConversation[]>([])
   const [activeConvId, setActiveConvId] = useState<string | null>(null)
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null)
+  const [activeCourseId, setActiveCourseId] = useState<string | null>(null)
   const [courses, setCourses] = useState<Course[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [assignments, setAssignments] = useState<api.AssignmentSummary[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const shouldAutoScroll = useRef(true)
+  const artifactStreamedNotes = useRef(false)
 
   // Study panel state
   const [activeArtifact, setActiveArtifact] = useState<StudyArtifact | null>(null)
@@ -71,14 +69,34 @@ export function ChatPage() {
   const [isMeetingPanelOpen, setIsMeetingPanelOpen] = useState(false)
   const [meetingAction, setMeetingAction] = useState<MeetingAction | null>(null)
 
-  // Flashcard review state
-  const [isReviewMode, setIsReviewMode] = useState(false)
-
   // Focus mode state
   const [isFocusMode, setIsFocusMode] = useState(false)
-  const dueCounts = useFlashcardDueCounts()
+
+  // Notes editor state
+  const [isNotesOpen, setIsNotesOpen] = useState(false)
+  const [notesContent, setNotesContent] = useState('')
+  const [isAgentWritingNotes, setIsAgentWritingNotes] = useState(false)
+  const [agentWrittenSection, setAgentWrittenSection] = useState<string | null>(null)
+  const [isNotesExpanded, setIsNotesExpanded] = useState(false)
 
   const activeConv = conversations.find(c => c.id === activeConvId)
+
+  // Load/save notes from localStorage per conversation
+  useEffect(() => {
+    if (activeConvId) {
+      const saved = localStorage.getItem(`docere-notes-${activeConvId}`)
+      setNotesContent(saved || '')
+    } else {
+      setNotesContent('')
+    }
+  }, [activeConvId])
+
+  const handleNotesChange = (value: string) => {
+    setNotesContent(value)
+    if (activeConvId) {
+      localStorage.setItem(`docere-notes-${activeConvId}`, value)
+    }
+  }
 
   // Load courses and conversations on mount
   useEffect(() => {
@@ -89,6 +107,8 @@ export function ChatPage() {
         courseCode: c.course_code || '',
       }))
       setCourses(mapped)
+      // Auto-select first course if only one
+      if (mapped.length === 1) setActiveCourseId(mapped[0].id)
       return mapped
     }).then(loadedCourses => {
       return api.listConversations().then(serverConvs => {
@@ -160,14 +180,15 @@ export function ChatPage() {
 
   const handleNewConversation = () => {
     setActiveConvId(null)
-    setSelectedCourseId(null)
     setError(null)
     closePanel()
   }
 
-  const handleSelectCourse = (courseId: string) => {
-    setSelectedCourseId(courseId)
-    api.listAssignments(courseId).then(setAssignments).catch(() => setAssignments([]))
+  const startNewChatForCourse = (courseId: string) => {
+    setActiveCourseId(courseId)
+    setActiveConvId(null)
+    setError(null)
+    closePanel()
   }
 
   const handleDeleteConversation = async (convId: string) => {
@@ -176,7 +197,6 @@ export function ChatPage() {
       setConversations(prev => prev.filter(c => c.id !== convId))
       if (activeConvId === convId) {
         setActiveConvId(null)
-        setSelectedCourseId(null)
         closePanel()
       }
     } catch {
@@ -185,6 +205,20 @@ export function ChatPage() {
   }
 
   const openArtifact = (artifact: StudyArtifact) => {
+    if (artifact.type === 'notes') {
+      const newContent = artifact.content || ''
+      if (!artifactStreamedNotes.current) {
+        if (notesContent.trim() && notesContent !== '<p></p>') {
+          handleNotesChange(notesContent.trimEnd() + '\n\n' + newContent)
+        } else {
+          handleNotesChange(newContent)
+        }
+      }
+      setIsAgentWritingNotes(false)
+      setAgentWrittenSection(newContent)
+      setIsNotesOpen(true)
+      return
+    }
     setActiveArtifact(artifact)
     setIsPanelOpen(true)
     setIsGeneratingArtifact(false)
@@ -193,11 +227,9 @@ export function ChatPage() {
   const closePanel = () => {
     setIsPanelOpen(false)
     setIsGeneratingArtifact(false)
-    // Keep activeArtifact so re-open doesn't flash
   }
 
   const openMeetingScheduler = (action?: MeetingAction | null) => {
-    // Close study panel if open — only one panel at a time
     closePanel()
     setMeetingAction(action || null)
     setIsMeetingPanelOpen(true)
@@ -208,26 +240,21 @@ export function ChatPage() {
   }
 
   const handleSendMessage = async (content: string, _files?: File[]) => {
-    if (!selectedCourseId && !activeConv) return
+    // Course for new conversations: toggled pill > active conversation > first course
+    const courseId = activeCourseId || activeConv?.courseId || (courses.length > 0 ? courses[0].id : null)
+    if (!courseId) return
     setError(null)
     shouldAutoScroll.current = true
 
-    const courseId = activeConv?.courseId || selectedCourseId!
     const course = courses.find(c => c.id === courseId)
 
-    // Detect study intent — optimistically open panel
     const isStudyRequest = STUDY_KEYWORDS.test(content)
-    if (isStudyRequest) {
-      setActiveArtifact(null)
-      setIsGeneratingArtifact(true)
-      setIsPanelOpen(true)
-    }
 
     try {
-      // If no active conversation, create one via API
-      if (!activeConvId) {
+      // Continue in current conversation, or create one if none exists
+      let convId = activeConvId
+      if (!convId) {
         const serverConv = await api.createConversation(courseId, content.slice(0, 50))
-
         const newConv: LocalConversation = {
           id: serverConv.id,
           title: content.slice(0, 50),
@@ -238,75 +265,194 @@ export function ChatPage() {
         }
         setConversations(prev => [newConv, ...prev])
         setActiveConvId(serverConv.id)
-
-        setIsLoading(true)
-        const response = await api.sendMessage(serverConv.id, content)
-        const artifact = response.message.artifact || null
-        const action = response.message.action || null
-        const widgets = response.message.widgets || null
-
+        convId = serverConv.id
+      } else {
+        const tempUserMsg: LocalMessage = { id: crypto.randomUUID(), role: 'user', content }
         setConversations(prev =>
           prev.map(c =>
-            c.id === serverConv.id
-              ? {
-                  ...c,
-                  messages: [
-                    ...c.messages,
-                    { id: response.message.id, role: 'assistant', content: response.message.content, artifact, action, widgets },
-                  ],
-                }
+            c.id === convId
+              ? { ...c, messages: [...c.messages, tempUserMsg], lastMessageAt: new Date().toISOString() }
               : c
           )
         )
-        setIsLoading(false)
-
-        // Handle artifact result
-        if (artifact) {
-          openArtifact(artifact)
-        } else if (isStudyRequest) {
-          closePanel()
-        }
-        return
       }
 
-      // Add user message to existing conversation immediately (optimistic)
-      const tempUserMsg: LocalMessage = { id: crypto.randomUUID(), role: 'user', content }
+      // Add an empty assistant message placeholder for streaming
+      const placeholderId = crypto.randomUUID()
       setConversations(prev =>
         prev.map(c =>
-          c.id === activeConvId
-            ? { ...c, messages: [...c.messages, tempUserMsg], lastMessageAt: new Date().toISOString() }
+          c.id === convId
+            ? { ...c, messages: [...c.messages, { id: placeholderId, role: 'assistant' as const, content: '' }] }
             : c
         )
       )
-
-      // Send to API and get AI response
       setIsLoading(true)
-      const response = await api.sendMessage(activeConvId, content)
-      const artifact = response.message.artifact || null
-      const action = response.message.action || null
-      const widgets = response.message.widgets || null
 
-      setConversations(prev =>
-        prev.map(c =>
-          c.id === activeConvId
-            ? {
-                ...c,
-                messages: [
-                  ...c.messages,
-                  { id: response.message.id, role: 'assistant', content: response.message.content, artifact, action, widgets },
-                ],
+      const targetConvId = convId
+      let artifactDetected = false
+      let streamedContent = ''
+      let artifactBuffer = ''
+      let artifactIsNotes = false
+      artifactStreamedNotes.current = false
+      const baseNotes = notesContent.trim() && notesContent !== '<p></p>' ? notesContent.trimEnd() + '\n\n' : ''
+
+      const currentNotes = notesContent.trim() || undefined
+      await api.streamMessage(
+        targetConvId,
+        content,
+        (text: string) => {
+          // After artifact fence detected, accumulate into artifact buffer
+          if (artifactDetected) {
+            artifactBuffer += text
+
+            // Detect if this is a notes artifact
+            if (!artifactIsNotes && /"type"\s*:\s*"notes"/.test(artifactBuffer)) {
+              artifactIsNotes = true
+              setIsAgentWritingNotes(true)
+              setAgentWrittenSection(null)
+              setIsNotesOpen(true)
+            }
+
+            // If notes, stream content progressively into the notes panel
+            if (artifactIsNotes) {
+              const contentMatch = artifactBuffer.match(/"content"\s*:\s*"/)
+              if (contentMatch) {
+                const startIdx = contentMatch.index! + contentMatch[0].length
+                let partial = artifactBuffer.slice(startIdx)
+                // Strip trailing incomplete JSON (closing quote, braces, backticks)
+                partial = partial.replace(/"\s*[,}][\s\S]*$/, '').replace(/`+\s*$/, '')
+                // Unescape JSON string
+                partial = partial.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\').replace(/\\t/g, '\t')
+                if (partial) {
+                  artifactStreamedNotes.current = true
+                  handleNotesChange(baseNotes + partial)
+                }
               }
-            : c
-        )
-      )
-      setIsLoading(false)
+            }
+            return
+          }
 
-      // Handle artifact result
-      if (artifact) {
-        openArtifact(artifact)
-      } else if (isStudyRequest) {
-        closePanel()
-      }
+          streamedContent += text
+
+          // Check accumulated content for artifact/action/widget fences
+          if (/```(artifact|action|widget)/.test(streamedContent)) {
+            artifactDetected = true
+            artifactBuffer = streamedContent.split(/```(?:artifact|action|widget)\s*/)[1] || ''
+            // Strip everything from the ``` fence onward
+            const cleaned = streamedContent.replace(/```(artifact|action|widget)[\s\S]*$/, '').trim()
+            setConversations(prev =>
+              prev.map(c =>
+                c.id === targetConvId
+                  ? {
+                      ...c,
+                      messages: c.messages.map(m =>
+                        m.id === placeholderId ? { ...m, content: cleaned } : m
+                      ),
+                    }
+                  : c
+              )
+            )
+
+            if (/"type"\s*:\s*"notes"/.test(artifactBuffer)) {
+              artifactIsNotes = true
+              setIsNotesOpen(true)
+            }
+            return
+          }
+
+          setConversations(prev =>
+            prev.map(c =>
+              c.id === targetConvId
+                ? {
+                    ...c,
+                    messages: c.messages.map(m =>
+                      m.id === placeholderId ? { ...m, content: streamedContent } : m
+                    ),
+                  }
+                : c
+            )
+          )
+        },
+        (meta: StreamDoneMeta) => {
+          setConversations(prev =>
+            prev.map(c =>
+              c.id === targetConvId
+                ? {
+                    ...c,
+                    messages: c.messages.map(m =>
+                      m.id === placeholderId
+                        ? {
+                            ...m,
+                            id: meta.message_id || placeholderId,
+                            // Replace streamed content with cleaned text (strips artifact/action blocks)
+                            content: meta.chat_text ?? m.content,
+                            artifact: meta.artifact,
+                            action: meta.action,
+                            widgets: meta.widgets,
+                          }
+                        : m
+                    ),
+                  }
+                : c
+            )
+          )
+          setIsLoading(false)
+
+          if (meta.artifact) {
+            openArtifact(meta.artifact)
+          } else {
+            // No artifact parsed — close StudyPanel if it was opened speculatively
+            closePanel()
+          }
+
+          if (meta.action?.type === 'meeting_suggestion') {
+            openMeetingScheduler(meta.action)
+          }
+        },
+        async (errMsg: string) => {
+          setConversations(prev =>
+            prev.map(c =>
+              c.id === targetConvId
+                ? { ...c, messages: c.messages.filter(m => m.id !== placeholderId) }
+                : c
+            )
+          )
+
+          try {
+            const response = await api.sendMessage(targetConvId, content, currentNotes)
+            const artifact = response.message.artifact || null
+            const action = response.message.action || null
+            const widgets = response.message.widgets || null
+
+            setConversations(prev =>
+              prev.map(c =>
+                c.id === targetConvId
+                  ? {
+                      ...c,
+                      messages: [
+                        ...c.messages,
+                        { id: response.message.id, role: 'assistant' as const, content: response.message.content, artifact, action, widgets },
+                      ],
+                    }
+                  : c
+              )
+            )
+            setIsLoading(false)
+
+            if (artifact) {
+              openArtifact(artifact)
+            } else if (isStudyRequest) {
+              closePanel()
+            }
+          } catch (fallbackErr) {
+            setIsLoading(false)
+            setIsGeneratingArtifact(false)
+            if (isStudyRequest) closePanel()
+            setError(errMsg)
+          }
+        },
+        currentNotes,
+      )
     } catch (err) {
       setIsLoading(false)
       setIsGeneratingArtifact(false)
@@ -315,14 +461,13 @@ export function ChatPage() {
     }
   }
 
-  // Flashcard helpers
-  const totalDueCards = Array.from(dueCounts.values()).reduce((a, b) => a + b, 0)
-  const reviewCourseId = activeConv?.courseId || selectedCourseId || (courses.length > 0 ? courses[0].id : null)
+  // Greeting
+  const currentHour = new Date().getHours()
+  let greeting = 'Good morning'
+  if (currentHour >= 12 && currentHour < 18) greeting = 'Good afternoon'
+  else if (currentHour >= 18) greeting = 'Good evening'
 
-  // Determine what to show in the main area
-  const showCourseSelector = !activeConvId && !selectedCourseId
-  const showEmptyChat = !activeConvId && selectedCourseId
-  const showChat = !!activeConvId
+  const hasMessages = activeConv && activeConv.messages.length > 0
 
   return (
     <div className="flex h-screen bg-bg-0 text-text-100 relative overflow-hidden">
@@ -332,22 +477,25 @@ export function ChatPage() {
           id: c.id,
           title: c.title,
           courseName: c.courseName,
+          courseId: c.courseId,
           lastMessageAt: c.lastMessageAt,
         }))}
+        courses={courses.map(c => ({ id: c.id, name: c.name }))}
         activeId={activeConvId}
+        activeCourseId={activeCourseId}
         onSelect={setActiveConvId}
         onNew={handleNewConversation}
+        onNewForCourse={startNewChatForCourse}
+        onToggleCourse={(id) => setActiveCourseId(id)}
         onDelete={handleDeleteConversation}
         onLogout={logout}
         userEmail={user?.email || ''}
         dark={dark}
         toggleTheme={toggle}
-        onOpenFlashcards={() => reviewCourseId && setIsReviewMode(true)}
-        flashcardDueCount={totalDueCards}
         onOpenFocus={() => setIsFocusMode(true)}
       />
 
-      {/* Main Content */}
+      {/* Main Content — always a chat */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Error banner */}
         {error && (
@@ -359,124 +507,129 @@ export function ChatPage() {
           </div>
         )}
 
-        {/* Course selector (new conversation, no course picked) */}
-        {showCourseSelector && (
-          <CourseSelector
-            courses={courses}
-            userName={user?.name || 'Student'}
-            onSelect={handleSelectCourse}
-          />
-        )}
-
-        {/* Empty chat (course selected, ready to type) */}
-        {showEmptyChat && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-              <div className="flex flex-col items-center justify-center min-h-full py-8">
-                <div className="text-center animate-fade-in">
-                  <Icons.Logo className="w-12 h-12 mx-auto mb-4" />
-                  <p className="text-xl font-serif text-text-200 mb-1">
-                    {courses.find(c => c.id === selectedCourseId)?.name}
+        {/* Scrollable area — messages or empty greeting */}
+        <div ref={messagesContainerRef} onScroll={handleMessagesScroll} className="flex-1 overflow-y-auto custom-scrollbar">
+          {!hasMessages ? (
+            /* ── Empty state: greeting + quick actions ── */
+            <div className="flex flex-col items-center justify-center min-h-full py-8 px-6">
+              <div className="animate-fade-in w-full max-w-lg">
+                <div className="flex flex-col items-center text-center mb-8">
+                  <h1 className="text-[22px] font-serif text-text-200 mb-1 tracking-tight">
+                    {greeting},{' '}
+                    <span className="underline decoration-accent decoration-2 underline-offset-4">
+                      {user?.name || 'there'}
+                    </span>
+                  </h1>
+                  <p className="text-[13px] text-text-400 mt-1">
+                    {activeCourseId
+                      ? `Studying ${courses.find(c => c.id === activeCourseId)?.name} — toggle classes in the sidebar`
+                      : 'What can I help you with?'}
                   </p>
-                  <p className="text-sm text-text-400">Ask me anything about this course</p>
+                </div>
 
-                  {/* Quick Action Buttons */}
-                  <div className="flex flex-wrap justify-center gap-2 mt-6">
-                    {QUICK_ACTIONS.map(action => (
-                      <button
-                        key={action.label}
-                        onClick={() => handleSendMessage(action.prompt)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-bg-300 bg-bg-0 hover:bg-bg-200 hover:border-accent/40 transition-all text-sm text-text-300 hover:text-text-200 group"
-                      >
-                        <action.icon className="w-4 h-4 text-text-400 group-hover:text-accent transition-colors" />
+                {/* Quick Action Buttons */}
+                <div className="grid grid-cols-2 gap-2.5 w-full">
+                  {QUICK_ACTIONS.map(action => (
+                    <button
+                      key={action.label}
+                      onClick={() => handleSendMessage(action.prompt)}
+                      className="group px-4 py-3 rounded-xl border border-bg-300/70 bg-bg-100/50 hover:bg-bg-200 hover:border-accent/30 transition-all text-left"
+                    >
+                      <div className="text-[13px] text-text-300 group-hover:text-text-100 font-medium transition-colors">
                         {action.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Assignments Section */}
-                  {assignments.length > 0 && (
-                    <div className="mt-8 w-full max-w-md mx-auto text-left">
-                      <p className="text-xs uppercase tracking-wider text-text-500 mb-2 px-1">Assignments</p>
-                      <div className="space-y-1.5">
-                        {assignments.map(a => (
-                          <button
-                            key={a.id}
-                            onClick={() => handleSendMessage(`Help me with the assignment: ${a.title}`)}
-                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-bg-300 bg-bg-0 hover:bg-bg-200 hover:border-accent/40 transition-all text-left group"
-                          >
-                            <FileText className="w-4 h-4 text-text-400 group-hover:text-accent transition-colors shrink-0" />
-                            <span className="text-sm text-text-300 group-hover:text-text-200 truncate">
-                              {a.title}
-                            </span>
-                          </button>
-                        ))}
                       </div>
-                    </div>
-                  )}
+                      <div className="text-[11px] text-text-500 group-hover:text-text-400 transition-colors mt-0.5 leading-snug">
+                        {action.desc}
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
-            <div className="pb-4">
-              <ClaudeChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
-            </div>
-          </div>
-        )}
-
-        {/* Active conversation */}
-        {showChat && activeConv && (
-          <div className="flex-1 flex flex-col min-h-0">
-            {/* Header */}
-            <div className="px-6 py-3 border-b border-bg-300 flex items-center gap-2">
-              <span className="text-xs font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-                {activeConv.courseName}
-              </span>
-              <span className="text-sm text-text-300 truncate">{activeConv.title}</span>
-            </div>
-
-            {/* Messages */}
-            <div ref={messagesContainerRef} onScroll={handleMessagesScroll} className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+          ) : (
+            /* ── Messages ── */
+            <div className="px-6 py-6">
               <div className="max-w-2xl mx-auto">
-                {activeConv.messages.map(msg => (
-                  <MessageBubble
-                    key={msg.id}
-                    role={msg.role}
-                    content={msg.content}
-                    artifact={msg.artifact}
-                    action={msg.action}
-                    widgets={msg.widgets}
-                    onOpenArtifact={openArtifact}
-                    onOpenMeetingScheduler={() => openMeetingScheduler(msg.action)}
-                  />
+                {activeConv!.messages.map(msg => (
+                  msg.role === 'assistant' && !msg.content ? null : (
+                    <MessageBubble
+                      key={msg.id}
+                      role={msg.role}
+                      content={msg.content}
+                      artifact={msg.artifact}
+                      action={msg.action}
+                      widgets={msg.widgets}
+                      onOpenArtifact={openArtifact}
+                      onOpenMeetingScheduler={() => openMeetingScheduler(msg.action)}
+                    />
+                  )
                 ))}
                 {isLoading && (
-                  <div className="flex justify-start gap-2 mb-4">
-                    <div className="w-6 h-6 shrink-0 mt-1">
-                      <Icons.Logo className="w-6 h-6" />
+                  <div className="flex gap-3 mb-5">
+                    <div className="w-7 h-7 shrink-0 mt-1">
+                      <Icons.Logo className="w-7 h-7 opacity-70" />
                     </div>
-                    <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-bg-200 text-sm">
-                      <span className="text-text-300 mr-1.5">
-                        {isGeneratingArtifact ? 'Docere is thinking' : 'Thinking'}
-                      </span>
-                      <span className="inline-flex gap-0.5 text-text-400">
-                        <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
-                        <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
-                        <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
-                      </span>
+                    <div className="bg-bg-200/70 rounded-2xl rounded-bl-md px-4 py-3">
+                      <div className="flex gap-1">
+                        <span className="w-1.5 h-1.5 bg-text-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 bg-text-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1.5 h-1.5 bg-text-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
                     </div>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Input */}
-            <div className="pb-4">
-              <ClaudeChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
-            </div>
+        {/* Input */}
+        <div className="pb-4 pt-2">
+          <div className="max-w-2xl mx-auto px-6 mb-1 flex justify-end">
+            <button
+              onClick={() => setIsNotesOpen(!isNotesOpen)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                isNotesOpen
+                  ? 'bg-accent/10 text-accent'
+                  : 'text-text-400 hover:text-text-300 hover:bg-bg-200/50'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+              </svg>
+              Notes{notesContent.trim() ? ' *' : ''}
+            </button>
           </div>
-        )}
+          <ClaudeChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
+        </div>
       </div>
+
+      {/* Notes Panel */}
+      {isNotesOpen && (
+        <NotesEditor
+          content={notesContent}
+          onChange={handleNotesChange}
+          onClose={() => { setIsNotesOpen(false); setIsNotesExpanded(false) }}
+          isAgentWriting={isAgentWritingNotes}
+          agentWrittenSection={agentWrittenSection}
+          onDismissAgentSection={() => setAgentWrittenSection(null)}
+          onExplain={() => {
+            if (agentWrittenSection) {
+              setAgentWrittenSection(null)
+              handleSendMessage(`Explain how you came up with these notes — what sources did you pull from, and what was your thought process?\n\nNotes you wrote:\n${agentWrittenSection.slice(0, 500)}`)
+            }
+          }}
+          onRewrite={() => {
+            if (agentWrittenSection) {
+              setAgentWrittenSection(null)
+              handleSendMessage(`Rewrite the notes you just added to my notes panel. Make them clearer and more detailed.`)
+            }
+          }}
+          isExpanded={isNotesExpanded}
+          onToggleExpand={() => setIsNotesExpanded(!isNotesExpanded)}
+        />
+      )}
 
       {/* Study Materials Panel */}
       {isPanelOpen && (
@@ -495,14 +648,6 @@ export function ChatPage() {
           action={meetingAction}
           onClose={closeMeetingPanel}
           onBooked={closeMeetingPanel}
-        />
-      )}
-
-      {/* Flashcard Review Overlay */}
-      {isReviewMode && reviewCourseId && (
-        <FlashcardReview
-          courseId={reviewCourseId}
-          onClose={() => setIsReviewMode(false)}
         />
       )}
 

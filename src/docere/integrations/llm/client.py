@@ -125,6 +125,83 @@ class ClaudeClient:
         )
         return response.content[0].text
 
+    async def stream(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        max_tokens: int = 2048,
+        temperature: float = 0.7,
+    ):
+        """Yield text chunks as they arrive from the LLM.
+
+        Circuit breaker wraps the connection setup (not individual chunks).
+        No retry on mid-stream failures — the SSE endpoint handles reconnection.
+        """
+        if self.provider == "openai":
+            gen = self._stream_openai(system_prompt, messages, model, max_tokens, temperature)
+        else:
+            gen = self._stream_anthropic(system_prompt, messages, model, max_tokens, temperature)
+
+        # Circuit breaker guards the initial connection.
+        # We pull the first chunk inside breaker.call() to detect connection errors,
+        # then yield the rest outside (mid-stream errors surface naturally).
+        first_chunk_holder: list[str] = []
+
+        async def _connect():
+            async for chunk in gen:
+                first_chunk_holder.append(chunk)
+                break  # got the first chunk, connection is healthy
+
+        await self.breaker.call(_connect)
+
+        # Yield the first chunk we already received
+        if first_chunk_holder:
+            yield first_chunk_holder[0]
+
+        # Yield remaining chunks (outside circuit breaker)
+        async for chunk in gen:
+            yield chunk
+
+    async def _stream_openai(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        model: str | None,
+        max_tokens: int,
+        temperature: float,
+    ):
+        openai_messages = [{"role": "system", "content": system_prompt}] + messages
+        response = await self.openai_client.chat.completions.create(
+            model=model or self.default_model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            messages=openai_messages,
+            stream=True,
+        )
+        async for chunk in response:
+            delta = chunk.choices[0].delta if chunk.choices else None
+            if delta and delta.content:
+                yield delta.content
+
+    async def _stream_anthropic(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        model: str | None,
+        max_tokens: int,
+        temperature: float,
+    ):
+        async with self.anthropic_client.messages.stream(
+            model=model or self.default_model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system=system_prompt,
+            messages=messages,
+        ) as stream:
+            async for text in stream.text_stream:
+                yield text
+
     async def judge(
         self,
         prompt: str,

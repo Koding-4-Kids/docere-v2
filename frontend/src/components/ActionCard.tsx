@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { MetaAction, ExecuteActionResponse } from '../api'
-import { executeAction } from '../api'
+import { executeAction, getStoredToken } from '../api'
 
 interface Props {
   action: MetaAction
@@ -66,6 +66,60 @@ const ACTION_LABELS: Record<string, { title: string; execute: string }> = {
   calendar_event: { title: 'Calendar Event', execute: 'Create Event' },
 }
 
+function EmailRecipientLabel({ to, courseId }: { to: string | string[]; courseId?: string }) {
+  const [label, setLabel] = useState<string | null>(null)
+
+  useEffect(() => {
+    // If it's already a list of emails, just show them
+    if (Array.isArray(to)) {
+      setLabel(to.join(', '))
+      return
+    }
+    // Resolve group target
+    if (!courseId) { setLabel(to); return }
+    const token = getStoredToken()
+    fetch('/api/v1/integrations/resolve-recipients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ to, course_id: courseId }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setLabel(data.target_label) })
+      .catch(() => setLabel(to))
+  }, [to, courseId])
+
+  return <span className="text-white/60">{label ?? 'Resolving...'}</span>
+}
+
+function ExpandableEmailBody({ body }: { body: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const plainText = body.replace(/<[^>]*>/g, '')
+  const isLong = plainText.length > 150
+
+  return (
+    <div className="mt-1">
+      {expanded ? (
+        <div
+          className="text-white/40 text-[11px] leading-relaxed prose-sm"
+          dangerouslySetInnerHTML={{ __html: body }}
+        />
+      ) : (
+        <div className="text-white/40 text-[11px] leading-relaxed">
+          {plainText.slice(0, 150)}{isLong ? '...' : ''}
+        </div>
+      )}
+      {isLong && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-[10px] text-[#4488ff]/60 hover:text-[#4488ff] mt-1 transition-colors"
+        >
+          {expanded ? 'Show less' : 'Show full email'}
+        </button>
+      )}
+    </div>
+  )
+}
+
 function ActionPreview({ action }: { action: MetaAction }) {
   switch (action.type) {
     case 'draft_email':
@@ -74,7 +128,7 @@ function ActionPreview({ action }: { action: MetaAction }) {
           {action.to && (
             <div className="flex gap-2">
               <span className="text-white/25 shrink-0">To:</span>
-              <span className="text-white/60">{(action.to as string[]).join(', ')}</span>
+              <EmailRecipientLabel to={action.to as string | string[]} courseId={action.course_id as string} />
             </div>
           )}
           {action.subject && (
@@ -84,9 +138,7 @@ function ActionPreview({ action }: { action: MetaAction }) {
             </div>
           )}
           {action.body && (
-            <div className="text-white/40 text-[11px] mt-1 line-clamp-3 leading-relaxed">
-              {(action.body as string).replace(/<[^>]*>/g, '').slice(0, 200)}
-            </div>
+            <ExpandableEmailBody body={action.body as string} />
           )}
         </div>
       )

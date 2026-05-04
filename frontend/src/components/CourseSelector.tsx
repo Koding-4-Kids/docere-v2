@@ -21,17 +21,17 @@ export function CourseSelector({ courses, userName, onSelect }: CourseSelectorPr
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 animate-fade-in">
       {/* Logo */}
-      <div className="mb-6">
-        <Icons.Logo className="w-16 h-16" />
+      <div className="mb-5">
+        <Icons.Logo className="w-14 h-14 opacity-80" />
       </div>
 
       {/* Greeting */}
-      <h1 className="text-3xl font-serif font-normal text-text-200 mb-2 tracking-tight">
+      <h1 className="text-2xl font-serif font-normal text-text-200 mb-1.5 tracking-tight">
         {greeting},{' '}
         <span className="relative inline-block">
           {userName}
           <svg
-            className="absolute w-[120%] h-[12px] -bottom-1 -left-[10%] text-accent"
+            className="absolute w-[120%] h-[10px] -bottom-0.5 -left-[10%] text-accent"
             viewBox="0 0 140 24"
             fill="none"
             preserveAspectRatio="none"
@@ -40,20 +40,22 @@ export function CourseSelector({ courses, userName, onSelect }: CourseSelectorPr
           </svg>
         </span>
       </h1>
-      <p className="text-text-400 mb-8">What class are we working on today?</p>
+      <p className="text-[13px] text-text-400 mb-8">What class are we working on today?</p>
 
       {/* Course Buttons */}
-      <div className="flex flex-wrap justify-center gap-3 max-w-lg">
+      <div className="flex flex-wrap justify-center gap-2.5 max-w-lg">
         {courses.map(course => (
           <button
             key={course.id}
             onClick={() => onSelect(course.id)}
-            className="px-5 py-3 rounded-xl border border-bg-300 bg-bg-0 hover:bg-bg-200 hover:border-accent/50 transition-all text-left group"
+            className="group px-5 py-3 rounded-xl border border-bg-300/70 bg-bg-100/50 hover:bg-bg-200 hover:border-accent/40 transition-all text-left"
           >
-            <p className="text-sm font-medium text-text-200 group-hover:text-accent transition-colors">
+            <p className="text-[13px] font-medium text-text-200 group-hover:text-accent transition-colors">
               {course.name}
             </p>
-            <p className="text-xs text-text-400 mt-0.5">{course.courseCode}</p>
+            {course.courseCode && (
+              <p className="text-[11px] text-text-500 mt-0.5">{course.courseCode}</p>
+            )}
           </button>
         ))}
       </div>

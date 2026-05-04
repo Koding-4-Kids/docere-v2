@@ -1,9 +1,11 @@
 """Gradebook Sync: validate, sync, and fix grades between spreadsheets and LMS."""
 
+import io
 import uuid
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -737,4 +739,36 @@ async def fix_gradebook(
             rows=fixed_rows,
         ),
         changes=changes,
+    )
+
+
+# ── Download fixed spreadsheet as Excel ──
+
+
+@router.post("/download-excel")
+async def download_fixed_excel(
+    source_data: SpreadsheetData,
+    _user_id: uuid.UUID = Depends(require_instructor),
+) -> StreamingResponse:
+    """Generate an Excel file from the current (fixed) spreadsheet data."""
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = source_data.title or "Gradebook"
+
+    ws.append(source_data.headers)
+    for row in source_data.rows:
+        ws.append(row)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"{(source_data.title or 'Gradebook').replace(' ', '_')}.xlsx"
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

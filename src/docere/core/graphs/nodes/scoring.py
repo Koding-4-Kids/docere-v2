@@ -32,10 +32,29 @@ async def score_previous(state: TutoringState) -> dict:
         verifier = ProcessVerifier(db, claude)
         strategies = StrategyArchive(db)
 
-        # Find previous assistant message
+        # Find the student's current message (the followup we're using to judge)
         result = await db.execute(
             select(Message)
-            .where(Message.conversation_id == conversation_id, Message.role == "assistant")
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.role == "user",
+            )
+            .order_by(Message.created_at.desc())
+            .limit(1)
+        )
+        current_student_msg = result.scalar_one_or_none()
+        if not current_student_msg:
+            return {}
+
+        # Find the assistant message BEFORE the current student message
+        # (this is the one we want to score — the student's followup tells us if it helped)
+        result = await db.execute(
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.role == "assistant",
+                Message.created_at < current_student_msg.created_at,
+            )
             .order_by(Message.created_at.desc())
             .limit(1)
         )
@@ -43,7 +62,7 @@ async def score_previous(state: TutoringState) -> dict:
         if not prev_assistant:
             return {}
 
-        # Find the student message before it
+        # Find the student message that prompted the previous assistant response
         result = await db.execute(
             select(Message)
             .where(
@@ -58,8 +77,8 @@ async def score_previous(state: TutoringState) -> dict:
         if not prev_student:
             return {}
 
-        now = datetime.now(UTC)
-        time_delta = int((now - prev_assistant.created_at).total_seconds())
+        # Time from assistant response to student's followup (not to "now")
+        time_delta = int((current_student_msg.created_at - prev_assistant.created_at).total_seconds())
 
         verification = await verifier.score_interaction(
             message_id=str(prev_assistant.id),

@@ -44,9 +44,9 @@ function WidgetRenderer({ widget }: { widget: Widget }) {
 export function MessageBubble({ role, content, artifact, action, widgets, onOpenArtifact, onOpenMeetingScheduler }: MessageBubbleProps) {
   if (role === 'user') {
     return (
-      <div className="flex justify-end mb-4 animate-fade-in">
-        <div className="max-w-[75%] px-4 py-3 rounded-2xl rounded-br-md bg-accent text-white text-sm leading-relaxed">
-          {content}
+      <div className="flex justify-end mb-5 animate-fade-in">
+        <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-br-md bg-accent/15 text-text-100 text-[14px] leading-relaxed">
+          <div className="whitespace-pre-wrap">{content}</div>
         </div>
       </div>
     )
@@ -55,12 +55,12 @@ export function MessageBubble({ role, content, artifact, action, widgets, onOpen
   const Icon = artifact ? ARTIFACT_ICONS[artifact.type] || FileText : null
 
   return (
-    <div className="flex justify-start gap-2 mb-4 animate-fade-in">
-      <div className="w-6 h-6 shrink-0 mt-1">
-        <Icons.Logo className="w-6 h-6" />
+    <div className="flex justify-start gap-3 mb-5 animate-fade-in">
+      <div className="w-7 h-7 shrink-0 mt-1">
+        <Icons.Logo className="w-7 h-7 opacity-70" />
       </div>
-      <div className="max-w-[75%]">
-        <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-bg-200 text-text-100 text-sm leading-relaxed">
+      <div className="max-w-[80%]">
+        <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-bg-200/70 text-text-100 text-[14px] leading-relaxed">
           {content.split('\n').map((line, i) => (
             <MarkdownLine key={i} line={line} />
           ))}
@@ -68,7 +68,7 @@ export function MessageBubble({ role, content, artifact, action, widgets, onOpen
         {artifact && onOpenArtifact && Icon && (
           <button
             onClick={() => onOpenArtifact(artifact)}
-            className="mt-2 flex items-center gap-2 px-3 py-2 rounded-xl border border-bg-300 bg-bg-0 hover:bg-bg-200 hover:border-accent/40 transition-all text-xs text-text-300 hover:text-text-200 group"
+            className="mt-2 flex items-center gap-2 px-3 py-2 rounded-xl border border-bg-300/70 bg-bg-0 hover:bg-bg-200 hover:border-accent/40 transition-all text-xs text-text-300 hover:text-text-200 group"
           >
             <Icon className="w-3.5 h-3.5 text-text-400 group-hover:text-accent transition-colors" />
             <span className="font-medium">{artifact.title}</span>

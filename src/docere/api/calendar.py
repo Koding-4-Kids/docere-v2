@@ -3,6 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,27 +41,47 @@ async def authorize_google_calendar(
     return OAuthAuthorizeResponse(url=url)
 
 
-@router.get("/oauth/callback", response_model=OAuthCallbackResponse)
+@router.get("/oauth/callback")
 async def oauth_callback(
     code: str = Query(...),
     state: str = Query(""),
     error: str = Query(None),
     db: AsyncSession = Depends(get_db),
-) -> OAuthCallbackResponse:
-    """Handle Google OAuth2 callback — exchange code for tokens."""
+) -> HTMLResponse:
+    """Handle Google OAuth2 callback — exchange code for tokens.
+
+    Returns an HTML page that notifies the opener window and closes itself.
+    """
     if error:
-        raise HTTPException(status_code=400, detail=f"OAuth error: {error}")
+        return _oauth_result_page(success=False, message=f"OAuth error: {error}")
     if not state:
-        raise HTTPException(status_code=400, detail="Missing state parameter")
+        return _oauth_result_page(success=False, message="Missing state parameter")
 
     try:
         gcal = GoogleCalendarService(db)
         await gcal.handle_oauth_callback(code=code, instructor_id=state)
-        return OAuthCallbackResponse(connected=True, message="Google Calendar connected successfully")
+        return _oauth_result_page(success=True, message="Google Calendar connected!")
     except Exception as e:
         import structlog
         structlog.get_logger().error("OAuth callback failed", error=str(e), state=state)
-        raise HTTPException(status_code=500, detail=f"Failed to connect calendar: {e}")
+        return _oauth_result_page(success=False, message="Failed to connect. Please try again.")
+
+
+def _oauth_result_page(success: bool, message: str) -> HTMLResponse:
+    """Return a small HTML page that posts result to the opener and auto-closes."""
+    status = "success" if success else "error"
+    return HTMLResponse(f"""<!DOCTYPE html>
+<html><head><title>Docere - Google Auth</title></head>
+<body style="display:flex;align-items:center;justify-content:center;height:100vh;
+  font-family:system-ui;background:#111;color:#fff">
+  <p>{message}</p>
+  <script>
+    if (window.opener) {{
+      window.opener.postMessage({{ type: "google-oauth-callback", status: "{status}" }}, "*");
+    }}
+    setTimeout(function() {{ window.close(); }}, 1500);
+  </script>
+</body></html>""")
 
 
 @router.get("/oauth/upgrade-scopes", response_model=OAuthAuthorizeResponse)

@@ -36,8 +36,12 @@ async def load_context(state: TutoringState) -> dict:
     async def _load_assignment():
         if not assignment_id:
             return None
-        r = await db.execute(select(Assignment).where(Assignment.id == assignment_id))
-        return r.scalar_one_or_none()
+        try:
+            r = await db.execute(select(Assignment).where(Assignment.id == assignment_id))
+            return r.scalar_one_or_none()
+        except Exception as e:
+            logger.warning("Assignment lookup failed", error=str(e))
+            return None
 
     async def _load_memory():
         if study_group == "control":
@@ -57,20 +61,39 @@ async def load_context(state: TutoringState) -> dict:
     async def _load_profile():
         if study_group == "control":
             return None
-        return await memory.profile_builder.get_profile(student_id, course_id)
+        try:
+            return await memory.profile_builder.get_profile(student_id, course_id)
+        except Exception as e:
+            logger.warning("Profile loading failed", error=str(e))
+            return None
 
     async def _load_history():
-        result = await db.execute(
-            select(Message)
-            .where(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.desc())
-            .limit(20)
-        )
-        messages = list(reversed(result.scalars().all()))
-        return [{"role": msg.role, "content": msg.content} for msg in messages]
+        try:
+            result = await db.execute(
+                select(Message)
+                .where(Message.conversation_id == conversation_id)
+                .order_by(Message.created_at.desc())
+                .limit(20)
+            )
+            messages = list(reversed(result.scalars().all()))
+            return [{"role": msg.role, "content": msg.content} for msg in messages]
+        except Exception as e:
+            logger.warning("History loading failed", error=str(e))
+            return []
 
-    assignment, memory_ctx, profile, history = await asyncio.gather(
-        _load_assignment(), _load_memory(), _load_profile(), _load_history()
+    async def _load_student_docs():
+        from docere.core.memory.student_documents import StudentDocumentManager
+
+        try:
+            manager = StudentDocumentManager(qdrant)
+            return await manager.retrieve_relevant(student_id, course_id, message, max_chunks=3)
+        except Exception as e:
+            logger.warning("Student doc retrieval failed", error=str(e))
+            return ""
+
+    assignment, memory_ctx, profile, history, student_doc_ctx = await asyncio.gather(
+        _load_assignment(), _load_memory(), _load_profile(), _load_history(),
+        _load_student_docs(),
     )
 
     return {
@@ -78,6 +101,7 @@ async def load_context(state: TutoringState) -> dict:
         "memory_context": memory_ctx,
         "student_profile": profile,
         "history": history,
+        "student_doc_context": student_doc_ctx,
     }
 
 

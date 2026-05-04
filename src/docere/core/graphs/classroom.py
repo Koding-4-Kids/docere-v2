@@ -192,6 +192,7 @@ async def synthesize(state: ClassroomState) -> dict:
         state["context"],
         state.get("history", []),
         state.get("sources"),
+        integration_instructions=state.get("integration_instructions", ""),
     )
     return {"answer": response.text, "widgets": response.widgets, "sources": response.sources}
 
@@ -222,6 +223,7 @@ async def synthesize_meta(state: ClassroomState) -> dict:
         state["context"],
         state.get("history", []),
         sources,
+        integration_instructions=state.get("integration_instructions", ""),
     )
     return {"answer": response.text, "widgets": response.widgets, "sources": response.sources}
 
@@ -278,6 +280,7 @@ async def run_classroom_graph(
     question: str,
     history: list[dict[str, str]],
     source_filters: dict[str, bool] | None = None,
+    integration_instructions: str = "",
 ) -> ClassroomResponse:
     """Run the classroom graph and return a ClassroomResponse.
 
@@ -289,6 +292,7 @@ async def run_classroom_graph(
         "question": question,
         "history": history,
         "source_filters": source_filters or {},
+        "integration_instructions": integration_instructions,
         "_db": db,
         "_qdrant": qdrant,
         "_claude": claude,

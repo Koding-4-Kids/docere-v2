@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docere — Financial Overview | Gustie Cup 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500&display=swap');
+
+  :root {
+    --orange: #F15524;
+    --orange-light: #FF7A50;
+    --orange-subtle: rgba(241,85,36,0.08);
+    --dark: #0F0F14;
+    --dark-card: #18181F;
+    --gray-900: #111114;
+    --gray-800: #1E1E24;
+    --gray-700: #2E2E38;
+    --gray-600: #4A4A58;
+    --gray-500: #6B6B7B;
+    --gray-400: #9393A3;
+    --gray-300: #B8B8C8;
+    --gray-200: #D8D8E4;
+    --gray-100: #ECECF2;
+    --gray-50: #F6F6FA;
+    --white: #FFFFFF;
+    --green: #22C55E;
+    --green-subtle: rgba(34,197,94,0.1);
+    --blue: #3B82F6;
+    --blue-subtle: rgba(59,130,246,0.1);
+    --purple: #8B5CF6;
+    --purple-subtle: rgba(139,92,246,0.1);
+    --red: #EF4444;
+    --red-subtle: rgba(239,68,68,0.1);
+    --radius: 12px;
+    --radius-lg: 16px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+    --shadow-lg: 0 4px 24px rgba(0,0,0,0.08);
+    --border: 1px solid var(--gray-100);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-900);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ─── Header ─── */
+  .header {
+    background: var(--dark);
+    color: var(--white);
+    padding: 56px 0 64px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -60%; right: -10%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(241,85,36,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(241,85,36,0.3), transparent);
+  }
+  .header-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    position: relative;
+  }
+  .logo-wrap {
+    width: 56px; height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo-wrap svg { width: 48px; height: 48px; }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+  }
+  .header .subtitle {
+    font-size: 14px;
+    color: var(--gray-400);
+    font-weight: 400;
+    margin-top: 4px;
+  }
+  .header .badge {
+    display: inline-block;
+    background: rgba(241,85,36,0.15);
+    color: var(--orange);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-top: 8px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border: 1px solid rgba(241,85,36,0.25);
+  }
+
+  /* ─── Layout ─── */
+  .container {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 40px 40px 80px;
+  }
+
+  /* ─── KPI Cards ─── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+  .kpi-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    border: var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--gray-200);
+  }
+  .kpi-card .label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 8px;
+  }
+  .kpi-card .value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--gray-900);
+    letter-spacing: -0.5px;
+  }
+  .kpi-card .note {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-top: 2px;
+  }
+  .kpi-card.highlight::after { background: var(--orange); }
+  .kpi-card.highlight .value { color: var(--orange); }
+
+  /* ─── Sections ─── */
+  .section { margin-bottom: 48px; }
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .section-icon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .section-icon svg { width: 14px; height: 14px; }
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gray-900);
+    letter-spacing: -0.3px;
+  }
+  .section-desc {
+    font-size: 13px;
+    color: var(--gray-500);
+    margin-bottom: 20px;
+    margin-left: 40px;
+  }
+
+  /* ─── Cards ─── */
+  .card {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    border: var(--border);
+  }
+
+  /* ─── Partnership Callout ─── */
+  .partnership-callout {
+    background: var(--dark);
+    color: var(--white);
+    border-radius: var(--radius-lg);
+    padding: 32px 36px;
+    display: flex;
+    gap: 32px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .partnership-callout::before {
+    content: '';
+    position: absolute;
+    top: -40%; right: -5%;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(241,85,36,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .partnership-content { flex: 1; position: relative; }
+  .partnership-callout h3 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.2px;
+  }
+  .partnership-callout p {
+    font-size: 14px;
+    color: var(--gray-400);
+    line-height: 1.6;
+  }
+  .partnership-callout p strong { color: var(--white); }
+  .partnership-numbers {
+    display: flex;
+    gap: 32px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .partnership-numbers .pn { text-align: left; }
+  .partnership-numbers .pn .val {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--orange);
+    letter-spacing: -0.5px;
+  }
+  .partnership-numbers .pn .lbl {
+    font-size: 11px;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+  .read-more-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--orange);
+    text-decoration: none;
+    transition: gap 0.2s;
+  }
+  .read-more-link:hover { gap: 10px; }
+  .read-more-link svg { width: 14px; height: 14px; }
+
+  /* ─── Tables ─── */
+  .fin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .fin-table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--gray-500);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding: 10px 16px;
+    border-bottom: 2px solid var(--gray-100);
+  }
+  .fin-table th:not(:first-child) { text-align: right; }
+  .fin-table td {
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--gray-50);
+    font-variant-numeric: tabular-nums;
+  }
+  .fin-table td:not(:first-child) { text-align: right; }
+  .fin-table tr.section-header td {
+    font-weight: 700;
+    color: var(--gray-600);
+    background: var(--gray-50);
+    padding: 7px 16px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .fin-table tr.subtotal td {
+    font-weight: 600;
+    border-top: 1px solid var(--gray-200);
+    color: var(--gray-900);
+  }
+  .fin-table tr.gross-profit td { color: var(--green); font-weight: 700; }
+  .fin-table tr.net-loss td { color: var(--red); font-weight: 700; }
+  .fin-table tr.net-positive td { color: var(--green); font-weight: 700; }
+  .fin-table .indent { padding-left: 32px; color: var(--gray-600); }
+
+  /* ─── Chart containers ─── */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .chart-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 24px;
+    border: var(--border);
+  }
+  .chart-card h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-600);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .chart-wrap { position: relative; height: 240px; }
+
+  /* ─── Market Sizing ─── */
+  .market-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .market-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    border: var(--border);
+    padding: 28px 24px;
+    text-align: center;
+    position: relative;
+  }
+  .market-card.som { border-color: var(--orange); background: var(--orange-subtle); }
+  .market-card .m-tag {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--gray-400);
+    margin-bottom: 8px;
+  }
+  .market-card.som .m-tag { color: var(--orange); }
+  .market-card .m-value {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--gray-900);
+    letter-spacing: -1px;
+  }
+  .market-card.som .m-value { color: var(--orange); }
+  .market-card .m-desc {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-top: 4px;
+  }
+
+  /* ─── Unit Econ ─── */
+  .unit-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .unit-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    border: var(--border);
+    padding: 20px 24px;
+    text-align: center;
+  }
+  .unit-card .u-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 8px;
+  }
+  .unit-card .u-value {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .unit-card .u-note {
+    font-size: 11px;
+    color: var(--gray-400);
+    margin-top: 4px;
+  }
+
+  /* ─── Comp Table ─── */
+  .comp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .comp-table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--gray-500);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 10px 14px;
+    border-bottom: 2px solid var(--gray-100);
+  }
+  .comp-table td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--gray-50);
+    color: var(--gray-600);
+  }
+  .comp-table tr.docere-row {
+    background: var(--orange-subtle);
+  }
+  .comp-table tr.docere-row td {
+    color: var(--gray-900);
+    font-weight: 600;
+    border-bottom: 1px solid rgba(241,85,36,0.15);
+  }
+  .check { color: var(--green); font-weight: 700; font-size: 15px; }
+  .cross { color: var(--gray-200); font-size: 15px; }
+
+  /* ─── Use of Funds ─── */
+  .funds-row {
+    display: flex;
+    gap: 32px;
+    align-items: stretch;
+  }
+  .funds-chart { flex: 1; }
+  .funds-list { flex: 1; }
+  .fund-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--gray-50);
+  }
+  .fund-dot {
+    width: 10px; height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .fund-item .f-label { flex: 1; font-size: 13px; color: var(--gray-600); }
+  .fund-item .f-value { font-size: 13px; font-weight: 700; color: var(--gray-900); font-variant-numeric: tabular-nums; }
+
+  /* ─── Traction Grid ─── */
+  .traction-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .traction-item {
+    padding: 20px;
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-100);
+  }
+  .traction-item .t-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--gray-900);
+    letter-spacing: -0.5px;
+  }
+  .traction-item .t-label {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-top: 2px;
+  }
+
+  /* ─── Footer ─── */
+  .footer {
+    text-align: center;
+    padding: 40px 0;
+    color: var(--gray-400);
+    font-size: 12px;
+    border-top: 1px solid var(--gray-100);
+    margin-top: 24px;
+  }
+  .footer strong { color: var(--gray-900); }
+
+  /* ─── Divider ─── */
+  .divider {
+    height: 1px;
+    background: var(--gray-100);
+    margin: 48px 0;
+  }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 768px) {
+    .container { padding: 24px 20px 60px; }
+    .header-inner { padding: 0 20px; }
+    .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .unit-grid { grid-template-columns: 1fr; }
+    .market-row { grid-template-columns: 1fr; }
+    .partnership-callout { flex-direction: column; padding: 24px; }
+    .partnership-numbers { flex-wrap: wrap; gap: 20px; }
+    .funds-row { flex-direction: column; }
+    .comp-table { font-size: 11px; }
+    .section-desc { margin-left: 0; }
+  }
+
+  @media print {
+    body { background: white; }
+    .card, .chart-card, .kpi-card { border: 1px solid #ddd; }
+    .header, .partnership-callout { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ HEADER ═══════════ -->
+<div class="header">
+  <div class="header-inner">
+    <div class="logo-wrap">
+      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <defs><ellipse id="p" cx="100" cy="100" rx="90" ry="22"/></defs>
+        <g fill="#F15524" fill-rule="evenodd">
+          <use href="#p" transform="rotate(0 100 100)"/>
+          <use href="#p" transform="rotate(45 100 100)"/>
+          <use href="#p" transform="rotate(90 100 100)"/>
+          <use href="#p" transform="rotate(135 100 100)"/>
+        </g>
+      </svg>
+    </div>
+    <div>
+      <h1>Docere Financial Overview</h1>
+      <div class="subtitle">AI Tutoring That Learns</div>
+      <span class="badge">Gustie Cup 2026</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ═══════════ KPI CARDS ═══════════ -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="label">Current Revenue</div>
+      <div class="value mono">$0</div>
+      <div class="note">Pre-revenue &mdash; pilots are free</div>
+    </div>
+    <div class="kpi-card highlight">
+      <div class="label">Projected Revenue</div>
+      <div class="value mono">$50K</div>
+      <div class="note">20K students @ $2.50/student</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Live Students</div>
+      <div class="value mono">505</div>
+      <div class="note">2 MN middle schools</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Market Size (US K-12)</div>
+      <div class="value mono">$500M</div>
+      <div class="note">50M students @ $10/yr</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ ALGORYTHM PARTNERSHIP ═══════════ -->
+  <div class="section">
+    <div class="partnership-callout">
+      <div class="partnership-content">
+        <h3>Algorythm Partnership &mdash; 20,000 Projected Students</h3>
+        <p>Algorythm, a 10,000+ member community for Black software engineers founded by <strong>Esco Obong</strong> (Sr. SWE @ Airbnb), will deploy Docere as their AI memory and tutoring layer across their LMS.</p>
+        <div class="partnership-numbers">
+          <div class="pn">
+            <div class="val">$2.50</div>
+            <div class="lbl">Per Student / Year</div>
+          </div>
+          <div class="pn">
+            <div class="val">20,000</div>
+            <div class="lbl">Projected Students</div>
+          </div>
+          <div class="pn">
+            <div class="val">$50K</div>
+            <div class="lbl">Projected Revenue</div>
+          </div>
+        </div>
+        <a href="https://substack.com/home/post/p-192870353" target="_blank" class="read-more-link">
+          Read more about this partnership
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ INCOME STATEMENT ═══════════ -->
+  <div class="section">
+    <div class="section-header-row">
+      <div class="section-icon" style="background:var(--green-subtle);">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--green)"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <div class="section-title">Projected Income Statement</div>
+    </div>
+    <div class="section-desc">3-year projection. Fiscal year = school year (Aug&ndash;Jul). Year 1 includes Algorythm partnership ramp.</div>
+
+    <div class="card" style="overflow-x:auto;">
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th style="width:40%;">Line Item</th>
+            <th>FY2027 (Year 1)</th>
+            <th>FY2028 (Year 2)</th>
+            <th>FY2029 (Year 3)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="section-header"><td colspan="4">Revenue</td></tr>
+          <tr>
+            <td class="indent">Algorythm ($2.50/student &times; 20K)</td>
+            <td>$50,000</td>
+            <td>$75,000</td>
+            <td>$100,000</td>
+          </tr>
+          <tr>
+            <td class="indent">K-12 Districts ($10/student avg.)</td>
+            <td>$30,000</td>
+            <td>$200,000</td>
+            <td>$900,000</td>
+          </tr>
+          <tr class="subtotal">
+            <td><strong>Total Revenue</strong></td>
+            <td><strong>$80,000</strong></td>
+            <td><strong>$275,000</strong></td>
+            <td><strong>$1,000,000</strong></td>
+          </tr>
+
+          <tr class="section-header"><td colspan="4">Cost of Goods Sold</td></tr>
+          <tr>
+            <td class="indent">AI API Costs (Anthropic, Voyage)</td>
+            <td>($23,500)</td>
+            <td>($102,500)</td>
+            <td>($340,000)</td>
+          </tr>
+          <tr>
+            <td class="indent">Cloud Hosting (AWS / Fly.io)</td>
+            <td>($6,000)</td>
+            <td>($18,000)</td>
+            <td>($48,000)</td>
+          </tr>
+          <tr>
+            <td class="indent">Vector DB (Qdrant Cloud)</td>
+            <td>($3,600)</td>
+            <td>($7,500)</td>
+            <td>($18,000)</td>
+          </tr>
+          <tr class="subtotal">
+            <td><strong>Total COGS</strong></td>
+            <td><strong>($33,100)</strong></td>
+            <td><strong>($128,000)</strong></td>
+            <td><strong>($406,000)</strong></td>
+          </tr>
+
+          <tr class="gross-profit">
+            <td><strong>Gross Profit</strong></td>
+            <td><strong>$46,900</strong></td>
+            <td><strong>$147,000</strong></td>
+            <td><strong>$594,000</strong></td>
+          </tr>
+          <tr>
+            <td style="color:var(--gray-400);font-size:11px;">Gross Margin</td>
+            <td style="color:var(--green);font-size:11px;font-weight:600;">58.6%</td>
+            <td style="color:var(--green);font-size:11px;font-weight:600;">53.5%</td>
+            <td style="color:var(--green);font-size:11px;font-weight:600;">59.4%</td>
+          </tr>
+
+          <tr class="section-header"><td colspan="4">Operating Expenses</td></tr>
+          <tr>
+            <td class="indent">Founder Salaries (2)</td>
+            <td>($100,000)</td>
+            <td>($160,000)</td>
+            <td>($200,000)</td>
+          </tr>
+          <tr>
+            <td class="indent">Engineering Hires</td>
+            <td>$0</td>
+            <td>($140,000)</td>
+            <td>($280,000)</td>
+          </tr>
+          <tr>
+            <td class="indent">Sales &amp; Partnerships</td>
+            <td>($5,000)</td>
+            <td>($65,000)</td>
+            <td>($130,000)</td>
+          </tr>
+          <tr>
+            <td class="indent">Marketing &amp; Conferences</td>
+            <td>($7,000)</td>
+            <td>($23,000)</td>
+            <td>($50,000)</td>
+          </tr>
+          <tr>
+            <td class="indent">Legal, Insurance &amp; G&A</td>
+            <td>($10,000)</td>
+            <td>($22,000)</td>
+            <td>($36,000)</td>
+          </tr>
+          <tr>
+            <td class="indent">Research (IRB / AIED)</td>
+            <td>($3,000)</td>
+            <td>($2,000)</td>
+            <td>($2,000)</td>
+          </tr>
+          <tr class="subtotal">
+            <td><strong>Total Operating Expenses</strong></td>
+            <td><strong>($125,000)</strong></td>
+            <td><strong>($412,000)</strong></td>
+            <td><strong>($698,000)</strong></td>
+          </tr>
+
+          <tr class="net-loss">
+            <td><strong>Net Income (Loss)</strong></td>
+            <td><strong>($78,100)</strong></td>
+            <td><strong>($265,000)</strong></td>
+            <td><strong>($104,000)</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════ CHARTS ═══════════ -->
+  <div class="section">
+    <div class="section-header-row">
+      <div class="section-icon" style="background:var(--blue-subtle);">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--blue)"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+      </div>
+      <div class="section-title">Revenue &amp; Growth Trajectory</div>
+    </div>
+    <div class="chart-grid" style="margin-top:20px;">
+      <div class="chart-card">
+        <h4>Revenue Projection (3-Year)</h4>
+        <div class="chart-wrap"><canvas id="revenueChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h4>Revenue by Source &mdash; FY2027</h4>
+        <div class="chart-wrap"><canvas id="sourceChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h4>Student Growth</h4>
+        <div class="chart-wrap"><canvas id="studentsChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h4>Gross Margin</h4>
+        <div class="chart-wrap"><canvas id="marginChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ UNIT ECONOMICS ═══════════ -->
+  <div class="section">
+    <div class="section-header-row">
+      <div class="section-icon" style="background:var(--purple-subtle);">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--purple)"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
+      </div>
+      <div class="section-title">Unit Economics</div>
+    </div>
+    <div class="section-desc">Per-student economics. Algorythm is a memory-API deal ($2.50/student); K-12 is full tutoring ($10/student).</div>
+    <div class="unit-grid">
+      <div class="unit-card">
+        <div class="u-label">K-12 Revenue / Student</div>
+        <div class="u-value" style="color:var(--orange);">$10</div>
+        <div class="u-note">Full AI tutoring (core business)</div>
+      </div>
+      <div class="unit-card">
+        <div class="u-label">Algorythm Revenue / Student</div>
+        <div class="u-value" style="color:var(--gray-600);">$2.50</div>
+        <div class="u-note">Memory API layer only</div>
+      </div>
+      <div class="unit-card">
+        <div class="u-label">K-12 Contribution Margin</div>
+        <div class="u-value" style="color:var(--green);">$5.50</div>
+        <div class="u-note">55% margin per student</div>
+      </div>
+      <div class="unit-card">
+        <div class="u-label">K-12 LTV (3-yr)</div>
+        <div class="u-value" style="color:var(--blue);">$16.50</div>
+        <div class="u-note">85% annual retention</div>
+      </div>
+      <div class="unit-card">
+        <div class="u-label">CAC (per student)</div>
+        <div class="u-value" style="color:var(--gray-600);">$2-5</div>
+        <div class="u-note">District-level sales, not 1-by-1</div>
+      </div>
+      <div class="unit-card">
+        <div class="u-label">LTV : CAC Ratio</div>
+        <div class="u-value" style="color:var(--green);">3-8x</div>
+        <div class="u-note">Target &gt;3x for healthy SaaS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ AI COST BREAKDOWN ═══════════ -->
+  <div class="section">
+    <div class="section-header-row">
+      <div class="section-icon" style="background:var(--orange-subtle);">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--orange)"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </div>
+      <div class="section-title">AI Session Cost Breakdown</div>
+    </div>
+    <div class="section-desc">Average tutoring session: 5 exchanges, ~8K input tokens, ~3.5K output tokens</div>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h4>Cost per Session: $0.10</h4>
+        <div class="chart-wrap"><canvas id="sessionCostChart"></canvas></div>
+      </div>
+      <div class="chart-card" style="display:flex;flex-direction:column;justify-content:center;">
+        <h4>Per-Student Annual Usage</h4>
+        <div style="padding:8px 0;">
+          <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--gray-50);">
+            <span style="color:var(--gray-500);font-size:13px;">Avg. sessions / week</span>
+            <strong style="font-size:13px;">1.5</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--gray-50);">
+            <span style="color:var(--gray-500);font-size:13px;">Active weeks / year</span>
+            <strong style="font-size:13px;">30</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--gray-50);">
+            <span style="color:var(--gray-500);font-size:13px;">Sessions / student / year</span>
+            <strong style="font-size:13px;">45</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--gray-50);">
+            <span style="color:var(--gray-500);font-size:13px;">Cost per session</span>
+            <strong style="font-size:13px;">$0.10</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:14px 0;margin-top:4px;border-top:2px solid var(--gray-900);">
+            <strong style="color:var(--orange);font-size:13px;">API cost per student / year</strong>
+            <strong style="color:var(--orange);font-size:16px;">$4.50</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ MARKET ═══════════ -->
+  <div class="section">
+    <div class="section-header-row">
+      <div class="section-icon" style="background:var(--blue-subtle);">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--blue)"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg>
+      </div>
+      <div class="section-title">Market Opportunity</div>
+    </div>
+    <div class="market-row" style="margin-top:20px;">
+      <div class="market-card">
+        <div class="m-tag">TAM</div>
+        <div class="m-value">$500M</div>
+        <div class="m-desc">50M US K-12 students</div>
+      </div>
+      <div class="market-card">
+        <div class="m-tag">SAM</div>
+        <div class="m-value">$150M</div>
+        <div class="m-desc">15M with LMS + budget</div>
+      </div>
+      <div class="market-card som">
+        <div class="m-tag">SOM (3-5 yr)</div>
+        <div class="m-value">$5M</div>
+        <div class="m-desc">Direct sales + pilots</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ COMPETITIVE ═══════════ -->
+  <div class="section">
+    <div class="section-header-row">
+      <div class="section-icon" style="background:var(--orange-subtle);">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--orange)"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+      </div>
+      <div class="section-title">Competitive Landscape</div>
+    </div>
+    <div class="card" style="overflow-x:auto;margin-top:20px;">
+      <table class="comp-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Price/Student</th>
+            <th>AI Tutoring</th>
+            <th>LMS Native</th>
+            <th>Self-Improving</th>
+            <th>Teacher Dashboard</th>
+            <th>Student Memory</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="docere-row">
+            <td><strong>Docere</strong></td>
+            <td>$10-15/yr</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+          </tr>
+          <tr>
+            <td>Khanmigo</td>
+            <td>$35/yr</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>IXL</td>
+            <td>$15-20/yr</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>Carnegie Learning</td>
+            <td>$20-40/yr</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>DreamBox</td>
+            <td>$12-18/yr</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+          <tr>
+            <td>ChatGPT (raw)</td>
+            <td>Free-$20/mo</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+            <td class="cross">&#10005;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════ USE OF FUNDS ═══════════ -->
+  <div class="section">
+    <div class="section-header-row">
+      <div class="section-icon" style="background:var(--green-subtle);">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--green)"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+      </div>
+      <div class="section-title">Seed Round: $500K &mdash; Use of Funds</div>
+    </div>
+    <div class="card" style="margin-top:20px;">
+      <div class="funds-row">
+        <div class="funds-chart">
+          <div class="chart-wrap" style="height:260px;"><canvas id="fundsChart"></canvas></div>
+        </div>
+        <div class="funds-list">
+          <div class="fund-item">
+            <div class="fund-dot" style="background:#F15524;"></div>
+            <div class="f-label">Engineering (2 hires)</div>
+            <div class="f-value">$200K <span style="color:var(--gray-400);font-weight:400;">40%</span></div>
+          </div>
+          <div class="fund-item">
+            <div class="fund-dot" style="background:#FF7A50;"></div>
+            <div class="f-label">Founder Salaries (12 mo)</div>
+            <div class="f-value">$120K <span style="color:var(--gray-400);font-weight:400;">24%</span></div>
+          </div>
+          <div class="fund-item">
+            <div class="fund-dot" style="background:#3B82F6;"></div>
+            <div class="f-label">Infrastructure &amp; API</div>
+            <div class="f-value">$60K <span style="color:var(--gray-400);font-weight:400;">12%</span></div>
+          </div>
+          <div class="fund-item">
+            <div class="fund-dot" style="background:#22C55E;"></div>
+            <div class="f-label">Sales &amp; District Pilots</div>
+            <div class="f-value">$50K <span style="color:var(--gray-400);font-weight:400;">10%</span></div>
+          </div>
+          <div class="fund-item">
+            <div class="fund-dot" style="background:#8B5CF6;"></div>
+            <div class="f-label">Research (IRB, AIED)</div>
+            <div class="f-value">$30K <span style="color:var(--gray-400);font-weight:400;">6%</span></div>
+          </div>
+          <div class="fund-item">
+            <div class="fund-dot" style="background:#6B6B7B;"></div>
+            <div class="f-label">Legal, Insurance &amp; Ops</div>
+            <div class="f-value">$25K <span style="color:var(--gray-400);font-weight:400;">5%</span></div>
+          </div>
+          <div class="fund-item">
+            <div class="fund-dot" style="background:#B8B8C8;"></div>
+            <div class="f-label">Reserve</div>
+            <div class="f-value">$15K <span style="color:var(--gray-400);font-weight:400;">3%</span></div>
+          </div>
+          <div style="margin-top:14px; padding-top:12px; border-top:2px solid var(--gray-900); display:flex; justify-content:space-between; font-size:13px;">
+            <strong>Runway</strong>
+            <strong style="color:var(--orange);">~18 months</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TRACTION ═══════════ -->
+  <div class="section">
+    <div class="section-header-row">
+      <div class="section-icon" style="background:var(--green-subtle);">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--green)"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <div class="section-title">Traction &amp; Proof Points</div>
+    </div>
+    <div class="traction-grid" style="margin-top:20px;">
+      <div class="traction-item">
+        <div class="t-value">505</div>
+        <div class="t-label">Live students across 2 MN schools</div>
+      </div>
+      <div class="traction-item">
+        <div class="t-value" style="color:var(--orange);">$50K</div>
+        <div class="t-label">Algorythm projected (20K students)</div>
+      </div>
+      <div class="traction-item">
+        <div class="t-value">10+ mo</div>
+        <div class="t-label">V1 live in classrooms</div>
+      </div>
+      <div class="traction-item">
+        <div class="t-value">2</div>
+        <div class="t-label">LMS integrations (Canvas + Moodle)</div>
+      </div>
+      <div class="traction-item">
+        <div class="t-value">AIED '26</div>
+        <div class="t-label">Research paper in progress (Seoul)</div>
+      </div>
+      <div class="traction-item">
+        <div class="t-value">$10K</div>
+        <div class="t-label">Pitch competition prize money</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 5 YEAR ═══════════ -->
+  <div class="section">
+    <div class="section-header-row">
+      <div class="section-icon" style="background:var(--purple-subtle);">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--purple)"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/></svg>
+      </div>
+      <div class="section-title">5-Year Growth Roadmap</div>
+    </div>
+    <div class="card" style="overflow-x:auto;margin-top:20px;">
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th>Year</th>
+            <th>Students</th>
+            <th>Revenue</th>
+            <th style="text-align:left;padding-left:24px;">Milestone</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>2027</strong></td>
+            <td>23,000</td>
+            <td>$80K</td>
+            <td style="text-align:left;padding-left:24px;">Algorythm launch + first paid K-12 districts</td>
+          </tr>
+          <tr>
+            <td><strong>2028</strong></td>
+            <td>45,000</td>
+            <td>$275K</td>
+            <td style="text-align:left;padding-left:24px;">Product-market fit, Series A ready</td>
+          </tr>
+          <tr>
+            <td><strong>2029</strong></td>
+            <td>120,000</td>
+            <td>$1M</td>
+            <td style="text-align:left;padding-left:24px;">Multi-state expansion, higher-ed pilots</td>
+          </tr>
+          <tr>
+            <td><strong>2030</strong></td>
+            <td>500,000</td>
+            <td>$6M</td>
+            <td style="text-align:left;padding-left:24px;">National scale, international pilots</td>
+          </tr>
+          <tr>
+            <td><strong>2031</strong></td>
+            <td>2,000,000</td>
+            <td>$24M</td>
+            <td style="text-align:left;padding-left:24px;">Category leader, profitable</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════ RISKS ═══════════ -->
+  <div class="section">
+    <div class="section-header-row">
+      <div class="section-icon" style="background:var(--red-subtle);">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--red)"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+      </div>
+      <div class="section-title">Key Assumptions &amp; Risk Mitigations</div>
+    </div>
+    <div class="card" style="overflow-x:auto;margin-top:20px;">
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th style="width:30%;">Risk</th>
+            <th style="text-align:left;">Mitigation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>AI API costs spike</td>
+            <td style="text-align:left;">Model-agnostic architecture; can swap Claude / GPT / open-source. Costs declining 20-30%/yr.</td>
+          </tr>
+          <tr>
+            <td>Slow district sales cycles</td>
+            <td style="text-align:left;">Free pilot &rarr; grade outcome evidence &rarr; paid conversion. Algorythm partnership provides early distribution.</td>
+          </tr>
+          <tr>
+            <td>LMS platform changes</td>
+            <td style="text-align:left;">LTI 1.3 is an open standard &mdash; not vendor-locked to Canvas or Moodle.</td>
+          </tr>
+          <tr>
+            <td>Competitor copies approach</td>
+            <td style="text-align:left;">2-year head start, live classroom data moat, self-improving strategies.</td>
+          </tr>
+          <tr>
+            <td>AI regulation in schools</td>
+            <td style="text-align:left;">Full transparency dashboard. Teacher always in control. Designed for compliance.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════ FOOTER ═══════════ -->
+  <div class="footer">
+    <strong>Docere</strong><br>
+    Gustie Cup Pitch Competition &mdash; April 2026<br>
+    Gustavus Adolphus College &bull; St. Peter, MN
+  </div>
+</div>
+
+<!-- ═══════════ CHART.JS ═══════════ -->
+<script>
+const fontFamily = "'Inter', sans-serif";
+Chart.defaults.font.family = fontFamily;
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#6B6B7B';
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.padding = 14;
+Chart.defaults.plugins.legend.labels.font = { size: 11, family: fontFamily };
+
+const gridColor = '#ECECF2';
+
+new Chart(document.getElementById('revenueChart'), {
+  type: 'bar',
+  data: {
+    labels: ['FY2027', 'FY2028', 'FY2029'],
+    datasets: [
+      { label: 'Algorythm', data: [50000, 75000, 100000], backgroundColor: '#F15524', borderRadius: 4 },
+      { label: 'K-12 Districts', data: [30000, 200000, 900000], backgroundColor: '#FF7A50', borderRadius: 4 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': $' + ctx.raw.toLocaleString() } } },
+    scales: {
+      x: { stacked: true, grid: { display: false }, border: { display: false } },
+      y: { stacked: true, ticks: { callback: v => '$' + (v/1000) + 'K' }, grid: { color: gridColor }, border: { display: false } }
+    }
+  }
+});
+
+new Chart(document.getElementById('sourceChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Algorythm ($50K)', 'K-12 Districts ($30K)'],
+    datasets: [{ data: [50000, 30000], backgroundColor: ['#F15524', '#FF7A50'], borderWidth: 0, borderRadius: 3 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '68%',
+    plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: ctx => ctx.label } } }
+  }
+});
+
+new Chart(document.getElementById('studentsChart'), {
+  type: 'line',
+  data: {
+    labels: ['Now', 'FY2027', 'FY2028', 'FY2029', 'FY2030', 'FY2031'],
+    datasets: [{
+      label: 'Total Students',
+      data: [505, 23000, 45000, 120000, 400000, 1500000],
+      borderColor: '#F15524', backgroundColor: 'rgba(241,85,36,0.06)',
+      fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#F15524', borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { tooltip: { callbacks: { label: ctx => ctx.raw.toLocaleString() + ' students' } } },
+    scales: {
+      y: { type: 'logarithmic', ticks: { callback: v => v >= 1e6 ? (v/1e6)+'M' : v >= 1e3 ? (v/1e3)+'K' : v }, grid: { color: gridColor }, border: { display: false } },
+      x: { grid: { display: false }, border: { display: false } }
+    }
+  }
+});
+
+new Chart(document.getElementById('marginChart'), {
+  type: 'bar',
+  data: {
+    labels: ['FY2027', 'FY2028', 'FY2029'],
+    datasets: [{ label: 'Gross Margin %', data: [58.6, 53.5, 59.4], backgroundColor: '#22C55E', borderRadius: 4 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + '%' } } },
+    scales: {
+      y: { min: 0, max: 100, ticks: { callback: v => v + '%' }, grid: { color: gridColor }, border: { display: false } },
+      x: { grid: { display: false }, border: { display: false } }
+    }
+  }
+});
+
+new Chart(document.getElementById('sessionCostChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Claude input ($0.04)', 'Claude output ($0.05)', 'Voyage embedding ($0.005)', 'Qdrant query ($0.003)', 'Process verification ($0.005)'],
+    datasets: [{ data: [0.04, 0.05, 0.005, 0.003, 0.005], backgroundColor: ['#F15524', '#FF7A50', '#3B82F6', '#8B5CF6', '#22C55E'], borderWidth: 0, borderRadius: 3 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '62%',
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } }, tooltip: { callbacks: { label: ctx => ctx.label } } }
+  }
+});
+
+new Chart(document.getElementById('fundsChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Engineering', 'Founders', 'Infrastructure', 'Sales', 'Research', 'Legal/Ops', 'Reserve'],
+    datasets: [{ data: [200, 120, 60, 50, 30, 25, 15], backgroundColor: ['#F15524', '#FF7A50', '#3B82F6', '#22C55E', '#8B5CF6', '#6B6B7B', '#B8B8C8'], borderWidth: 0, borderRadius: 3 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '58%',
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.label + ': $' + ctx.raw + 'K' } } }
+  }
+});
+</script>
+
+</body>
+</html>

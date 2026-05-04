@@ -165,8 +165,22 @@ class GoogleCalendarService:
 
         # Refresh if expired (blocking HTTP call — run in thread)
         if creds.expired and creds.refresh_token:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, creds.refresh, Request())
+            try:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, creds.refresh, Request())
+            except Exception as e:
+                error_msg = str(e).lower()
+                if "invalid_grant" in error_msg or "revoked" in error_msg:
+                    logger.warning(
+                        "Google token expired or revoked — deactivating",
+                        instructor_id=instructor_id,
+                    )
+                    token_record.is_active = False
+                    token_record.updated_at = datetime.now(timezone.utc)
+                    await self.db.commit()
+                    return None
+                raise
+
             token_record.encrypted_access_token = _encrypt(creds.token)
             if creds.refresh_token:
                 token_record.encrypted_refresh_token = _encrypt(creds.refresh_token)

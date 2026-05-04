@@ -109,6 +109,12 @@ async def execute_action(
     except ValueError as e:
         return ExecuteActionResponse(success=False, error=str(e))
     except Exception as e:
+        error_msg = str(e).lower()
+        if "invalid_grant" in error_msg or "revoked" in error_msg:
+            return ExecuteActionResponse(
+                success=False,
+                error="Google connection expired. Please reconnect your Google account in Settings.",
+            )
         logger.error(
             "Action execution failed",
             action_type=request.action_type,
@@ -117,20 +123,103 @@ async def execute_action(
         return ExecuteActionResponse(success=False, error=f"Failed to execute: {e}")
 
 
+async def _resolve_email_recipients(
+    to_field: str | list[str], course_id: str | None, db: AsyncSession
+) -> list[str]:
+    """Resolve group targets like 'all_students' or 'struggling_students' to actual emails.
+
+    Supports:
+    - "all_students" — every enrolled student with an email
+    - "struggling_students" — high confusion (>0.5) or low/inactive engagement
+    - "low_engagement" — low or inactive engagement
+    - "at_risk" — grade below 70
+    - Comma-separated student names — fuzzy matched against roster
+    - A list of actual email addresses — passed through as-is
+    """
+    from docere.models.course import Enrollment
+    from docere.models.memory import StudentProfile
+    from docere.models.user import User
+
+    # Already a list of emails
+    if isinstance(to_field, list):
+        return to_field
+
+    target = to_field.strip().lower()
+
+    if not course_id:
+        raise ValueError("course_id is required to resolve student recipients")
+
+    # Base query: enrolled students with emails
+    base_query = (
+        select(User.email, User.name, StudentProfile)
+        .join(Enrollment, Enrollment.user_id == User.id)
+        .outerjoin(
+            StudentProfile,
+            (StudentProfile.student_id == User.id)
+            & (StudentProfile.course_id == course_id),
+        )
+        .where(
+            Enrollment.course_id == course_id,
+            Enrollment.lms_role == "student",
+            User.email.isnot(None),
+            User.email != "",
+        )
+    )
+
+    result = await db.execute(base_query)
+    rows = result.all()
+
+    if target == "all_students":
+        emails = [r.email for r in rows]
+    elif target == "struggling_students":
+        emails = [
+            r.email for r in rows
+            if r[2] and (r[2].avg_confusion_score > 0.5 or r[2].engagement_level in ("low", "inactive"))
+        ]
+    elif target == "low_engagement":
+        emails = [
+            r.email for r in rows
+            if r[2] and r[2].engagement_level in ("low", "inactive")
+        ]
+    elif target == "at_risk":
+        emails = [
+            r.email for r in rows
+            if r[2] and r[2].current_grade is not None and r[2].current_grade < 70
+        ]
+    else:
+        # Try to match comma-separated student names
+        target_names = [n.strip().lower() for n in to_field.split(",")]
+        emails = [
+            r.email for r in rows
+            if any(tn in r.name.lower() for tn in target_names)
+        ]
+
+    if not emails:
+        raise ValueError(f"No students matched target '{to_field}' (or none have email addresses)")
+
+    return emails
+
+
 async def _execute_email(
     instructor_id: str, payload: dict, db: AsyncSession
 ) -> ExecuteActionResponse:
     from docere.services.google_gmail import GmailService
 
+    # Resolve group targets to actual email addresses
+    to_field = payload.get("to", [])
+    course_id = payload.get("course_id")
+    resolved_emails = await _resolve_email_recipients(to_field, course_id, db)
+
     svc = GmailService(db)
     result = await svc.send_email(
         instructor_id=instructor_id,
-        to=payload.get("to", []),
+        to=resolved_emails,
         subject=payload.get("subject", ""),
         body=payload.get("body", ""),
         cc=payload.get("cc"),
         bcc=payload.get("bcc"),
     )
+    result["recipients_count"] = len(resolved_emails)
     return ExecuteActionResponse(success=True, result=result)
 
 
@@ -244,6 +333,44 @@ async def _execute_excel(payload: dict) -> ExecuteActionResponse:
 
 # Simple in-memory cache for generated Excel files
 _excel_cache: dict[str, bytes] = {}
+
+
+# ── Resolve Email Recipients ──
+
+
+class ResolveRecipientsRequest(BaseModel):
+    to: str
+    course_id: str
+
+
+class ResolveRecipientsResponse(BaseModel):
+    count: int
+    emails: list[str]
+    target_label: str
+
+
+_TARGET_LABELS = {
+    "all_students": "All students",
+    "struggling_students": "Struggling students",
+    "low_engagement": "Low engagement students",
+    "at_risk": "At-risk students (grade < 70)",
+}
+
+
+@router.post("/resolve-recipients", response_model=ResolveRecipientsResponse)
+async def resolve_recipients(
+    request: ResolveRecipientsRequest,
+    _user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+) -> ResolveRecipientsResponse:
+    """Preview how many students match an email target before sending."""
+    emails = await _resolve_email_recipients(request.to, request.course_id, db)
+    label = _TARGET_LABELS.get(request.to.strip().lower(), request.to)
+    return ResolveRecipientsResponse(
+        count=len(emails),
+        emails=emails,
+        target_label=f"{label} ({len(emails)})",
+    )
 
 
 # ── Excel Upload ──
