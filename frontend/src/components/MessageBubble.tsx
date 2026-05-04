@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import { Icons } from './ClaudeChatInput'
 import { FileText, Layers, BookOpen, Presentation } from 'lucide-react'
 import { MeetingCard } from './MeetingCard'
@@ -62,8 +63,8 @@ function MarkdownLine({ line }: { line: string }) {
   return <p className="text-sm text-text-200 mb-2 leading-relaxed">{renderInline(trimmed)}</p>
 }
 
-function renderInline(text: string): (string | JSX.Element)[] {
-  const parts: (string | JSX.Element)[] = []
+function renderInline(text: string): (string | ReactElement)[] {
+  const parts: (string | ReactElement)[] = []
   let remaining = text
   let key = 0
   while (remaining) {
