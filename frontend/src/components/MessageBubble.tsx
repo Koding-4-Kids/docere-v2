@@ -4,6 +4,7 @@ import { MeetingCard } from './MeetingCard'
 import { PracticeQuiz } from './PracticeQuiz'
 import { StepHints } from './StepHints'
 import type { StudyArtifact, MeetingAction, Widget, PracticeQuizWidget, StepHintsWidget } from '../api'
+import { MarkdownLine } from '../lib/markdown'
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
@@ -60,7 +61,9 @@ export function MessageBubble({ role, content, artifact, action, widgets, onOpen
       </div>
       <div className="max-w-[80%]">
         <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-bg-200/70 text-text-100 text-[14px] leading-relaxed">
-          <div className="whitespace-pre-wrap">{content}</div>
+          {content.split('\n').map((line, i) => (
+            <MarkdownLine key={i} line={line} />
+          ))}
         </div>
         {artifact && onOpenArtifact && Icon && (
           <button
