@@ -1,11 +1,14 @@
 """Analytics and research endpoints."""
 
+import io
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.dependencies import get_db, require_instructor
@@ -429,3 +432,139 @@ async def export_study_data(
             )
         )
     return results
+
+
+# ── Issue #20: Analytics Endpoints & Data Export ──────────────────────────────
+
+class SessionMetricsResponse(BaseModel):
+    total_sessions: int = 0
+    total_messages: int = 0
+    avg_messages_per_session: float = 0.0
+    avg_interaction_score: float = 0.0
+
+
+@router.get("/sessions/metrics", response_model=SessionMetricsResponse)
+async def get_session_metrics(
+    start_date: date | None = None,
+    end_date: date | None = None,
+    course_id: uuid.UUID | None = None,
+    study_group: str | None = None,
+    _user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+) -> SessionMetricsResponse:
+    """Get tutoring session metrics filtered by date, course, or cohort."""
+    from docere.models.conversation import Conversation
+
+    filters = []
+    if start_date:
+        filters.append(Conversation.created_at >= datetime(start_date.year, start_date.month, start_date.day, tzinfo=UTC))
+    if end_date:
+        filters.append(Conversation.created_at <= datetime(end_date.year, end_date.month, end_date.day, tzinfo=UTC))
+    if course_id:
+        filters.append(Conversation.course_id == course_id)
+    if study_group:
+        filters.append(Conversation.study_group == study_group)
+
+    result = await db.execute(
+        select(func.count(Conversation.id)).where(and_(*filters))
+    )
+    total_sessions = result.scalar() or 0
+
+    return SessionMetricsResponse(total_sessions=total_sessions)
+
+
+class PerformanceTrendItem(BaseModel):
+    student_id: str
+    course_id: str
+    avg_confusion: float = 0.0
+    avg_interaction_score: float = 0.0
+    total_interactions: int = 0
+    engagement_level: str = "unknown"
+
+
+@router.get("/students/performance", response_model=list[PerformanceTrendItem])
+async def get_student_performance_trends(
+    course_id: uuid.UUID | None = None,
+    study_group: str | None = None,
+    _user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+) -> list[PerformanceTrendItem]:
+    """Get student performance trends filtered by course or cohort."""
+    filters = []
+    if course_id:
+        filters.append(StudentProfile.course_id == course_id)
+    if study_group:
+        enroll_result = await db.execute(
+            select(Enrollment.user_id).where(Enrollment.study_group == study_group)
+        )
+        student_ids = [r[0] for r in enroll_result.all()]
+        filters.append(StudentProfile.student_id.in_(student_ids))
+
+    result = await db.execute(
+        select(StudentProfile).where(and_(*filters))
+    )
+    return [
+        PerformanceTrendItem(
+            student_id=str(p.student_id),
+            course_id=str(p.course_id),
+            avg_confusion=round(float(p.avg_confusion_score), 3) if p.avg_confusion_score else 0.0,
+            avg_interaction_score=round(float(p.avg_interaction_score), 3) if p.avg_interaction_score else 0.0,
+            total_interactions=p.total_interactions or 0,
+            engagement_level=p.engagement_level or "unknown",
+        )
+        for p in result.scalars().all()
+    ]
+
+
+@router.get("/sessions/export")
+async def export_sessions(
+    format: str = "csv",
+    start_date: date | None = None,
+    end_date: date | None = None,
+    course_id: uuid.UUID | None = None,
+    _user_id: uuid.UUID = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Export session data as CSV or Parquet for research reporting."""
+    from docere.models.conversation import Conversation
+
+    filters = []
+    if start_date:
+        filters.append(Conversation.created_at >= datetime(start_date.year, start_date.month, start_date.day, tzinfo=UTC))
+    if end_date:
+        filters.append(Conversation.created_at <= datetime(end_date.year, end_date.month, end_date.day, tzinfo=UTC))
+    if course_id:
+        filters.append(Conversation.course_id == course_id)
+
+    result = await db.execute(select(Conversation).where(and_(*filters)))
+    sessions = result.scalars().all()
+
+    df = pd.DataFrame([
+        {
+            "id": str(s.id),
+            "course_id": str(s.course_id),
+            "student_id": str(s.student_id),
+            "study_group": s.study_group,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        }
+        for s in sessions
+    ])
+
+    if format == "parquet":
+        buffer = io.BytesIO()
+        df.to_parquet(buffer, index=False)
+        buffer.seek(0)
+        return StreamingResponse(
+            buffer,
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": "attachment; filename=sessions.parquet"},
+        )
+
+    buffer = io.StringIO()
+    df.to_csv(buffer, index=False)
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=sessions.csv"},
+    )
