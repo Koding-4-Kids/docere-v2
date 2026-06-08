@@ -30,7 +30,9 @@ SCOPES = [
 def _get_fernet() -> Fernet:
     """Get Fernet cipher for token encryption."""
     if not settings.token_encryption_key:
-        raise ValueError("token_encryption_key not configured — generate one with Fernet.generate_key()")
+        raise ValueError(
+            "token_encryption_key not configured — generate one with Fernet.generate_key()"
+        )
     return Fernet(settings.token_encryption_key.encode())
 
 
@@ -73,9 +75,7 @@ class GoogleCalendarService:
         )
         return url
 
-    async def handle_oauth_callback(
-        self, code: str, instructor_id: str
-    ) -> InstructorCalendarToken:
+    async def handle_oauth_callback(self, code: str, instructor_id: str) -> InstructorCalendarToken:
         """Exchange auth code for tokens and store encrypted."""
         flow = Flow.from_client_config(
             {
@@ -93,6 +93,7 @@ class GoogleCalendarService:
 
         # Google often returns extra scopes (openid, userinfo) — allow it
         import os
+
         os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
 
         # fetch_token is a blocking HTTP call — run in thread
@@ -115,7 +116,9 @@ class GoogleCalendarService:
         if existing:
             existing.encrypted_access_token = encrypted_access
             existing.encrypted_refresh_token = encrypted_refresh
-            existing.token_expiry = creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else None
+            existing.token_expiry = (
+                creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else None
+            )
             existing.scopes = granted_scopes
             existing.is_active = True
             existing.updated_at = datetime.now(timezone.utc)
@@ -184,7 +187,9 @@ class GoogleCalendarService:
             token_record.encrypted_access_token = _encrypt(creds.token)
             if creds.refresh_token:
                 token_record.encrypted_refresh_token = _encrypt(creds.refresh_token)
-            token_record.token_expiry = creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else None
+            token_record.token_expiry = (
+                creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else None
+            )
             token_record.updated_at = datetime.now(timezone.utc)
             await self.db.commit()
 
@@ -245,11 +250,15 @@ class GoogleCalendarService:
         if attendee_email:
             event["attendees"] = [{"email": attendee_email}]
 
-        created = service.events().insert(
-            calendarId=calendar_id,
-            body=event,
-            sendUpdates="all" if attendee_email else "none",
-        ).execute()
+        created = (
+            service.events()
+            .insert(
+                calendarId=calendar_id,
+                body=event,
+                sendUpdates="all" if attendee_email else "none",
+            )
+            .execute()
+        )
 
         event_id = created.get("id")
         logger.info("Calendar event created", event_id=event_id, instructor_id=instructor_id)

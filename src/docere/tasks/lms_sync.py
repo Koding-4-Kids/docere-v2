@@ -41,9 +41,7 @@ async def sync_all_courses(
 
     Also embeds any new/updated materials into Qdrant.
     """
-    result = await db.execute(
-        select(Course).where(Course.lms_sync_enabled.is_(True))
-    )
+    result = await db.execute(select(Course).where(Course.lms_sync_enabled.is_(True)))
     courses = result.scalars().all()
 
     synced = 0
@@ -83,9 +81,7 @@ async def sync_all_courses(
     # Process grade changes through outcome tracker and memory layer
     outcomes_linked = 0
     if all_grade_changes:
-        outcomes_linked = await _process_grade_changes(
-            db, all_grade_changes, claude, qdrant
-        )
+        outcomes_linked = await _process_grade_changes(db, all_grade_changes, claude, qdrant)
 
     return {
         "synced": synced,
@@ -156,17 +152,104 @@ async def _embed_new_materials(
 
 
 _STOP_WORDS = {
-    "a", "an", "the", "and", "or", "of", "for", "in", "on", "to", "is", "it",
-    "at", "by", "with", "from", "as", "this", "that", "be", "are", "was",
-    "were", "been", "has", "have", "had", "do", "does", "did", "will",
-    "would", "could", "should", "may", "might", "can", "shall", "not", "no",
-    "but", "if", "so", "than", "then", "each", "every", "all", "any", "few",
-    "more", "most", "other", "some", "such", "only", "own", "same", "too",
-    "very", "just", "about", "above", "after", "before", "between", "into",
-    "through", "during", "up", "down", "out", "off", "over", "under",
-    "assignment", "quiz", "exam", "test", "homework", "hw", "lab", "project",
-    "problem", "set", "part", "section", "chapter", "unit", "week", "module",
-    "final", "midterm", "review", "practice", "graded", "extra", "credit",
+    "a",
+    "an",
+    "the",
+    "and",
+    "or",
+    "of",
+    "for",
+    "in",
+    "on",
+    "to",
+    "is",
+    "it",
+    "at",
+    "by",
+    "with",
+    "from",
+    "as",
+    "this",
+    "that",
+    "be",
+    "are",
+    "was",
+    "were",
+    "been",
+    "has",
+    "have",
+    "had",
+    "do",
+    "does",
+    "did",
+    "will",
+    "would",
+    "could",
+    "should",
+    "may",
+    "might",
+    "can",
+    "shall",
+    "not",
+    "no",
+    "but",
+    "if",
+    "so",
+    "than",
+    "then",
+    "each",
+    "every",
+    "all",
+    "any",
+    "few",
+    "more",
+    "most",
+    "other",
+    "some",
+    "such",
+    "only",
+    "own",
+    "same",
+    "too",
+    "very",
+    "just",
+    "about",
+    "above",
+    "after",
+    "before",
+    "between",
+    "into",
+    "through",
+    "during",
+    "up",
+    "down",
+    "out",
+    "off",
+    "over",
+    "under",
+    "assignment",
+    "quiz",
+    "exam",
+    "test",
+    "homework",
+    "hw",
+    "lab",
+    "project",
+    "problem",
+    "set",
+    "part",
+    "section",
+    "chapter",
+    "unit",
+    "week",
+    "module",
+    "final",
+    "midterm",
+    "review",
+    "practice",
+    "graded",
+    "extra",
+    "credit",
 }
 
 # Cache to avoid repeated LLM calls for the same assignment
@@ -201,11 +284,18 @@ async def _extract_assignment_concepts(
     if claude and description and len(description.strip()) > 20:
         try:
             import json
+
             result = await claude.chat(
                 system_prompt="Extract academic topics. Respond with only a JSON array.",
-                messages=[{"role": "user", "content": CONCEPT_EXTRACT_PROMPT.format(
-                    title=title, description=description[:500],
-                )}],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": CONCEPT_EXTRACT_PROMPT.format(
+                            title=title,
+                            description=description[:500],
+                        ),
+                    }
+                ],
                 max_tokens=100,
                 temperature=0.1,
             )
@@ -245,9 +335,7 @@ async def _process_grade_changes(
     assignment_descs: dict[str, str | None] = {}
     if assignment_ids:
         result = await db.execute(
-            select(Assignment.id, Assignment.description).where(
-                Assignment.id.in_(assignment_ids)
-            )
+            select(Assignment.id, Assignment.description).where(Assignment.id.in_(assignment_ids))
         )
         for aid, desc in result.all():
             assignment_descs[aid] = desc

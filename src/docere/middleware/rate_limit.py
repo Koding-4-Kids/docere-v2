@@ -54,7 +54,8 @@ def _extract_user_id(request: Request) -> str | None:
     token = auth[7:]
     try:
         payload = jwt.decode(
-            token, settings.jwt_secret,
+            token,
+            settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
             options={"verify_exp": False},
         )
@@ -98,6 +99,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # Check rate limit via Redis
         try:
             from docere.dependencies import get_redis
+
             redis = get_redis()
             current = await redis.incr(redis_key)
             if current == 1:

@@ -206,6 +206,7 @@ async def run_lti_material_sync(
 
         # Pull and sync materials only
         from docere.integrations.lms.base import LMSFullSync, LMSCourse
+
         materials = await adapter.get_course_materials(external_course_id)
         sync_data = LMSFullSync(
             course=LMSCourse(
@@ -221,9 +222,7 @@ async def run_lti_material_sync(
         # Embed new/updated materials
         if new_count > 0 or updated_count > 0:
             try:
-                embedded = await _embed_new_materials(
-                    db, course, get_qdrant(), get_claude()
-                )
+                embedded = await _embed_new_materials(db, course, get_qdrant(), get_claude())
                 await db.commit()
             except Exception:
                 logger.exception("Failed to embed materials after sync")

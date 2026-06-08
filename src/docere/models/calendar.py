@@ -23,9 +23,7 @@ class InstructorCalendarToken(Base, UUIDMixin):
     """Encrypted Google Calendar OAuth tokens for an instructor."""
 
     __tablename__ = "instructor_calendar_tokens"
-    __table_args__ = (
-        UniqueConstraint("instructor_id", name="uq_calendar_token_instructor"),
-    )
+    __table_args__ = (UniqueConstraint("instructor_id", name="uq_calendar_token_instructor"),)
 
     instructor_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
@@ -85,14 +83,11 @@ class MeetingRequest(Base, UUIDMixin):
     conversation_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="SET NULL")
     )
-    scheduled_start: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    scheduled_end: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    scheduled_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    scheduled_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(
-        String(20), default="confirmed"  # confirmed, cancelled, completed
+        String(20),
+        default="confirmed",  # confirmed, cancelled, completed
     )
     context_summary: Mapped[str | None] = mapped_column(Text)
     struggle_concepts: Mapped[list[str] | None] = mapped_column(ARRAY(String))

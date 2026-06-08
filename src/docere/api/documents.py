@@ -192,7 +192,10 @@ async def upload_document(
     file_bytes = await file.read()
     max_bytes = settings.student_doc_max_file_size_mb * 1024 * 1024
     if len(file_bytes) > max_bytes:
-        raise HTTPException(status_code=400, detail=f"File too large. Max: {settings.student_doc_max_file_size_mb}MB")
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Max: {settings.student_doc_max_file_size_mb}MB",
+        )
 
     content_hash = await _validate_upload(db, user_id, course_id, file_bytes)
 
@@ -366,7 +369,8 @@ async def list_documents(
             created_at=d.created_at.isoformat(),
             error_message=d.error_message,
             doc_type=_classify_document(
-                d.filename, d.mime_type,
+                d.filename,
+                d.mime_type,
                 extracted_text=d.extracted_text,
                 page_count=d.page_count,
             ),
@@ -400,7 +404,8 @@ async def get_document(
         created_at=doc.created_at.isoformat(),
         error_message=doc.error_message,
         doc_type=_classify_document(
-            doc.filename, doc.mime_type,
+            doc.filename,
+            doc.mime_type,
             extracted_text=doc.extracted_text,
             page_count=doc.page_count,
         ),

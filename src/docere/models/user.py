@@ -12,9 +12,7 @@ class User(Base, UUIDMixin, TimestampMixin):
     """User account - created automatically from LMS via LTI launch."""
 
     __tablename__ = "users"
-    __table_args__ = (
-        UniqueConstraint("external_lms_id", "lms_platform", name="uq_user_lms"),
-    )
+    __table_args__ = (UniqueConstraint("external_lms_id", "lms_platform", name="uq_user_lms"),)
 
     external_lms_id: Mapped[str | None] = mapped_column(String(255))
     lms_platform: Mapped[str | None] = mapped_column(String(50))

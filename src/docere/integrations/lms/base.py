@@ -141,9 +141,7 @@ class LMSAdapter(ABC):
         """
         raise NotImplementedError("This LMS adapter does not support grade writing")
 
-    async def post_announcement(
-        self, course_id: str, title: str, message: str
-    ) -> dict:
+    async def post_announcement(self, course_id: str, title: str, message: str) -> dict:
         """Post an announcement to the LMS course.
 
         Returns {"id": str, "url": str}.

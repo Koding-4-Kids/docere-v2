@@ -88,9 +88,7 @@ class ExperimentRunner:
         )
         return group
 
-    async def get_feature_flags(
-        self, study_group: str | None
-    ) -> dict[str, bool]:
+    async def get_feature_flags(self, study_group: str | None) -> dict[str, bool]:
         """Get feature flags based on study group.
 
         | Group            | Memory | Verification | Self-Improvement |

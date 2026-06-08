@@ -92,9 +92,7 @@ class OutcomeTracker:
             # Feed grade signal back into strategy scores
             if self.strategy_archive:
                 for score_id in updated_ids:
-                    await self.strategy_archive.incorporate_grade_signal(
-                        score_id, percentage
-                    )
+                    await self.strategy_archive.incorporate_grade_signal(score_id, percentage)
 
         return updated, updated_ids
 

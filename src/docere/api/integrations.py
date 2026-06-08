@@ -44,9 +44,7 @@ async def get_integration_status(
     )
     google_token = result.scalar_one_or_none()
     google_connected = google_token is not None
-    google_scopes = (
-        google_token.scopes.split(",") if google_token and google_token.scopes else []
-    )
+    google_scopes = google_token.scopes.split(",") if google_token and google_token.scopes else []
 
     lms_type: str | None = None
     lms_connected = False
@@ -155,8 +153,7 @@ async def _resolve_email_recipients(
         .join(Enrollment, Enrollment.user_id == User.id)
         .outerjoin(
             StudentProfile,
-            (StudentProfile.student_id == User.id)
-            & (StudentProfile.course_id == course_id),
+            (StudentProfile.student_id == User.id) & (StudentProfile.course_id == course_id),
         )
         .where(
             Enrollment.course_id == course_id,
@@ -173,26 +170,23 @@ async def _resolve_email_recipients(
         emails = [r.email for r in rows]
     elif target == "struggling_students":
         emails = [
-            r.email for r in rows
-            if r[2] and (r[2].avg_confusion_score > 0.5 or r[2].engagement_level in ("low", "inactive"))
+            r.email
+            for r in rows
+            if r[2]
+            and (r[2].avg_confusion_score > 0.5 or r[2].engagement_level in ("low", "inactive"))
         ]
     elif target == "low_engagement":
-        emails = [
-            r.email for r in rows
-            if r[2] and r[2].engagement_level in ("low", "inactive")
-        ]
+        emails = [r.email for r in rows if r[2] and r[2].engagement_level in ("low", "inactive")]
     elif target == "at_risk":
         emails = [
-            r.email for r in rows
+            r.email
+            for r in rows
             if r[2] and r[2].current_grade is not None and r[2].current_grade < 70
         ]
     else:
         # Try to match comma-separated student names
         target_names = [n.strip().lower() for n in to_field.split(",")]
-        emails = [
-            r.email for r in rows
-            if any(tn in r.name.lower() for tn in target_names)
-        ]
+        emails = [r.email for r in rows if any(tn in r.name.lower() for tn in target_names)]
 
     if not emails:
         raise ValueError(f"No students matched target '{to_field}' (or none have email addresses)")
@@ -327,7 +321,10 @@ async def _execute_excel(payload: dict) -> ExecuteActionResponse:
 
     return ExecuteActionResponse(
         success=True,
-        result={"filename": filename, "download_url": f"/api/v1/integrations/download-excel/{filename}"},
+        result={
+            "filename": filename,
+            "download_url": f"/api/v1/integrations/download-excel/{filename}",
+        },
     )
 
 
@@ -417,7 +414,7 @@ async def upload_excel(
             break
 
     headers = rows_data[header_idx] if rows_data else []
-    data_rows = rows_data[header_idx + 1:] if len(rows_data) > header_idx + 1 else []
+    data_rows = rows_data[header_idx + 1 :] if len(rows_data) > header_idx + 1 else []
 
     # Strip trailing empty rows
     while data_rows and all(c.strip() == "" for c in data_rows[-1]):

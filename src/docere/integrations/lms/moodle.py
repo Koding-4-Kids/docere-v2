@@ -126,9 +126,9 @@ class MoodleAdapter(LMSAdapter):
             LMSEnrollment(
                 user_id=str(u["id"]),
                 course_id=course_id,
-                role="student" if any(
-                    r.get("shortname") == "student" for r in u.get("roles", [])
-                ) else "teacher",
+                role="student"
+                if any(r.get("shortname") == "student" for r in u.get("roles", []))
+                else "teacher",
                 name=u.get("fullname", ""),
                 email=u.get("email"),
             )
@@ -257,12 +257,14 @@ class MoodleAdapter(LMSAdapter):
         items: list[dict] = []
         for course_data in data.get("courses", []):
             for a in course_data.get("assignments", []):
-                items.append({
-                    "id": str(a["id"]),
-                    "name": a.get("name", ""),
-                    "category": "assignments",
-                    "grade_max": float(a.get("grade", 100)),
-                })
+                items.append(
+                    {
+                        "id": str(a["id"]),
+                        "name": a.get("name", ""),
+                        "category": "assignments",
+                        "grade_max": float(a.get("grade", 100)),
+                    }
+                )
         return items
 
     async def save_grade(
@@ -296,9 +298,7 @@ class MoodleAdapter(LMSAdapter):
             raise ValueError(f"Moodle grade save failed: {result.get('message', 'Unknown error')}")
         return {"success": True}
 
-    async def post_announcement(
-        self, course_id: str, title: str, message: str
-    ) -> dict:
+    async def post_announcement(self, course_id: str, title: str, message: str) -> dict:
         """Post announcement via Moodle forum (mod_forum_add_discussion).
 
         Moodle announcements are forum posts in the 'Announcements' forum (type=news).
@@ -336,9 +336,7 @@ class MoodleAdapter(LMSAdapter):
             "url": f"{self.base_url}/mod/forum/discuss.php?d={discussion_id}",
         }
 
-    async def _get_assignment_attachments(
-        self, course_id: str
-    ) -> dict[str, dict[str, object]]:
+    async def _get_assignment_attachments(self, course_id: str) -> dict[str, dict[str, object]]:
         """Fetch PDF attachments from assignment intros.
 
         Moodle's core_course_get_contents doesn't include assignment intro

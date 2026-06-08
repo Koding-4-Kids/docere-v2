@@ -22,6 +22,7 @@ def build_prompt(state: TutoringState) -> dict:
     memory_ctx = state.get("memory_context")
     if not memory_ctx:
         from docere.core.memory.memory_layer import MemoryContext
+
         memory_ctx = MemoryContext.empty()
     strategy = state.get("strategy")
     assignment = state.get("assignment")

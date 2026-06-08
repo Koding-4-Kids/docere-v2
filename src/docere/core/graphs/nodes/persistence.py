@@ -52,9 +52,7 @@ async def persist_messages(state: TutoringState) -> dict:
     db.add(assistant_msg)
 
     # Update conversation timestamp
-    result = await db.execute(
-        select(Conversation).where(Conversation.id == conversation_id)
-    )
+    result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     if conversation:
         conversation.last_message_at = now

@@ -126,8 +126,8 @@ class ProcessVerifier:
         # Hybrid: blend LLM and heuristic scores
         if llm_scores:
             helpfulness = llm_scores["helpfulness"]
-            clarity = (llm_scores["clarity"] * 0.7 + h_clarity * 0.3)
-            engagement = (llm_scores["engagement"] * 0.6 + h_engagement * 0.4)
+            clarity = llm_scores["clarity"] * 0.7 + h_clarity * 0.3
+            engagement = llm_scores["engagement"] * 0.6 + h_engagement * 0.4
             understanding = llm_scores["understanding_delta"]
             method = "hybrid"
         else:
@@ -215,8 +215,7 @@ class ProcessVerifier:
         followup_section = ""
         if student_followup:
             followup_section = (
-                f"Student's followup (classified as '{followup_type}'):\n"
-                f"{student_followup[:500]}"
+                f"Student's followup (classified as '{followup_type}'):\n{student_followup[:500]}"
             )
 
         prompt = JUDGE_PROMPT.format(
@@ -239,7 +238,9 @@ class ProcessVerifier:
                 "helpfulness": max(0.0, min(1.0, float(scores.get("helpfulness", 0.5)))),
                 "clarity": max(0.0, min(1.0, float(scores.get("clarity", 0.5)))),
                 "engagement": max(0.0, min(1.0, float(scores.get("engagement", 0.5)))),
-                "understanding_delta": max(-1.0, min(1.0, float(scores.get("understanding_delta", 0.0)))),
+                "understanding_delta": max(
+                    -1.0, min(1.0, float(scores.get("understanding_delta", 0.0)))
+                ),
             }
         except (json.JSONDecodeError, KeyError, ValueError):
             logger.warning("LLM judge failed to return valid scores")

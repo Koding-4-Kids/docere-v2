@@ -45,9 +45,9 @@ def _wilson_ci_half_width(p: float, n: int) -> float:
 class StrategyContext:
     """Student context for contextual bandit strategy selection."""
 
-    confusion_level: str   # "low", "mid", "high"
+    confusion_level: str  # "low", "mid", "high"
     experience_level: str  # "new", "regular", "experienced"
-    quality_level: str     # "poor", "average", "good"
+    quality_level: str  # "poor", "average", "good"
 
     @staticmethod
     def from_profile(
@@ -57,13 +57,26 @@ class StrategyContext:
     ) -> "StrategyContext":
         """Build context buckets from StudentProfile data."""
         confusion = "low" if avg_confusion < 0.3 else "mid" if avg_confusion < 0.6 else "high"
-        experience = "new" if total_interactions < 5 else "regular" if total_interactions < 20 else "experienced"
-        quality = "poor" if avg_interaction_score < 0.4 else "average" if avg_interaction_score < 0.7 else "good"
+        experience = (
+            "new"
+            if total_interactions < 5
+            else "regular"
+            if total_interactions < 20
+            else "experienced"
+        )
+        quality = (
+            "poor"
+            if avg_interaction_score < 0.4
+            else "average"
+            if avg_interaction_score < 0.7
+            else "good"
+        )
         return StrategyContext(confusion, experience, quality)
 
     @property
     def key(self) -> str:
         return f"{self.confusion_level}:{self.experience_level}:{self.quality_level}"
+
 
 SEED_STRATEGIES = [
     {
@@ -112,7 +125,7 @@ SEED_STRATEGIES = [
         "prompt_template": (
             "You are a tutor who focuses on errors and misconceptions. When helping:\n"
             "1. First, identify the specific misconception or error in the student's thinking\n"
-            "2. Explain WHY that error is common (\"Many students think X because...\")\n"
+            '2. Explain WHY that error is common ("Many students think X because...")\n'
             "3. Show the contrast between the misconception and the correct understanding\n"
             "4. Give a test case that exposes the difference"
         ),
@@ -143,9 +156,7 @@ class StrategyArchive:
 
     async def seed_strategies(self) -> int:
         """Insert seed strategies if the archive is empty."""
-        count_result = await self.db.execute(
-            select(func.count(StrategyModel.id))
-        )
+        count_result = await self.db.execute(select(func.count(StrategyModel.id)))
         count = count_result.scalar_one()
         if count > 0:
             return 0
@@ -217,15 +228,11 @@ class StrategyArchive:
         # Try context-specific stats first
         if context_key:
             ctx_stats = (
-                (strategy.applicable_contexts or {})
-                .get("context_stats", {})
-                .get(context_key)
+                (strategy.applicable_contexts or {}).get("context_stats", {}).get(context_key)
             )
             if ctx_stats and ctx_stats.get("total_uses", 0) >= MIN_CONTEXT_OBS:
                 exploitation = ctx_stats["avg_score"]
-                exploration = math.sqrt(
-                    2 * math.log(total_uses) / ctx_stats["total_uses"]
-                )
+                exploration = math.sqrt(2 * math.log(total_uses) / ctx_stats["total_uses"])
                 return exploitation + exploration
 
         # Fall back to global stats
@@ -259,9 +266,7 @@ class StrategyArchive:
         )
 
         # Update global running average
-        result = await self.db.execute(
-            select(StrategyModel).where(StrategyModel.id == strategy_id)
-        )
+        result = await self.db.execute(select(StrategyModel).where(StrategyModel.id == strategy_id))
         strategy = result.scalar_one_or_none()
         if strategy:
             n = strategy.total_uses or 1
@@ -275,9 +280,7 @@ class StrategyArchive:
                 strategy.success_rate = (old_success * (n - 1)) / n
 
             # Wilson score interval half-width (95% CI)
-            strategy.confidence_interval = _wilson_ci_half_width(
-                strategy.success_rate or 0.0, n
-            )
+            strategy.confidence_interval = _wilson_ci_half_width(strategy.success_rate or 0.0, n)
 
             # Update context-specific stats
             if context:
@@ -308,9 +311,7 @@ class StrategyArchive:
     ) -> None:
         """Blend a grade signal into the strategy score that produced this interaction."""
         result = await self.db.execute(
-            select(StrategyScore).where(
-                StrategyScore.interaction_score_id == interaction_score_id
-            )
+            select(StrategyScore).where(StrategyScore.interaction_score_id == interaction_score_id)
         )
         strategy_score = result.scalar_one_or_none()
         if not strategy_score:

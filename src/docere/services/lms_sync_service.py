@@ -252,8 +252,12 @@ class LMSSyncService:
         assignment_titles: dict[str, str] = {}
         assignment_points: dict[str, float] = {}
         result = await self.db.execute(
-            select(Assignment.external_lms_id, Assignment.id, Assignment.title, Assignment.points_possible)
-            .where(Assignment.course_id == course.id)
+            select(
+                Assignment.external_lms_id,
+                Assignment.id,
+                Assignment.title,
+                Assignment.points_possible,
+            ).where(Assignment.course_id == course.id)
         )
         for ext_id, db_id, title, points in result.all():
             if ext_id:
@@ -263,9 +267,7 @@ class LMSSyncService:
 
         user_map: dict[str, uuid.UUID] = {}
         result = await self.db.execute(
-            select(User.external_lms_id, User.id).where(
-                User.lms_platform == course.lms_platform
-            )
+            select(User.external_lms_id, User.id).where(User.lms_platform == course.lms_platform)
         )
         for ext_id, db_id in result.all():
             if ext_id:
@@ -295,15 +297,17 @@ class LMSSyncService:
 
                 # Detect grade change
                 if lms_sub.score is not None and lms_sub.score != previous_score:
-                    grade_changes.append(GradeChange(
-                        student_id=student_id,
-                        course_id=course.id,
-                        assignment_id=assignment_id,
-                        assignment_title=assignment_titles.get(lms_sub.assignment_id, ""),
-                        score=lms_sub.score,
-                        max_score=assignment_points.get(lms_sub.assignment_id, 0),
-                        previous_score=previous_score,
-                    ))
+                    grade_changes.append(
+                        GradeChange(
+                            student_id=student_id,
+                            course_id=course.id,
+                            assignment_id=assignment_id,
+                            assignment_title=assignment_titles.get(lms_sub.assignment_id, ""),
+                            score=lms_sub.score,
+                            max_score=assignment_points.get(lms_sub.assignment_id, 0),
+                            previous_score=previous_score,
+                        )
+                    )
             else:
                 self.db.add(
                     Submission(
@@ -317,23 +321,23 @@ class LMSSyncService:
                 )
                 # New submission with a grade is also a "change"
                 if lms_sub.score is not None:
-                    grade_changes.append(GradeChange(
-                        student_id=student_id,
-                        course_id=course.id,
-                        assignment_id=assignment_id,
-                        assignment_title=assignment_titles.get(lms_sub.assignment_id, ""),
-                        score=lms_sub.score,
-                        max_score=assignment_points.get(lms_sub.assignment_id, 0),
-                        previous_score=None,
-                    ))
+                    grade_changes.append(
+                        GradeChange(
+                            student_id=student_id,
+                            course_id=course.id,
+                            assignment_id=assignment_id,
+                            assignment_title=assignment_titles.get(lms_sub.assignment_id, ""),
+                            score=lms_sub.score,
+                            max_score=assignment_points.get(lms_sub.assignment_id, 0),
+                            previous_score=None,
+                        )
+                    )
             count += 1
 
         await self.db.flush()
         return count, grade_changes
 
-    async def _sync_materials(
-        self, course: Course, sync_data: LMSFullSync
-    ) -> tuple[int, int]:
+    async def _sync_materials(self, course: Course, sync_data: LMSFullSync) -> tuple[int, int]:
         """Sync course materials (files, modules, pages) from LMS.
 
         Uses external_lms_id for stable matching. Compares content_hash
@@ -358,10 +362,7 @@ class LMSSyncService:
 
             if existing:
                 # Check for content changes via hash
-                if (
-                    lms_material.content_hash
-                    and existing.content_hash != lms_material.content_hash
-                ):
+                if lms_material.content_hash and existing.content_hash != lms_material.content_hash:
                     existing.title = lms_material.title
                     existing.content = lms_material.content
                     existing.content_hash = lms_material.content_hash

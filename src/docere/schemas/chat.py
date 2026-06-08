@@ -21,6 +21,7 @@ class StudyArtifact(BaseModel):
         """Content may have been stored as a parsed list/dict — re-serialize."""
         if not isinstance(v, str):
             import json
+
             return json.dumps(v)
         return v
 

@@ -27,9 +27,7 @@ class FlashcardDeck(Base, UUIDMixin):
     """One deck per student per course. Auto-created when first cards are added."""
 
     __tablename__ = "flashcard_decks"
-    __table_args__ = (
-        UniqueConstraint("student_id", "course_id", name="uq_deck_student_course"),
-    )
+    __table_args__ = (UniqueConstraint("student_id", "course_id", name="uq_deck_student_course"),)
 
     student_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False

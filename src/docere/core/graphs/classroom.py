@@ -64,21 +64,25 @@ def route_intent(state: ClassroomState) -> dict:
     question = state["question"]
 
     if context.total_students == 0:
-        return {"routing": RoutingDecision(
-            intent=QueryIntent.META,
-            target_student_ids=[],
-            target_student_names=[],
-            reasoning="No students enrolled",
-        )}
+        return {
+            "routing": RoutingDecision(
+                intent=QueryIntent.META,
+                target_student_ids=[],
+                target_student_names=[],
+                reasoning="No students enrolled",
+            )
+        }
 
     routing = agent._route_heuristic(question, context)
 
     sources = list(state.get("sources", []))
-    sources.append(SourceRef(
-        type="routing",
-        label=f"Query type: {routing.intent.value}",
-        detail=routing.reasoning,
-    ))
+    sources.append(
+        SourceRef(
+            type="routing",
+            label=f"Query type: {routing.intent.value}",
+            detail=routing.reasoning,
+        )
+    )
 
     logger.info(
         "Routed instructor query",
@@ -121,11 +125,13 @@ async def find_topic_students(state: ClassroomState) -> dict:
     sources = list(state.get("sources", []))
     filters = state.get("source_filters", {})
     if filters.get("mastery", True):
-        sources.append(SourceRef(
-            type="concept_mastery",
-            label=f"Concept filter: {routing.topic_filter}",
-            detail=f"{len(routing.target_student_ids)} students matched",
-        ))
+        sources.append(
+            SourceRef(
+                type="concept_mastery",
+                label=f"Concept filter: {routing.topic_filter}",
+                detail=f"{len(routing.target_student_ids)} students matched",
+            )
+        )
 
     return {"routing": routing, "sources": sources}
 
@@ -169,11 +175,13 @@ def build_summaries(state: ClassroomState) -> dict:
             parts.append("profile")
         if filters.get("mastery", True) and s.concept_mastery:
             parts.append(f"{len(s.concept_mastery)} concepts")
-        sources.append(SourceRef(
-            type="student_profile",
-            label=", ".join(parts) if parts else "enrollment only",
-            student_name=s.student_name,
-        ))
+        sources.append(
+            SourceRef(
+                type="student_profile",
+                label=", ".join(parts) if parts else "enrollment only",
+                student_name=s.student_name,
+            )
+        )
 
     return {"summaries": summaries, "sources": sources}
 
@@ -208,15 +216,19 @@ async def synthesize_meta(state: ClassroomState) -> dict:
     sources = list(state.get("sources", []))
 
     if filters.get("profiles", True):
-        sources.append(SourceRef(
-            type="student_profile",
-            label="Aggregate engagement & confusion scores",
-        ))
+        sources.append(
+            SourceRef(
+                type="student_profile",
+                label="Aggregate engagement & confusion scores",
+            )
+        )
     if filters.get("mastery", True) and state["context"].concept_overview:
-        sources.append(SourceRef(
-            type="concept_mastery",
-            label=f"Top {len(state['context'].concept_overview)} concepts by struggle count",
-        ))
+        sources.append(
+            SourceRef(
+                type="concept_mastery",
+                label=f"Top {len(state['context'].concept_overview)} concepts by struggle count",
+            )
+        )
 
     response = await agent._answer_meta(
         state["question"],
@@ -253,11 +265,15 @@ def build_classroom_graph() -> StateGraph:
     # Edges
     graph.add_edge(START, "load_classroom")
     graph.add_edge("load_classroom", "route_intent")
-    graph.add_conditional_edges("route_intent", decide_path, {
-        "synthesize_meta": "synthesize_meta",
-        "find_topic_students": "find_topic_students",
-        "load_mastery": "load_mastery",
-    })
+    graph.add_conditional_edges(
+        "route_intent",
+        decide_path,
+        {
+            "synthesize_meta": "synthesize_meta",
+            "find_topic_students": "find_topic_students",
+            "load_mastery": "load_mastery",
+        },
+    )
     graph.add_edge("find_topic_students", "load_mastery")
     graph.add_edge("load_mastery", "build_summaries")
     graph.add_edge("build_summaries", "synthesize")

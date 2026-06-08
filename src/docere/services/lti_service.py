@@ -301,11 +301,13 @@ async def sync_user_enrollments(
             )
         )
         if not result.scalar_one_or_none():
-            db.add(Enrollment(
-                user_id=user.id,
-                course_id=course.id,
-                lms_role="student",
-            ))
+            db.add(
+                Enrollment(
+                    user_id=user.id,
+                    course_id=course.id,
+                    lms_role="student",
+                )
+            )
             created += 1
 
     if created:

@@ -15,8 +15,17 @@ from docere.integrations.vector_db.qdrant import QdrantStore
 logger = structlog.get_logger()
 
 ALLOWED_EXTENSIONS = {
-    ".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm",
-    ".txt", ".md", ".png", ".jpg", ".jpeg",
+    ".pdf",
+    ".docx",
+    ".pptx",
+    ".xlsx",
+    ".html",
+    ".htm",
+    ".txt",
+    ".md",
+    ".png",
+    ".jpg",
+    ".jpeg",
 }
 
 
@@ -236,11 +245,13 @@ class StudentDocumentManager:
                 text = page.extract_text() or ""
                 pages.append(text)
                 if text.strip():
-                    sections.append({
-                        "title": f"Page {i + 1}",
-                        "content": text,
-                        "page": i + 1,
-                    })
+                    sections.append(
+                        {
+                            "title": f"Page {i + 1}",
+                            "content": text,
+                            "page": i + 1,
+                        }
+                    )
 
             return "\n".join(pages), len(reader.pages), sections
 
@@ -266,27 +277,31 @@ class StudentDocumentManager:
                 for sub in sub_chunks:
                     title = section.get("title", "")
                     embed_text = f"{title}\n\n{sub}" if title else sub
-                    chunks.append({
-                        "content": sub,
-                        "embed_text": embed_text,
-                        "section_title": title,
-                        "page_number": section.get("page"),
-                        "title": "",
-                        "chunk_index": chunk_index,
-                    })
+                    chunks.append(
+                        {
+                            "content": sub,
+                            "embed_text": embed_text,
+                            "section_title": title,
+                            "page_number": section.get("page"),
+                            "title": "",
+                            "chunk_index": chunk_index,
+                        }
+                    )
                     chunk_index += 1
         else:
             # No sections — fall back to paragraph splitting
             sub_chunks = self._chunk_text(full_text, max_chars)
             for sub in sub_chunks:
-                chunks.append({
-                    "content": sub,
-                    "embed_text": sub,
-                    "section_title": "",
-                    "page_number": None,
-                    "title": "",
-                    "chunk_index": chunk_index,
-                })
+                chunks.append(
+                    {
+                        "content": sub,
+                        "embed_text": sub,
+                        "section_title": "",
+                        "page_number": None,
+                        "title": "",
+                        "chunk_index": chunk_index,
+                    }
+                )
                 chunk_index += 1
 
         return chunks

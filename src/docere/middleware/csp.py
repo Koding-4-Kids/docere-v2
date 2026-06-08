@@ -53,7 +53,5 @@ class CSPMiddleware(BaseHTTPMiddleware):
             ancestors.append("http://localhost:*")
             ancestors.append("http://127.0.0.1:*")
 
-        response.headers["Content-Security-Policy"] = (
-            f"frame-ancestors {' '.join(ancestors)}"
-        )
+        response.headers["Content-Security-Policy"] = f"frame-ancestors {' '.join(ancestors)}"
         return response

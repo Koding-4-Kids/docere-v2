@@ -145,9 +145,7 @@ class MemoryCompressor:
         )
         return compressed_count
 
-    async def _compress_batch(
-        self, memories: list[MemoryRecord], memory_type: str
-    ) -> str:
+    async def _compress_batch(self, memories: list[MemoryRecord], memory_type: str) -> str:
         """Compress a batch of memories into a summary via Claude."""
         memory_text = "\n".join(
             f"[{m.created_at.strftime('%Y-%m-%d')}] ({m.memory_type}) {m.content[:200]}"
@@ -185,7 +183,9 @@ class MemoryCompressor:
             )
             total_compressed += compressed
 
-        logger.info("Global compression complete", pairs=len(pairs), total_compressed=total_compressed)
+        logger.info(
+            "Global compression complete", pairs=len(pairs), total_compressed=total_compressed
+        )
         return total_compressed
 
     async def compress_all_students(self, course_id: str, threshold: int = 50) -> dict[str, int]:
@@ -203,9 +203,7 @@ class MemoryCompressor:
 
         results = {}
         for sid in student_ids:
-            compressed = await self.compress_student_memories(
-                str(sid), course_id, threshold
-            )
+            compressed = await self.compress_student_memories(str(sid), course_id, threshold)
             results[str(sid)] = compressed
 
         logger.info(

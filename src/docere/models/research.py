@@ -40,9 +40,7 @@ class ResearchEvent(Base, UUIDMixin):
     study_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("study_config.id"), nullable=False
     )
-    student_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id")
-    )
+    student_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
     event_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(

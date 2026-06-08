@@ -52,9 +52,7 @@ class StudentProfileBuilder:
         )
         return result.scalar_one_or_none()
 
-    async def get_or_create_profile(
-        self, student_id: str, course_id: str
-    ) -> StudentProfile:
+    async def get_or_create_profile(self, student_id: str, course_id: str) -> StudentProfile:
         """Get existing profile or create a new one."""
         profile = await self.get_profile(student_id, course_id)
         if not profile:
@@ -81,9 +79,7 @@ class StudentProfileBuilder:
         profile.total_interactions += 1
         profile.total_messages += 1
         n = profile.total_interactions
-        profile.avg_confusion_score = (
-            (profile.avg_confusion_score * (n - 1) + confusion_score) / n
-        )
+        profile.avg_confusion_score = (profile.avg_confusion_score * (n - 1) + confusion_score) / n
         profile.last_interaction_at = datetime.now(timezone.utc)
 
         # Update engagement level based on interaction frequency
@@ -147,11 +143,13 @@ class StudentProfileBuilder:
 
             # Keep last 20 observations for analysis
             obs_history = evidence.get("observation_history", [])
-            obs_history.append({
-                "correct": correct,
-                "confusion": confusion_score,
-                "timestamp": now.isoformat(),
-            })
+            obs_history.append(
+                {
+                    "correct": correct,
+                    "confusion": confusion_score,
+                    "timestamp": now.isoformat(),
+                }
+            )
             evidence["observation_history"] = obs_history[-20:]
             mastery.evidence = evidence
             mastery.last_practiced_at = now
@@ -177,11 +175,13 @@ class StudentProfileBuilder:
                             "p_guess": params.p_guess,
                             "p_slip": params.p_slip,
                         },
-                        "observation_history": [{
-                            "correct": correct,
-                            "confusion": confusion_score,
-                            "timestamp": now.isoformat(),
-                        }],
+                        "observation_history": [
+                            {
+                                "correct": correct,
+                                "confusion": confusion_score,
+                                "timestamp": now.isoformat(),
+                            }
+                        ],
                     },
                 )
             )
@@ -226,14 +226,18 @@ class StudentProfileBuilder:
         )
         recent_memories = result.scalars().all()
 
-        weak_str = "\n".join(
-            f"- {c['concept']}: mastery {c['mastery']:.1%}, struggled {c['times_struggled']} times"
-            for c in weak_concepts[:5]
-        ) or "No weak concepts identified yet."
+        weak_str = (
+            "\n".join(
+                f"- {c['concept']}: mastery {c['mastery']:.1%}, struggled {c['times_struggled']} times"
+                for c in weak_concepts[:5]
+            )
+            or "No weak concepts identified yet."
+        )
 
-        memory_str = "\n".join(
-            f"- [{m.memory_type}] {m.content[:100]}" for m in recent_memories
-        ) or "No memories recorded yet."
+        memory_str = (
+            "\n".join(f"- [{m.memory_type}] {m.content[:100]}" for m in recent_memories)
+            or "No memories recorded yet."
+        )
 
         prompt = NARRATIVE_PROMPT.format(
             total_interactions=profile.total_interactions,

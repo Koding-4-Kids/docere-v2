@@ -98,6 +98,7 @@ async def _voyage_embed(text: str) -> list[float]:
 
 async def _voyage_embed_batch(texts: list[str]) -> list[list[float]]:
     """Generate embeddings via Voyage AI batch API (with retry)."""
+
     async def _call():
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -126,6 +127,7 @@ async def _openai_embed(text: str) -> list[float]:
 
 async def _openai_embed_batch(texts: list[str]) -> list[list[float]]:
     """Generate embeddings via OpenAI batch API (with retry)."""
+
     async def _call():
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -144,4 +146,3 @@ async def _openai_embed_batch(texts: list[str]) -> list[list[float]]:
     return await _embedding_breaker.call(
         lambda: retry_async(_call, max_retries=2, base_delay=0.5, retryable=_RETRYABLE_HTTP)
     )
-

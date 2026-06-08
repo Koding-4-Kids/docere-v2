@@ -78,7 +78,9 @@ async def score_previous(state: TutoringState) -> dict:
             return {}
 
         # Time from assistant response to student's followup (not to "now")
-        time_delta = int((current_student_msg.created_at - prev_assistant.created_at).total_seconds())
+        time_delta = int(
+            (current_student_msg.created_at - prev_assistant.created_at).total_seconds()
+        )
 
         verification = await verifier.score_interaction(
             message_id=str(prev_assistant.id),

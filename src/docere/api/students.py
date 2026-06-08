@@ -43,8 +43,7 @@ async def list_students(
         .join(Enrollment, Enrollment.user_id == User.id)
         .outerjoin(
             StudentProfile,
-            (StudentProfile.student_id == User.id)
-            & (StudentProfile.course_id == course_id),
+            (StudentProfile.student_id == User.id) & (StudentProfile.course_id == course_id),
         )
         .where(
             Enrollment.course_id == course_id,
@@ -57,16 +56,10 @@ async def list_students(
         StudentListItem(
             student_id=str(uid),
             name=uname or "Unknown",
-            engagement_level=(
-                profile.engagement_level if profile else "unknown"
-            ),
-            avg_confusion=(
-                round(profile.avg_confusion_score, 2) if profile else 0.0
-            ),
+            engagement_level=(profile.engagement_level if profile else "unknown"),
+            avg_confusion=(round(profile.avg_confusion_score, 2) if profile else 0.0),
             current_grade=profile.current_grade if profile else None,
-            total_interactions=(
-                profile.total_interactions if profile else 0
-            ),
+            total_interactions=(profile.total_interactions if profile else 0),
             last_interaction_at=(
                 profile.last_interaction_at.isoformat()
                 if profile and profile.last_interaction_at
@@ -163,19 +156,11 @@ async def get_student_profile(
     return StudentProfileResponse(
         student_id=str(student_id),
         name=user.name or "Unknown",
-        engagement_level=(
-            profile.engagement_level if profile else "unknown"
-        ),
-        avg_confusion=(
-            round(profile.avg_confusion_score, 2) if profile else 0.0
-        ),
-        avg_interaction_score=(
-            round(profile.avg_interaction_score, 2) if profile else 0.0
-        ),
+        engagement_level=(profile.engagement_level if profile else "unknown"),
+        avg_confusion=(round(profile.avg_confusion_score, 2) if profile else 0.0),
+        avg_interaction_score=(round(profile.avg_interaction_score, 2) if profile else 0.0),
         current_grade=profile.current_grade if profile else None,
-        total_interactions=(
-            profile.total_interactions if profile else 0
-        ),
+        total_interactions=(profile.total_interactions if profile else 0),
         total_messages=profile.total_messages if profile else 0,
         last_interaction_at=(
             profile.last_interaction_at.isoformat()
@@ -212,22 +197,15 @@ async def get_student_memories(
     db: AsyncSession = Depends(get_db),
 ) -> list[MemoryItem]:
     """View student's memory tree (struggles, breakthroughs, patterns)."""
-    query = (
-        select(MemoryRecord)
-        .where(
-            MemoryRecord.student_id == student_id,
-            MemoryRecord.course_id == course_id,
-            MemoryRecord.is_compressed.is_(False),
-        )
+    query = select(MemoryRecord).where(
+        MemoryRecord.student_id == student_id,
+        MemoryRecord.course_id == course_id,
+        MemoryRecord.is_compressed.is_(False),
     )
     if memory_type:
         query = query.where(MemoryRecord.memory_type == memory_type)
 
-    query = (
-        query.order_by(MemoryRecord.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-    )
+    query = query.order_by(MemoryRecord.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(query)
 
     return [
@@ -310,9 +288,7 @@ async def get_student_interactions(
                 conversation_title=conv.title,
                 message_id=str(msg.id),
                 assistant_content=msg.content[:500],
-                student_content=(
-                    student_content[:500] if student_content else None
-                ),
+                student_content=(student_content[:500] if student_content else None),
                 created_at=msg.created_at.isoformat(),
                 helpfulness=score.helpfulness_score,
                 clarity=score.clarity_score,

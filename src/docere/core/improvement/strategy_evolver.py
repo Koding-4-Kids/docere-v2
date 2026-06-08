@@ -64,9 +64,7 @@ class StrategyEvolver:
 
         Returns summary of actions taken (mutations, prunings).
         """
-        result = await self.db.execute(
-            select(Strategy).where(Strategy.is_active.is_(True))
-        )
+        result = await self.db.execute(select(Strategy).where(Strategy.is_active.is_(True)))
         strategies = result.scalars().all()
 
         if not strategies:

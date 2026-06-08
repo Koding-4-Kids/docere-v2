@@ -92,7 +92,10 @@ async def load_context(state: TutoringState) -> dict:
             return ""
 
     assignment, memory_ctx, profile, history, student_doc_ctx = await asyncio.gather(
-        _load_assignment(), _load_memory(), _load_profile(), _load_history(),
+        _load_assignment(),
+        _load_memory(),
+        _load_profile(),
+        _load_history(),
         _load_student_docs(),
     )
 

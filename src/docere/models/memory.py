@@ -3,7 +3,19 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ARRAY, Float, ForeignKey, Integer, String, Text, Boolean, DateTime, Index, UniqueConstraint, func
+from sqlalchemy import (
+    ARRAY,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    Boolean,
+    DateTime,
+    Index,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -48,9 +60,7 @@ class StudentProfile(Base, UUIDMixin):
     """Aggregate student profile for a course."""
 
     __tablename__ = "student_profiles"
-    __table_args__ = (
-        UniqueConstraint("student_id", "course_id", name="uq_student_profile"),
-    )
+    __table_args__ = (UniqueConstraint("student_id", "course_id", name="uq_student_profile"),)
 
     student_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False

@@ -91,7 +91,9 @@ class FlashcardService:
                 difficulty=fsrs_card.difficulty or 0.0,
                 reps=0,
                 lapses=0,
-                state=fsrs_card.state.name if hasattr(fsrs_card.state, "name") else str(fsrs_card.state),
+                state=fsrs_card.state.name
+                if hasattr(fsrs_card.state, "name")
+                else str(fsrs_card.state),
             )
             self.db.add(new_card)
             added += 1
@@ -122,9 +124,7 @@ class FlashcardService:
         )
         return list(result.scalars().all())
 
-    async def get_due_count(
-        self, student_id: uuid.UUID, course_id: uuid.UUID
-    ) -> int:
+    async def get_due_count(self, student_id: uuid.UUID, course_id: uuid.UUID) -> int:
         now = datetime.now(timezone.utc)
         result = await self.db.execute(
             select(func.count(FlashcardCard.id))
@@ -138,9 +138,7 @@ class FlashcardService:
         )
         return result.scalar() or 0
 
-    async def get_all_due_counts(
-        self, student_id: uuid.UUID
-    ) -> list[dict]:
+    async def get_all_due_counts(self, student_id: uuid.UUID) -> list[dict]:
         """Due counts across all enrolled courses."""
         now = datetime.now(timezone.utc)
         result = await self.db.execute(
@@ -157,8 +155,7 @@ class FlashcardService:
             .group_by(FlashcardDeck.course_id)
         )
         return [
-            {"course_id": str(row.course_id), "due_count": row.due_count}
-            for row in result.all()
+            {"course_id": str(row.course_id), "due_count": row.due_count} for row in result.all()
         ]
 
     # ── Review Card ──

@@ -14,16 +14,12 @@ class Alert(Base, UUIDMixin):
     """Alert for instructors (struggling student, breakthrough, class pattern)."""
 
     __tablename__ = "alerts"
-    __table_args__ = (
-        Index("idx_alerts_instructor", "instructor_id", "is_read", "created_at"),
-    )
+    __table_args__ = (Index("idx_alerts_instructor", "instructor_id", "is_read", "created_at"),)
 
     instructor_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    student_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id")
-    )
+    student_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     course_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("courses.id", ondelete="CASCADE"), nullable=False
     )

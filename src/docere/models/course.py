@@ -3,7 +3,17 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Float, ForeignKey, Integer, String, Text, Boolean, UniqueConstraint, DateTime, func
+from sqlalchemy import (
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    Boolean,
+    UniqueConstraint,
+    DateTime,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,9 +24,7 @@ class Course(Base, UUIDMixin, TimestampMixin):
     """Course - auto-synced from Canvas/Moodle."""
 
     __tablename__ = "courses"
-    __table_args__ = (
-        UniqueConstraint("external_lms_id", "lms_platform", name="uq_course_lms"),
-    )
+    __table_args__ = (UniqueConstraint("external_lms_id", "lms_platform", name="uq_course_lms"),)
 
     external_lms_id: Mapped[str | None] = mapped_column(String(255))
     lms_platform: Mapped[str | None] = mapped_column(String(50))
@@ -41,9 +49,7 @@ class Enrollment(Base, UUIDMixin):
     """Student enrollment in a course."""
 
     __tablename__ = "enrollments"
-    __table_args__ = (
-        UniqueConstraint("user_id", "course_id", name="uq_enrollment"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "course_id", name="uq_enrollment"),)
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
@@ -99,9 +105,7 @@ class Submission(Base, UUIDMixin):
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     graded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     workflow_state: Mapped[str] = mapped_column(String(50), default="submitted")
-    synced_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     assignment: Mapped["Assignment"] = relationship(back_populates="submissions")
