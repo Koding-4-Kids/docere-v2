@@ -360,6 +360,14 @@ class EnhancedStrategyEvolver:
             "of",
             "with",
             "by",
+            "you",
+            "are",
+            "is",
+            "it",
+            "be",
+            "as",
+            "was",
+            "do",
         }
 
         processed_words = set()
