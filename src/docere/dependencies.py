@@ -66,7 +66,7 @@ _redis: aioredis.Redis | None = None
 async def init_redis() -> None:
     """Initialize the async Redis client. Called once during app startup."""
     global _redis
-    _redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+    _redis = aioredis.from_url(settings.redis_url, decode_responses=True)  # type: ignore[no-untyped-call]
 
 
 def get_redis() -> aioredis.Redis:

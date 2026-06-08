@@ -35,7 +35,7 @@ async def load_context(state: TutoringState) -> dict[str, Any]:
     assignment_id = state.get("assignment_id")
     study_group = state.get("study_group")
 
-    async def _load_assignment():
+    async def _load_assignment() -> Any:
         if not assignment_id:
             return None
         try:
@@ -45,7 +45,7 @@ async def load_context(state: TutoringState) -> dict[str, Any]:
             logger.warning("Assignment lookup failed", error=str(e))
             return None
 
-    async def _load_memory():
+    async def _load_memory() -> Any:
         if study_group == "control":
             return MemoryContext.empty()
         try:
@@ -60,7 +60,7 @@ async def load_context(state: TutoringState) -> dict[str, Any]:
             logger.warning("Memory retrieval failed, using empty context", error=str(e))
             return MemoryContext.empty()
 
-    async def _load_profile():
+    async def _load_profile() -> Any:
         if study_group == "control":
             return None
         try:
@@ -69,7 +69,7 @@ async def load_context(state: TutoringState) -> dict[str, Any]:
             logger.warning("Profile loading failed", error=str(e))
             return None
 
-    async def _load_history():
+    async def _load_history() -> Any:
         try:
             result = await db.execute(
                 select(Message)
@@ -83,7 +83,7 @@ async def load_context(state: TutoringState) -> dict[str, Any]:
             logger.warning("History loading failed", error=str(e))
             return []
 
-    async def _load_student_docs():
+    async def _load_student_docs() -> Any:
         from docere.core.memory.student_documents import StudentDocumentManager
 
         try:

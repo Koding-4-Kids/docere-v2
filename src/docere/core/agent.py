@@ -229,7 +229,7 @@ class TutoringAgent:
                 logger.warning("Memory retrieval failed, using empty context", error=str(e))
                 return MemoryContext.empty()
 
-        async def _load_profile():
+        async def _load_profile() -> Any:
             if study_group == "control":
                 return None
             return await self.memory.profile_builder.get_profile(student_id, course_id)

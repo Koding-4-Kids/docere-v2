@@ -203,7 +203,7 @@ class StudentDocumentManager:
         """Parse with Docling for rich structure extraction."""
         import asyncio
 
-        def _sync_parse():
+        def _sync_parse() -> tuple[str, int, list[dict[str, Any]]]:
             from docling.document_converter import DocumentConverter
 
             converter = DocumentConverter()
@@ -235,7 +235,7 @@ class StudentDocumentManager:
         """Fallback: parse PDF with pypdf (already a dependency)."""
         import asyncio
 
-        def _sync_parse():
+        def _sync_parse() -> tuple[str, int, list[dict[str, Any]]]:
             from pypdf import PdfReader
 
             reader = PdfReader(file_path)

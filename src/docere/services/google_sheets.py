@@ -39,7 +39,7 @@ class GoogleSheetsService:
         if not creds:
             raise ValueError("Google not connected. Please connect your Google account first.")
 
-        def _create():
+        def _create() -> dict[str, Any]:
             sheets_service = build("sheets", "v4", credentials=creds, static_discovery=False)
 
             spreadsheet = (
@@ -89,7 +89,7 @@ class GoogleSheetsService:
         if not creds:
             raise ValueError("Google not connected. Please connect your Google account first.")
 
-        def _list():
+        def _list() -> list[dict[str, Any]]:
             drive_service = build("drive", "v3", credentials=creds, static_discovery=False)
             results = (
                 drive_service.files()
@@ -129,7 +129,7 @@ class GoogleSheetsService:
         if not creds:
             raise ValueError("Google not connected. Please connect your Google account first.")
 
-        def _read():
+        def _read() -> dict[str, Any]:
             sheets_service = build("sheets", "v4", credentials=creds, static_discovery=False)
 
             # Get spreadsheet title

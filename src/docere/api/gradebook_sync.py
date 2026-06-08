@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from docere.config import settings
 from docere.dependencies import get_claude, get_db, require_instructor
 from docere.integrations.llm.client import ClaudeClient
+from docere.integrations.lms.base import LMSAdapter
 from docere.models.course import Course
 
 logger = structlog.get_logger()
@@ -153,7 +154,7 @@ async def read_google_spreadsheet_url(
 # ── LMS Destinations ──
 
 
-def _get_lms_adapter():
+def _get_lms_adapter() -> LMSAdapter | None:
     """Get the configured LMS adapter."""
     if settings.moodle_base_url and settings.moodle_api_token:
         from docere.integrations.lms.moodle import MoodleAdapter

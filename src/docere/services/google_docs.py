@@ -33,7 +33,7 @@ class GoogleDocsService:
         if not creds:
             raise ValueError("Google not connected. Please connect your Google account first.")
 
-        def _create():
+        def _create() -> dict[str, Any]:
             docs_service = build("docs", "v1", credentials=creds, static_discovery=False)
             doc = docs_service.documents().create(body={"title": title}).execute()
             doc_id = doc["documentId"]

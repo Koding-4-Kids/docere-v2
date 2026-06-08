@@ -49,7 +49,7 @@ class GmailService:
 
         raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
-        def _send():
+        def _send() -> Any:
             service = build("gmail", "v1", credentials=creds, static_discovery=False)
             result = (
                 service.users()

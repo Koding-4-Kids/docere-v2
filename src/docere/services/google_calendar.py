@@ -155,7 +155,7 @@ class GoogleCalendarService:
         # Use only the scopes the user actually granted (not the full SCOPES list)
         # to avoid invalid_scope errors on token refresh
         granted = token_record.scopes.split(",") if token_record.scopes else []
-        creds = Credentials(
+        creds = Credentials(  # type: ignore[no-untyped-call]
             token=access_token,
             refresh_token=refresh_token,
             token_uri="https://oauth2.googleapis.com/token",

@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import func as sa_func
 from sqlalchemy import select
@@ -182,7 +183,7 @@ async def upload_document(
     course_id: str = Form(...),
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-):
+) -> DocumentUploadResponse:
     """Upload and parse a document. Returns extracted text for preview."""
     from docere.models.document import StudentDocument
 
@@ -242,7 +243,7 @@ async def upload_document_from_url(
     request: UrlUploadRequest,
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-):
+) -> DocumentUploadResponse:
     """Download a document from URL, parse it, return text for preview."""
     from urllib.parse import unquote, urlparse
 
@@ -318,7 +319,7 @@ async def confirm_document(
     doc_id: str,
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-):
+) -> DocumentStatusResponse:
     """Add document to collection: chunks and embeds in the background."""
     from docere.models.document import StudentDocument
 
@@ -349,7 +350,7 @@ async def list_documents(
     course_id: str | None = None,
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[DocumentSummary]:
     """List documents. If course_id given, filter by course. Otherwise all."""
     from docere.models.document import StudentDocument
 
@@ -387,7 +388,7 @@ async def get_document(
     doc_id: str,
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-):
+) -> DocumentDetail:
     """Get full document detail including extracted text."""
     from docere.models.document import StudentDocument
 
@@ -421,7 +422,7 @@ async def get_document_status(
     doc_id: str,
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-):
+) -> DocumentStatusResponse:
     """Check processing status of a document."""
     from docere.models.document import StudentDocument
 
@@ -443,10 +444,8 @@ async def get_document_file(
     doc_id: str,
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-):
+) -> FileResponse:
     """Serve the original uploaded file for in-browser rendering."""
-    from fastapi.responses import FileResponse
-
     from docere.models.document import StudentDocument
 
     doc = await db.get(StudentDocument, uuid.UUID(doc_id))
@@ -469,7 +468,7 @@ async def delete_document(
     doc_id: str,
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """Delete a document and its vectors."""
     from docere.core.memory.student_documents import StudentDocumentManager
     from docere.models.document import StudentDocument

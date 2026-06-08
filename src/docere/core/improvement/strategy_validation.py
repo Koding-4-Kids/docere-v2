@@ -18,13 +18,13 @@ class StrategySchema(BaseModel):
     prompt_template: str = Field(..., min_length=50, max_length=2000)
 
     @validator("name")
-    def validate_name(cls, v):
+    def validate_name(cls, v: str) -> str:
         if not re.match(r"^[a-zA-Z0-9\s\-_()]+$", v):
             raise ValueError("Strategy name contains invalid characters")
         return v
 
     @validator("prompt_template")
-    def validate_prompt_template(cls, v):
+    def validate_prompt_template(cls, v: str) -> str:
         # Check for basic pedagogical structure
         required_elements = ["student", "learn", "understand", "explain"]
         if not any(element in v.lower() for element in required_elements):
@@ -40,7 +40,7 @@ class StrategySchema(BaseModel):
 class StrategyValidator:
     """Validates generated strategies before activation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.validation_rules = [
             self._validate_schema,
             self._validate_pedagogical_coherence,

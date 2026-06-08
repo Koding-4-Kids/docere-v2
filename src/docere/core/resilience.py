@@ -162,12 +162,12 @@ def with_retry(
     base_delay: float = 0.5,
     max_delay: float = 10.0,
     retryable: tuple[type[Exception], ...] = (Exception,),
-):
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator version of retry_async."""
 
-    def decorator(fn):
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(fn)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             return await retry_async(
                 lambda: fn(*args, **kwargs),
                 max_retries=max_retries,

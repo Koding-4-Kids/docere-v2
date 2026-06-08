@@ -3,6 +3,7 @@
 # ruff: noqa: E501
 
 import asyncio
+from collections.abc import Callable
 from typing import Any
 
 import structlog
@@ -60,7 +61,7 @@ class CircuitBreaker:
         self.last_failure_time = None
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
 
-    async def call(self, func, *args, **kwargs):
+    async def call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute function with circuit breaker protection."""
         if self.state == "OPEN":
             if self._should_attempt_reset():
@@ -84,12 +85,12 @@ class CircuitBreaker:
 
         return time.time() - self.last_failure_time > self.recovery_timeout
 
-    def _on_success(self):
+    def _on_success(self) -> None:
         """Reset circuit breaker on successful call."""
         self.failure_count = 0
         self.state = "CLOSED"
 
-    def _on_failure(self):
+    def _on_failure(self) -> None:
         """Handle failure and potentially open circuit."""
         import time
 
@@ -251,7 +252,7 @@ class EnhancedStrategyEvolver:
             bottom_contexts=bottom_str,
         )
 
-        async def claude_call():
+        async def claude_call() -> str:
             return await self.claude.chat(
                 system_prompt="You are a teaching strategy designer. Respond with only valid JSON.",
                 messages=[{"role": "user", "content": prompt}],

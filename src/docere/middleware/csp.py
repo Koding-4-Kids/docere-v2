@@ -4,7 +4,7 @@ import time
 
 import structlog
 from sqlalchemy import select
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -42,7 +42,7 @@ async def _get_cached_issuers() -> list[str]:
 class CSPMiddleware(BaseHTTPMiddleware):
     """Sets Content-Security-Policy frame-ancestors from registered LTI platforms."""
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         response = await call_next(request)
 
         issuers = await _get_cached_issuers()

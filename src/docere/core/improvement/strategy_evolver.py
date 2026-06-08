@@ -12,6 +12,7 @@ Process:
 # ruff: noqa: E501
 
 import json
+import uuid
 
 import structlog
 from sqlalchemy import select
@@ -209,7 +210,7 @@ class StrategyEvolver:
         return False
 
     async def _get_score_contexts(
-        self, strategy_id, best: bool = True, limit: int = 3
+        self, strategy_id: uuid.UUID, best: bool = True, limit: int = 3
     ) -> list[str]:
         """Get top or bottom scoring interaction contexts for a strategy.
 

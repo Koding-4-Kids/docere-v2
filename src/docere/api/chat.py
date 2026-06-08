@@ -2,6 +2,7 @@
 
 import json
 import uuid
+from collections.abc import AsyncIterator
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -267,7 +268,7 @@ async def stream_message(
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    async def _event_generator():
+    async def _event_generator() -> AsyncIterator[str]:
         async for event in stream_tutoring_graph(
             db=db,
             qdrant=qdrant,

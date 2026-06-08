@@ -93,7 +93,7 @@ class QdrantStore:
             ]
             query_filter = models.Filter(must=must_conditions)
 
-        async def _do_search():
+        async def _do_search() -> list[dict[str, object]]:
             results = await self.client.query_points(
                 collection_name=collection_name,
                 query=query_vector,
