@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from pydantic import BaseModel, Field, validator
@@ -168,7 +168,7 @@ class RobustJSONExtractor:
                 brace_count -= 1
                 if brace_count == 0:
                     json_text = text[json_start : i + 1]
-                    return json.loads(json_text)
+                    return cast(dict[str, Any], json.loads(json_text))
 
         return None
 
@@ -181,7 +181,7 @@ class RobustJSONExtractor:
 
         for match in matches:
             try:
-                return json.loads(match)
+                return cast(dict[str, Any], json.loads(match))
             except json.JSONDecodeError:
                 continue
 

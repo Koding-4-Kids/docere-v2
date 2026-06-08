@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator
 from functools import partial
+from typing import Any, cast
 
 import structlog
 
@@ -18,7 +19,7 @@ _RETRYABLE_OPENAI: tuple[type[Exception], ...] = ()
 _RETRYABLE_ANTHROPIC: tuple[type[Exception], ...] = ()
 
 try:
-    import openai
+    import openai  # type: ignore[import-not-found]
 
     _RETRYABLE_OPENAI = (
         openai.APITimeoutError,
@@ -92,14 +93,17 @@ class ClaudeClient:
                 self._chat_anthropic, system_prompt, messages, model, max_tokens, temperature
             )
 
-        return await self.breaker.call(
-            lambda: retry_async(
-                call,
-                max_retries=3,
-                base_delay=0.5,
-                max_delay=10.0,
-                retryable=self._retryable or (Exception,),
-            )
+        return cast(
+            str,
+            await self.breaker.call(
+                lambda: retry_async(
+                    call,
+                    max_retries=3,
+                    base_delay=0.5,
+                    max_delay=10.0,
+                    retryable=self._retryable or (Exception,),
+                )
+            ),
         )
 
     async def _chat_openai(
@@ -117,7 +121,7 @@ class ClaudeClient:
             temperature=temperature,
             messages=openai_messages,
         )
-        return response.choices[0].message.content
+        return response.choices[0].message.content or ""
 
     async def _chat_anthropic(
         self,
@@ -127,15 +131,18 @@ class ClaudeClient:
         max_tokens: int,
         temperature: float,
     ) -> str:
+        from anthropic.types import TextBlock
+
         response = await self.anthropic_client.messages.create(
             model=model or self.default_model,
             max_tokens=max_tokens,
             temperature=temperature,
             system=system_prompt,
-            messages=messages,
+            messages=cast(list[Any], messages),
         )
-        return response.content[0].text
-
+        # guards against empty responses
+        text_block = next((b for b in response.content if isinstance(b, TextBlock)), None)
+        return text_block.text if text_block else ""
     async def stream(
         self,
         system_prompt: str,
@@ -208,7 +215,7 @@ class ClaudeClient:
             max_tokens=max_tokens,
             temperature=temperature,
             system=system_prompt,
-            messages=messages,
+            messages=cast(list[Any], messages),
         ) as stream:
             async for text in stream.text_stream:
                 yield text

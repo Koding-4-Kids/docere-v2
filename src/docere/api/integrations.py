@@ -299,7 +299,7 @@ async def _execute_excel(payload: dict[str, Any]) -> ExecuteActionResponse:
 
     The file is served via /download-excel/<filename> endpoint.
     """
-    import openpyxl
+    import openpyxl  # type: ignore[import-untyped]
 
     title = payload.get("title", "Export")
     headers = payload.get("headers", [])

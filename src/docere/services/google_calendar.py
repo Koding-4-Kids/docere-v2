@@ -3,13 +3,14 @@
 import asyncio
 from datetime import UTC, datetime
 from functools import partial
+from typing import cast
 
 import structlog
 from cryptography.fernet import Fernet
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import Flow  # type: ignore[import-untyped]
+from googleapiclient.discovery import build  # type: ignore[import-untyped]
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -73,7 +74,7 @@ class GoogleCalendarService:
             prompt="consent",
             state=state or "",
         )
-        return url
+        return cast(str, url)
 
     async def handle_oauth_callback(self, code: str, instructor_id: str) -> InstructorCalendarToken:
         """Exchange auth code for tokens and store encrypted."""
@@ -258,7 +259,7 @@ class GoogleCalendarService:
 
         event_id = created.get("id")
         logger.info("Calendar event created", event_id=event_id, instructor_id=instructor_id)
-        return event_id
+        return cast(str | None, event_id)
 
     async def cancel_event(
         self,

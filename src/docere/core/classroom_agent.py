@@ -373,7 +373,7 @@ class ClassroomAgent:
                 val += 1.5
             if p.current_grade is not None and p.current_grade < 70:
                 val += 1.0
-            return val
+            return float(val)
 
         with_profiles.sort(key=score, reverse=True)
         return with_profiles[:limit]

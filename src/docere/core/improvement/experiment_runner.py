@@ -1,7 +1,7 @@
 """Experiment runner: manages ablation study configuration and feature gating."""
 
 import hashlib
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from sqlalchemy import select
@@ -86,7 +86,7 @@ class ExperimentRunner:
             course_id=course_id,
             group=group,
         )
-        return group
+        return cast(str, group)
 
     async def get_feature_flags(self, study_group: str | None) -> dict[str, bool]:
         """Get feature flags based on study group.

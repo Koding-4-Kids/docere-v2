@@ -238,7 +238,7 @@ class StrategyArchive:
             if ctx_stats and ctx_stats.get("total_uses", 0) >= MIN_CONTEXT_OBS:
                 exploitation = ctx_stats["avg_score"]
                 exploration = math.sqrt(2 * math.log(total_uses) / ctx_stats["total_uses"])
-                return exploitation + exploration
+                return float(exploitation) + exploration
 
         # Fall back to global stats
         if strategy.total_uses == 0:

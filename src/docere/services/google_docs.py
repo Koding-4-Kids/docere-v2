@@ -4,7 +4,7 @@ import asyncio
 from typing import Any
 
 import structlog
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.services.google_calendar import GoogleCalendarService

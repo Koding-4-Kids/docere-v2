@@ -2,6 +2,7 @@
 
 import hashlib
 from collections import OrderedDict
+from typing import cast
 
 import httpx
 import structlog
@@ -114,8 +115,11 @@ async def _voyage_embed_batch(texts: list[str]) -> list[list[float]]:
             data = response.json()
             return [item["embedding"] for item in data["data"]]
 
-    return await _embedding_breaker.call(
-        lambda: retry_async(_call, max_retries=2, base_delay=0.5, retryable=_RETRYABLE_HTTP)
+    return cast(
+        list[list[float]],
+        await _embedding_breaker.call(
+            lambda: retry_async(_call, max_retries=2, base_delay=0.5, retryable=_RETRYABLE_HTTP)
+        ),
     )
 
 
@@ -143,6 +147,9 @@ async def _openai_embed_batch(texts: list[str]) -> list[list[float]]:
             data = response.json()
             return [item["embedding"] for item in data["data"]]
 
-    return await _embedding_breaker.call(
-        lambda: retry_async(_call, max_retries=2, base_delay=0.5, retryable=_RETRYABLE_HTTP)
+    return cast(
+        list[list[float]],
+        await _embedding_breaker.call(
+            lambda: retry_async(_call, max_retries=2, base_delay=0.5, retryable=_RETRYABLE_HTTP)
+        ),
     )

@@ -282,7 +282,7 @@ class TutoringAgent:
         # Force-inject meeting action if student explicitly asked but LLM missed the format
         explicit_meeting_request = bool(MEETING_KEYWORDS.search(student_message))
         if explicit_meeting_request and not action_data:
-            struggle_concepts = []
+            struggle_concepts: list[str] = []
             if profile and hasattr(profile, "top_confused_concepts"):
                 struggle_concepts = profile.top_confused_concepts or []
             elif profile:

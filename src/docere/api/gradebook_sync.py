@@ -799,7 +799,7 @@ async def download_fixed_excel(
     _user_id: uuid.UUID = Depends(require_instructor),
 ) -> StreamingResponse:
     """Generate an Excel file from the current (fixed) spreadsheet data."""
-    import openpyxl
+    import openpyxl  # type: ignore[import-untyped]
 
     wb = openpyxl.Workbook()
     ws = wb.active

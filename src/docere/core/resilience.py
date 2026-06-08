@@ -154,7 +154,8 @@ async def retry_async(
             )
             await asyncio.sleep(jitter)
 
-    raise last_error  # Should never reach here, but satisfies type checker
+    assert last_error is not None
+    raise last_error
 
 
 def with_retry(

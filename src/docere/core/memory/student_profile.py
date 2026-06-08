@@ -1,6 +1,7 @@
 """Student profile builder: tracks learning patterns and generates narrative summaries."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from sqlalchemy import select
@@ -124,7 +125,9 @@ class StudentProfileBuilder:
                 mastery.times_struggled += 1
 
             # Load or initialize BKT state from evidence JSONB
-            evidence = mastery.evidence or {}
+            evidence: dict[str, Any] = (
+                mastery.evidence if isinstance(mastery.evidence, dict) else {}
+            )
             p_learned = evidence.get("bkt_p_learned", mastery.mastery_level or 0.1)
             params = BKTParams(**evidence.get("bkt_params", {}))
 
@@ -151,7 +154,7 @@ class StudentProfileBuilder:
                 }
             )
             evidence["observation_history"] = obs_history[-20:]
-            mastery.evidence = evidence
+            mastery.evidence = evidence  # type: ignore[assignment]
             mastery.last_practiced_at = now
         else:
             # First observation for this concept
