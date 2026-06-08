@@ -19,6 +19,7 @@ env/
 .pytest_cache/
 htmlcov/
 .coverage
+coverage.xml
 
 *.db
 *.sqlite3
