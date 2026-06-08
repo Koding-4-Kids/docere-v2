@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -182,7 +183,7 @@ class StudyResultsResponse(BaseModel):
     study_id: str
     study_name: str | None = None
     is_active: bool = False
-    groups: dict
+    groups: dict[str, Any]
     group_metrics: list[GroupMetrics] = []
 
 
@@ -263,7 +264,7 @@ async def get_study_results(
 class ConfigureStudyRequest(BaseModel):
     course_id: uuid.UUID
     study_name: str
-    groups: dict[str, dict]
+    groups: dict[str, dict[str, Any]]
     randomization_seed: int | None = None
 
 
@@ -347,7 +348,7 @@ async def configure_study(
 class ExportEvent(BaseModel):
     event_type: str
     group: str | None = None
-    event_data: dict
+    event_data: dict[str, Any]
     recorded_at: str
 
 

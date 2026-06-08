@@ -6,6 +6,7 @@ lms_announcement, calendar_event.
 
 import json
 import re
+from typing import Any
 
 import structlog
 
@@ -21,14 +22,14 @@ VALID_ACTION_TYPES = {
 }
 
 
-def extract_actions(response_text: str) -> tuple[str, list[dict]]:
+def extract_actions(response_text: str) -> tuple[str, list[dict[str, Any]]]:
     """Extract all ```action blocks from LLM response.
 
     Returns:
         (clean_text_without_action_blocks, list_of_action_dicts)
     """
     pattern = r"```action\s*\n(.*?)\n\s*```"
-    actions: list[dict] = []
+    actions: list[dict[str, Any]] = []
     clean = response_text
 
     for match in reversed(list(re.finditer(pattern, response_text, re.DOTALL))):

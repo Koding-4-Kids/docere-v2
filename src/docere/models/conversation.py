@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -60,27 +61,27 @@ class Message(Base, UUIDMixin):
     embedding_id: Mapped[str | None] = mapped_column(String(255))
     token_count: Mapped[int | None] = mapped_column(Integer)
     model_used: Mapped[str | None] = mapped_column(String(100))
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     @property
-    def artifact(self) -> dict | None:
+    def artifact(self) -> dict[str, Any] | None:
         """Extract study artifact from metadata for serialization."""
         meta = self.metadata_ or {}
         a = meta.get("artifact")
         return a if isinstance(a, dict) else None
 
     @property
-    def action(self) -> dict | None:
+    def action(self) -> dict[str, Any] | None:
         """Extract action (meeting suggestion) from metadata for serialization."""
         meta = self.metadata_ or {}
         a = meta.get("action")
         return a if isinstance(a, dict) else None
 
     @property
-    def widgets(self) -> list[dict] | None:
+    def widgets(self) -> list[dict[str, Any]] | None:
         """Extract widget list from metadata for serialization."""
         meta = self.metadata_ or {}
         w = meta.get("widgets")

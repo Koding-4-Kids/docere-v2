@@ -16,6 +16,7 @@ Context-aware selection:
 import math
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from sqlalchemy import func, select
@@ -252,7 +253,7 @@ class StrategyArchive:
         conversation_id: str,
         score: float,
         interaction_score_id: str | None = None,
-        context_metadata: dict | None = None,
+        context_metadata: dict[str, Any] | None = None,
         context: StrategyContext | None = None,
     ) -> None:
         """Record an interaction outcome for a strategy.

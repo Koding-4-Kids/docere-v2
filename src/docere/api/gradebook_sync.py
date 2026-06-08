@@ -1,9 +1,10 @@
 """Gradebook Sync: validate, sync, and fix grades between spreadsheets and LMS."""
+
 # E501 intentional here: file holds long prompt/instruction string constants.
 # ruff: noqa: E501
-
 import io
 import uuid
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -62,7 +63,7 @@ class ValidationResult(BaseModel):
     valid: bool
     mappings: ColumnMapping | None = None
     issues: list[ValidationIssue] = []
-    preview: list[dict] = []
+    preview: list[dict[str, Any]] = []
     student_count: int = 0
 
 
@@ -76,7 +77,7 @@ class SyncRequest(BaseModel):
 class SyncResult(BaseModel):
     synced: int
     failed: int
-    errors: list[dict] = []
+    errors: list[dict[str, Any]] = []
 
 
 class FixRequest(BaseModel):
@@ -86,7 +87,7 @@ class FixRequest(BaseModel):
 
 class FixResult(BaseModel):
     fixed_data: SpreadsheetData
-    changes: list[dict] = []
+    changes: list[dict[str, Any]] = []
 
 
 # ── Google Sheets Sources ──
@@ -96,7 +97,7 @@ class FixResult(BaseModel):
 async def list_google_spreadsheets(
     user_id: uuid.UUID = Depends(require_instructor),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """List Docere-created Google Sheets for this instructor."""
     from docere.services.google_sheets import GoogleSheetsService
 
@@ -116,7 +117,7 @@ async def read_google_spreadsheet(
     request: ReadSheetRequest,
     user_id: uuid.UUID = Depends(require_instructor),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Read data from a Google Sheet by spreadsheet ID."""
     from docere.services.google_sheets import GoogleSheetsService
 
@@ -135,7 +136,7 @@ async def read_google_spreadsheet_url(
     request: ReadSheetUrlRequest,
     user_id: uuid.UUID = Depends(require_instructor),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Read data from a Google Sheet by URL."""
     from docere.services.google_sheets import GoogleSheetsService
 
@@ -170,7 +171,7 @@ async def get_grade_items(
     course_id: uuid.UUID,
     user_id: uuid.UUID = Depends(require_instructor),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Get assignment/grade items from the LMS for a course."""
     course = await db.get(Course, course_id)
     if not course or not course.external_lms_id:
@@ -217,7 +218,9 @@ def _find_student_column(headers: list[str], sample_rows: list[list[str]]) -> in
     return None
 
 
-def _match_headers_to_items(headers: list[str], grade_items: list[dict]) -> dict[str, int]:
+def _match_headers_to_items(
+    headers: list[str], grade_items: list[dict[str, Any]]
+) -> dict[str, int]:
     """Deterministically match spreadsheet headers to grade items by name similarity.
 
     Returns {grade_item_id: column_index}.
@@ -449,7 +452,7 @@ async def validate_gradebook(
 
     # Validate row by row
     issues: list[ValidationIssue] = []
-    preview: list[dict] = []
+    preview: list[dict[str, Any]] = []
 
     for row_idx, row in enumerate(request.source_data.rows):
         # Get student name
@@ -493,7 +496,7 @@ async def validate_gradebook(
             continue
 
         # Validate each grade column
-        student_preview: dict = {
+        student_preview: dict[str, Any] = {
             "student": student_name,
             "student_lms_id": student_lms_id,
             "grades": [],
@@ -614,7 +617,7 @@ async def sync_gradebook(
 
     synced = 0
     failed = 0
-    errors: list[dict] = []
+    errors: list[dict[str, Any]] = []
 
     for row_idx, row in enumerate(request.source_data.rows):
         if row_idx in request.skip_rows:
@@ -749,7 +752,7 @@ async def fix_gradebook(
     )
 
     # Parse fixes
-    changes: list[dict] = []
+    changes: list[dict[str, Any]] = []
     fixed_rows = [list(row) for row in request.source_data.rows]  # Deep copy
 
     try:

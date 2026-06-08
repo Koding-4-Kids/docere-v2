@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 import structlog
 from sqlalchemy import func, select
@@ -127,15 +128,15 @@ class SourceRef:
 
 @dataclass
 class ClassroomContext:
-    student_roster: list[dict]
-    concept_overview: list[dict]
+    student_roster: list[dict[str, Any]]
+    concept_overview: list[dict[str, Any]]
     total_students: int
 
 
 @dataclass
 class ClassroomResponse:
     text: str
-    widgets: list[dict] = field(default_factory=list)
+    widgets: list[dict[str, Any]] = field(default_factory=list)
     sources: list[SourceRef] = field(default_factory=list)
 
 
@@ -358,13 +359,13 @@ class ClassroomAgent:
         )
 
     @staticmethod
-    def _pick_notable_students(context: ClassroomContext, limit: int = 6) -> list[dict]:
+    def _pick_notable_students(context: ClassroomContext, limit: int = 6) -> list[dict[str, Any]]:
         """Pick the most notable students — struggling, disengaged, or outliers."""
         with_profiles = [s for s in context.student_roster if s["profile"]]
         if not with_profiles:
             return context.student_roster[:limit]
 
-        def score(s: dict) -> float:
+        def score(s: dict[str, Any]) -> float:
             p = s["profile"]
             # Higher score = more notable (needs attention)
             val = p.avg_confusion_score * 2
@@ -419,7 +420,7 @@ class ClassroomAgent:
                 for uid, name in students_result.all()
             ]
 
-        concept_overview: list[dict] = []
+        concept_overview: list[dict[str, Any]] = []
         if include_concepts:
             concepts_result = await self.db.execute(
                 select(
@@ -567,9 +568,9 @@ class ClassroomAgent:
         routing: RoutingDecision,
         summaries: list[StudentSummary],
         context: ClassroomContext,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Pre-compute structured widget data from already-loaded context."""
-        widgets: list[dict] = []
+        widgets: list[dict[str, Any]] = []
         roster_by_id = {s["id"]: s for s in context.student_roster}
 
         # Student Card: single-student queries
@@ -669,9 +670,9 @@ class ClassroomAgent:
 
         return widgets
 
-    def _build_meta_widgets(self, context: ClassroomContext) -> list[dict]:
+    def _build_meta_widgets(self, context: ClassroomContext) -> list[dict[str, Any]]:
         """Build widgets for meta (aggregate) questions."""
-        widgets: list[dict] = []
+        widgets: list[dict[str, Any]] = []
 
         if context.concept_overview:
             widgets.append(

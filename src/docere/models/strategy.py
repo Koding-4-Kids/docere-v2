@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -19,7 +20,7 @@ class Strategy(Base, UUIDMixin):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     strategy_type: Mapped[str] = mapped_column(String(100), nullable=False)
     prompt_template: Mapped[str] = mapped_column(Text, nullable=False)
-    applicable_contexts: Mapped[dict] = mapped_column(JSONB, default=dict)
+    applicable_contexts: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
     # Performance tracking
     total_uses: Mapped[int] = mapped_column(Integer, default=0)
@@ -57,7 +58,7 @@ class StrategyScore(Base, UUIDMixin):
         UUID(as_uuid=True), ForeignKey("interaction_scores.id")
     )
     score: Mapped[float] = mapped_column(Float, nullable=False)
-    context_metadata: Mapped[dict] = mapped_column(JSONB, default=dict)
+    context_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

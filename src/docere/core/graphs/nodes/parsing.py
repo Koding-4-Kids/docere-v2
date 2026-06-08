@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
 
 from docere.core.agent import MEETING_KEYWORDS, TutoringAgent
@@ -10,7 +12,7 @@ from docere.core.graphs.state import TutoringState
 logger = structlog.get_logger()
 
 
-def parse_output(state: TutoringState) -> dict:
+def parse_output(state: TutoringState) -> dict[str, Any]:
     """Extract artifact, action, and widget blocks from the LLM response text."""
     response_text = state["response_text"]
     message = state["message"]

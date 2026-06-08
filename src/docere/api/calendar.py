@@ -1,6 +1,7 @@
 """Calendar integration endpoints: OAuth, office hours, availability, booking."""
 
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
@@ -194,7 +195,7 @@ async def get_available_slots(
     course_id: uuid.UUID,
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Get available meeting slots for a course (student-facing)."""
     svc = AvailabilityService(db)
     return await svc.get_available_slots(course_id=str(course_id))

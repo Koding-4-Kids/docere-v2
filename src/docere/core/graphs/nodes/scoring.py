@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
 from sqlalchemy import select
 
@@ -14,7 +16,7 @@ from docere.models.memory import MemoryRecord
 logger = structlog.get_logger()
 
 
-async def score_previous(state: TutoringState) -> dict:
+async def score_previous(state: TutoringState) -> dict[str, Any]:
     """Score the previous assistant message now that we have the student's followup."""
     if state.get("study_group") == "control":
         return {}

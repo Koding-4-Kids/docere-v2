@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -26,7 +27,7 @@ class LearningAnalyticsEvent(Base, UUIDMixin):
         UUID(as_uuid=True), ForeignKey("courses.id")
     )
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    event_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    event_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

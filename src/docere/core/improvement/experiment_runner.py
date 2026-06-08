@@ -1,6 +1,7 @@
 """Experiment runner: manages ablation study configuration and feature gating."""
 
 import hashlib
+from typing import Any
 
 import structlog
 from sqlalchemy import select
@@ -114,7 +115,7 @@ class ExperimentRunner:
         self,
         study_id: str,
         event_type: str,
-        event_data: dict,
+        event_data: dict[str, Any],
         student_id: str | None = None,
     ) -> None:
         """Log a research event for later analysis."""

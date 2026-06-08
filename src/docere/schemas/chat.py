@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -74,7 +74,7 @@ class StudentCardWidget(BaseModel):
     confusion_label: str
     grade_label: str
     total_interactions: int
-    top_concepts: list[dict] = []
+    top_concepts: list[dict[str, Any]] = []
     recent_activity: str = ""
     profile_summary: str = ""
 
@@ -145,14 +145,14 @@ class MessageResponse(BaseModel):
     created_at: datetime
     artifact: StudyArtifact | None = None
     action: MeetingAction | None = None
-    widgets: list[dict] | None = None
+    widgets: list[dict[str, Any]] | None = None
 
     model_config = {"from_attributes": True}
 
 
 class InstructorQueryResponse(BaseModel):
     answer: str
-    widgets: list[dict] = []
+    widgets: list[dict[str, Any]] = []
 
 
 class ConversationResponse(BaseModel):

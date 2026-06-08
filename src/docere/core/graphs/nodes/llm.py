@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
 
 from docere.config import settings
@@ -17,7 +19,7 @@ from docere.core.graphs.state import TutoringState
 logger = structlog.get_logger()
 
 
-def build_prompt(state: TutoringState) -> dict:
+def build_prompt(state: TutoringState) -> dict[str, Any]:
     """Assemble the full system prompt from context, strategy, and instructions."""
     memory_ctx = state.get("memory_context")
     if not memory_ctx:
@@ -114,7 +116,7 @@ def build_prompt(state: TutoringState) -> dict:
     return {"system_prompt": "\n".join(parts)}
 
 
-async def generate_response(state: TutoringState) -> dict:
+async def generate_response(state: TutoringState) -> dict[str, Any]:
     """Call Claude to generate the tutoring response."""
     claude = state["_claude"]
     history = state.get("history", [])

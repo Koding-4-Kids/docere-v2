@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -28,7 +29,7 @@ class Alert(Base, UUIDMixin):
     title: Mapped[str | None] = mapped_column(String(500))
     message: Mapped[str] = mapped_column(Text, nullable=False)
     recommended_action: Mapped[str | None] = mapped_column(Text)
-    evidence: Mapped[dict] = mapped_column(JSONB, default=dict)
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     is_resolved: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(

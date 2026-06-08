@@ -1,10 +1,11 @@
 """Instructor dashboard endpoints."""
+
 # E501 intentional here: file holds long prompt/instruction string constants.
 # ruff: noqa: E501
-
 import uuid
 from collections import defaultdict
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -341,7 +342,7 @@ class CourseSummaryItem(BaseModel):
 class MetaQueryResponse(BaseModel):
     answer: str
     course_summaries: list[CourseSummaryItem] = []
-    actions: list[dict] = []
+    actions: list[dict[str, Any]] = []
 
 
 META_SYSTEM_PROMPT = """You are an AI teaching assistant acting as an instructor's Command Center.
@@ -663,7 +664,7 @@ class AlertResponse(BaseModel):
     title: str | None = None
     message: str
     recommended_action: str | None = None
-    evidence: dict = {}
+    evidence: dict[str, Any] = {}
     is_read: bool = False
     is_resolved: bool = False
     student_id: str | None = None
@@ -779,7 +780,7 @@ class DashboardResponse(BaseModel):
     avg_interaction_score: float = 0.0
     engagement_breakdown: dict[str, int] = {}
     total_interactions: int = 0
-    top_struggling_concepts: list[dict] = []
+    top_struggling_concepts: list[dict[str, Any]] = []
 
 
 @router.get(
@@ -1011,9 +1012,9 @@ class SwitchCourseSignal(BaseModel):
 
 class InstructorQueryResponse(BaseModel):
     answer: str
-    widgets: list[dict] = []
+    widgets: list[dict[str, Any]] = []
     sources: list[SourceRefResponse] = []
-    actions: list[dict] = []
+    actions: list[dict[str, Any]] = []
     switch_course: SwitchCourseSignal | None = None
 
 
@@ -1132,7 +1133,7 @@ class AddConceptRequest(BaseModel):
 
 
 class AddConceptResponse(BaseModel):
-    cell: dict
+    cell: dict[str, Any]
     students_affected: int
     memories_matched: int
 
@@ -1175,7 +1176,7 @@ async def add_concept(
     matching_records = result.scalars().all()
 
     # Group by student, replay BKT chronologically
-    student_records: dict[uuid.UUID, list] = defaultdict(list)
+    student_records: dict[uuid.UUID, list[Any]] = defaultdict(list)
     for rec in matching_records:
         student_records[rec.student_id].append(rec)
 
@@ -1187,7 +1188,7 @@ async def add_concept(
         p_learned = params.p_l0
         times_practiced = 0
         times_struggled = 0
-        obs_history: list[dict] = []
+        obs_history: list[dict[str, Any]] = []
         last_practiced = None
 
         for rec in records:

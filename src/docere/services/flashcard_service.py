@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from fsrs import Card, Rating, Scheduler
@@ -50,7 +51,7 @@ class FlashcardService:
         self,
         student_id: uuid.UUID,
         course_id: uuid.UUID,
-        cards_json: list[dict],
+        cards_json: list[dict[str, Any]],
         source_message_id: uuid.UUID | None = None,
         concepts: list[str] | None = None,
     ) -> int:
@@ -137,7 +138,7 @@ class FlashcardService:
         )
         return result.scalar() or 0
 
-    async def get_all_due_counts(self, student_id: uuid.UUID) -> list[dict]:
+    async def get_all_due_counts(self, student_id: uuid.UUID) -> list[dict[str, Any]]:
         """Due counts across all enrolled courses."""
         now = datetime.now(UTC)
         result = await self.db.execute(

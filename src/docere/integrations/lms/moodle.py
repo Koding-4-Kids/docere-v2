@@ -12,6 +12,7 @@ Key functions:
 
 import hashlib
 import io
+from typing import Any
 from urllib.parse import unquote
 
 import httpx
@@ -241,7 +242,7 @@ class MoodleAdapter(LMSAdapter):
                 )
         return materials
 
-    async def get_grade_items(self, course_id: str) -> list[dict]:
+    async def get_grade_items(self, course_id: str) -> list[dict[str, Any]]:
         """Get assignment/grade items from Moodle gradebook.
 
         Uses mod_assign_get_assignments to get assignment items with their
@@ -254,7 +255,7 @@ class MoodleAdapter(LMSAdapter):
         if not isinstance(data, dict):
             return []
 
-        items: list[dict] = []
+        items: list[dict[str, Any]] = []
         for course_data in data.get("courses", []):
             for a in course_data.get("assignments", []):
                 items.append(
@@ -274,7 +275,7 @@ class MoodleAdapter(LMSAdapter):
         student_id: str,
         grade: float,
         feedback: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Write a grade to Moodle via mod_assign_save_grade.
 
         This is per-student — no bulk endpoint available.
@@ -298,7 +299,7 @@ class MoodleAdapter(LMSAdapter):
             raise ValueError(f"Moodle grade save failed: {result.get('message', 'Unknown error')}")
         return {"success": True}
 
-    async def post_announcement(self, course_id: str, title: str, message: str) -> dict:
+    async def post_announcement(self, course_id: str, title: str, message: str) -> dict[str, Any]:
         """Post announcement via Moodle forum (mod_forum_add_discussion).
 
         Moodle announcements are forum posts in the 'Announcements' forum (type=news).

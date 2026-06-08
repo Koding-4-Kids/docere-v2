@@ -9,6 +9,7 @@ Run with: arq docere.worker.WorkerSettings
 """
 
 from datetime import UTC
+from typing import Any
 
 import structlog
 from arq import cron
@@ -23,7 +24,7 @@ logger = structlog.get_logger()
 # ── Task definitions ──
 
 
-async def run_strategy_evolution(ctx: dict) -> dict:
+async def run_strategy_evolution(ctx: dict[str, Any]) -> dict[str, Any]:
     """Weekly: evolve teaching strategies based on accumulated scores.
 
     Mutates top performers and prunes strategies with low scores.
@@ -40,7 +41,7 @@ async def run_strategy_evolution(ctx: dict) -> dict:
     return result
 
 
-async def run_memory_compression(ctx: dict) -> dict:
+async def run_memory_compression(ctx: dict[str, Any]) -> dict[str, Any]:
     """Weekly: compress old memory records to save context window space.
 
     Groups old interactions by type/course and generates concise summaries.
@@ -56,7 +57,7 @@ async def run_memory_compression(ctx: dict) -> dict:
     return {"compressed": compressed}
 
 
-async def run_lms_sync(ctx: dict) -> dict:
+async def run_lms_sync(ctx: dict[str, Any]) -> dict[str, Any]:
     """Every 2 hours: sync grades and assignments from Canvas/Moodle.
 
     After syncing, processes grade changes through OutcomeTracker
@@ -73,7 +74,7 @@ async def run_lms_sync(ctx: dict) -> dict:
     return result
 
 
-async def run_seed_strategies(ctx: dict) -> dict:
+async def run_seed_strategies(ctx: dict[str, Any]) -> dict[str, Any]:
     """One-time: seed the strategy archive if empty."""
     from docere.core.improvement.strategy_archive import StrategyArchive
 
@@ -87,11 +88,11 @@ async def run_seed_strategies(ctx: dict) -> dict:
 
 
 async def run_lti_course_sync(
-    ctx: dict,
+    ctx: dict[str, Any],
     platform_id: str,
     course_id: str,
     external_course_id: str,
-) -> dict:
+) -> dict[str, Any]:
     """Background: full sync for a course after first LTI launch.
 
     Uses per-platform API credentials from lti_platforms table.
@@ -173,11 +174,11 @@ async def run_lti_course_sync(
 
 
 async def run_lti_material_sync(
-    ctx: dict,
+    ctx: dict[str, Any],
     platform_id: str,
     course_id: str,
     external_course_id: str,
-) -> dict:
+) -> dict[str, Any]:
     """Background: lightweight material-only sync on every LTI launch.
 
     Only syncs materials (not full course), so it's fast. Embeds any
@@ -248,12 +249,12 @@ async def run_lti_material_sync(
 
 
 async def run_document_ingestion(
-    ctx: dict,
+    ctx: dict[str, Any],
     doc_id: str,
     file_path: str,
     student_id: str,
     course_id: str,
-) -> dict:
+) -> dict[str, Any]:
     """Background: parse, chunk, embed, and store a student-uploaded document."""
     import os
     import shutil
@@ -308,13 +309,13 @@ async def run_document_ingestion(
 # ── Worker lifecycle ──
 
 
-async def startup(ctx: dict) -> None:
+async def startup(ctx: dict[str, Any]) -> None:
     """Initialize shared clients when the worker starts."""
     init_clients()
     logger.info("ARQ worker started")
 
 
-async def shutdown(ctx: dict) -> None:
+async def shutdown(ctx: dict[str, Any]) -> None:
     """Clean up when the worker stops."""
     logger.info("ARQ worker shutting down")
 

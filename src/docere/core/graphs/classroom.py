@@ -32,7 +32,7 @@ logger = structlog.get_logger()
 # ── Node functions ──
 
 
-async def load_classroom(state: ClassroomState) -> dict:
+async def load_classroom(state: ClassroomState) -> dict[str, Any]:
     """Load roster + profiles + concept overview."""
     db = state["_db"]
     qdrant = state["_qdrant"]
@@ -53,7 +53,7 @@ async def load_classroom(state: ClassroomState) -> dict:
     return {"context": context, "sources": sources}
 
 
-def route_intent(state: ClassroomState) -> dict:
+def route_intent(state: ClassroomState) -> dict[str, Any]:
     """Heuristic intent classification — no LLM call."""
     db = state["_db"]
     qdrant = state["_qdrant"]
@@ -104,7 +104,7 @@ def decide_path(state: ClassroomState) -> str:
     return "load_mastery"
 
 
-async def find_topic_students(state: ClassroomState) -> dict:
+async def find_topic_students(state: ClassroomState) -> dict[str, Any]:
     """Find students who have mastery data for the topic concept."""
     db = state["_db"]
     qdrant = state["_qdrant"]
@@ -136,7 +136,7 @@ async def find_topic_students(state: ClassroomState) -> dict:
     return {"routing": routing, "sources": sources}
 
 
-async def load_mastery(state: ClassroomState) -> dict:
+async def load_mastery(state: ClassroomState) -> dict[str, Any]:
     """Batch-load concept mastery for target students."""
     filters = state.get("source_filters", {})
     if not filters.get("mastery", True):
@@ -152,7 +152,7 @@ async def load_mastery(state: ClassroomState) -> dict:
     return {"mastery_by_student": mastery}
 
 
-def build_summaries(state: ClassroomState) -> dict:
+def build_summaries(state: ClassroomState) -> dict[str, Any]:
     """Build student summaries from structured data — no LLM."""
     agent_stub = ClassroomAgent.__new__(ClassroomAgent)
     summaries = agent_stub._build_summaries(
@@ -186,7 +186,7 @@ def build_summaries(state: ClassroomState) -> dict:
     return {"summaries": summaries, "sources": sources}
 
 
-async def synthesize(state: ClassroomState) -> dict:
+async def synthesize(state: ClassroomState) -> dict[str, Any]:
     """LLM synthesis of student summaries into instructor-friendly answer."""
     db = state["_db"]
     qdrant = state["_qdrant"]
@@ -205,7 +205,7 @@ async def synthesize(state: ClassroomState) -> dict:
     return {"answer": response.text, "widgets": response.widgets, "sources": response.sources}
 
 
-async def synthesize_meta(state: ClassroomState) -> dict:
+async def synthesize_meta(state: ClassroomState) -> dict[str, Any]:
     """LLM synthesis for aggregate/meta questions."""
     db = state["_db"]
     qdrant = state["_qdrant"]
@@ -240,7 +240,7 @@ async def synthesize_meta(state: ClassroomState) -> dict:
     return {"answer": response.text, "widgets": response.widgets, "sources": response.sources}
 
 
-def build_widgets(state: ClassroomState) -> dict:
+def build_widgets(state: ClassroomState) -> dict[str, Any]:
     """Build widget data from already-loaded context (no-op if synthesize already built them)."""
     # Widgets are already built in synthesize/synthesize_meta via ClassroomAgent internals
     return {}
@@ -249,7 +249,7 @@ def build_widgets(state: ClassroomState) -> dict:
 # ── Build the graph ──
 
 
-def build_classroom_graph() -> StateGraph:
+def build_classroom_graph() -> StateGraph[ClassroomState]:
     """Build the LangGraph classroom agent graph."""
     graph = StateGraph(ClassroomState)
 
@@ -303,7 +303,7 @@ async def run_classroom_graph(
     This replaces ClassroomAgent.answer() with the same behavior
     but using LangGraph for state management and observability.
     """
-    initial_state: dict[str, Any] = {
+    initial_state: ClassroomState = {
         "course_id": course_id,
         "question": question,
         "history": history,

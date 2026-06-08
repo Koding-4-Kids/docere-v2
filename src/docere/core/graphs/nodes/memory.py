@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
 
 from docere.config import settings
@@ -11,7 +13,7 @@ from docere.core.memory.memory_layer import MemoryContext
 logger = structlog.get_logger()
 
 
-async def load_context(state: TutoringState) -> dict:
+async def load_context(state: TutoringState) -> dict[str, Any]:
     """Load memory context, student profile, assignment, and conversation history in parallel."""
     import asyncio
 
@@ -108,7 +110,7 @@ async def load_context(state: TutoringState) -> dict:
     }
 
 
-async def extract_concepts(state: TutoringState) -> dict:
+async def extract_concepts(state: TutoringState) -> dict[str, Any]:
     """Extract concepts, confusion, and sentiment from the exchange (background)."""
     from docere.core.memory.memory_layer import MemoryLayer
 
@@ -132,7 +134,7 @@ async def extract_concepts(state: TutoringState) -> dict:
         return {"extracted_concepts": [], "confusion_score": 0.0, "sentiment": "neutral"}
 
 
-async def update_metrics(state: TutoringState) -> dict:
+async def update_metrics(state: TutoringState) -> dict[str, Any]:
     """Update StudentProfile + ConceptMastery from extracted concepts (background)."""
     from docere.core.memory.memory_layer import MemoryLayer
 
@@ -155,7 +157,7 @@ async def update_metrics(state: TutoringState) -> dict:
     return {}
 
 
-async def summarize_stale(state: TutoringState) -> dict:
+async def summarize_stale(state: TutoringState) -> dict[str, Any]:
     """Summarize conversations idle for 1+ hours (background)."""
     from docere.core.memory.memory_layer import MemoryLayer
 

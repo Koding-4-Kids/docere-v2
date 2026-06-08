@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -43,7 +44,7 @@ class InteractionScore(Base, UUIDMixin):
     # Composite
     composite_score: Mapped[float | None] = mapped_column(Float)
     scoring_method: Mapped[str | None] = mapped_column(String(50))
-    scoring_metadata: Mapped[dict] = mapped_column(JSONB, default=dict)
+    scoring_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
     scored_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

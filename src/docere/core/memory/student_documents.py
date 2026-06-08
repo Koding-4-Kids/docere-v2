@@ -5,6 +5,7 @@ students upload specific reference materials they want searchable verbatim.
 """
 
 import uuid
+from typing import Any
 
 import structlog
 
@@ -180,7 +181,7 @@ class StudentDocumentManager:
 
     # ── Parsing ──
 
-    async def _parse_document(self, file_path: str) -> tuple[str, int, list[dict]]:
+    async def _parse_document(self, file_path: str) -> tuple[str, int, list[dict[str, Any]]]:
         """Parse a document using Docling. Falls back to pypdf for simple PDFs.
 
         Returns:
@@ -198,7 +199,7 @@ class StudentDocumentManager:
 
         raise ValueError(f"Could not parse document: {file_path}")
 
-    async def _parse_with_docling(self, file_path: str) -> tuple[str, int, list[dict]]:
+    async def _parse_with_docling(self, file_path: str) -> tuple[str, int, list[dict[str, Any]]]:
         """Parse with Docling for rich structure extraction."""
         import asyncio
 
@@ -230,7 +231,7 @@ class StudentDocumentManager:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, _sync_parse)
 
-    async def _parse_with_pypdf(self, file_path: str) -> tuple[str, int, list[dict]]:
+    async def _parse_with_pypdf(self, file_path: str) -> tuple[str, int, list[dict[str, Any]]]:
         """Fallback: parse PDF with pypdf (already a dependency)."""
         import asyncio
 
@@ -260,10 +261,10 @@ class StudentDocumentManager:
     # ── Chunking ──
 
     def _build_chunks(
-        self, full_text: str, sections: list[dict], max_chars: int = 2000
-    ) -> list[dict]:
+        self, full_text: str, sections: list[dict[str, Any]], max_chars: int = 2000
+    ) -> list[dict[str, Any]]:
         """Build chunks from sections, falling back to paragraph splitting."""
-        chunks: list[dict] = []
+        chunks: list[dict[str, Any]] = []
         chunk_index = 0
 
         if sections:

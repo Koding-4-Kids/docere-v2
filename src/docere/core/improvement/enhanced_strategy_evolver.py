@@ -337,7 +337,7 @@ class EnhancedStrategyEvolver:
 
         return False
 
-    def _preprocess_template(self, template: str) -> set:
+    def _preprocess_template(self, template: str) -> set[Any]:
         """Preprocess template for similarity comparison."""
         # Convert to lowercase and split
         words = template.lower().split()

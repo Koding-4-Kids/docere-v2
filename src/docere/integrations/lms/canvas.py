@@ -14,6 +14,8 @@ Key endpoints:
 - GET /api/v1/courses/:id/quizzes - quizzes
 """
 
+from typing import Any
+
 import httpx
 
 from docere.config import settings
@@ -64,7 +66,7 @@ class CanvasAdapter(LMSAdapter):
                 params = None  # Only use params on first request
         return results
 
-    async def get_grade_items(self, course_id: str) -> list[dict]:
+    async def get_grade_items(self, course_id: str) -> list[dict[str, Any]]:
         """Get assignment groups + assignments from Canvas.
 
         Returns flattened list of assignments with their group as category.
@@ -73,7 +75,7 @@ class CanvasAdapter(LMSAdapter):
             f"/courses/{course_id}/assignment_groups",
             {"include[]": "assignments"},
         )
-        items: list[dict] = []
+        items: list[dict[str, Any]] = []
         for group in data:
             if not isinstance(group, dict):
                 continue
@@ -97,9 +99,9 @@ class CanvasAdapter(LMSAdapter):
         student_id: str,
         grade: float,
         feedback: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Write a grade to Canvas via submission update."""
-        body: dict = {"submission": {"posted_grade": str(grade)}}
+        body: dict[str, Any] = {"submission": {"posted_grade": str(grade)}}
         if feedback:
             body["comment"] = {"text_comment": feedback}
 
@@ -112,7 +114,7 @@ class CanvasAdapter(LMSAdapter):
             response.raise_for_status()
         return {"success": True}
 
-    async def post_announcement(self, course_id: str, title: str, message: str) -> dict:
+    async def post_announcement(self, course_id: str, title: str, message: str) -> dict[str, Any]:
         """Post announcement via Canvas discussion topics API."""
         async with httpx.AsyncClient() as client:
             response = await client.post(

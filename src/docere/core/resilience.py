@@ -69,7 +69,7 @@ class CircuitBreaker:
                 self._state = CircuitState.HALF_OPEN
         return self._state
 
-    async def call(self, fn: Callable[[], Coroutine]) -> Any:
+    async def call(self, fn: Callable[[], Coroutine[Any, Any, Any]]) -> Any:
         """Execute fn through the circuit breaker."""
         state = self.state
 
@@ -120,7 +120,7 @@ class CircuitBreaker:
 
 
 async def retry_async(
-    fn: Callable[[], Coroutine],
+    fn: Callable[[], Coroutine[Any, Any, Any]],
     max_retries: int = 3,
     base_delay: float = 0.5,
     max_delay: float = 10.0,

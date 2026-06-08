@@ -7,14 +7,15 @@ For each student message:
 4. Call LLM → return response immediately
 5. Fire-and-forget: score previous interaction, extract concepts, summarize stale
 """
+
 # E501 intentional here: file holds long prompt/instruction string constants.
 # ruff: noqa: E501
-
 import asyncio
 import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from sqlalchemy import select
@@ -162,9 +163,9 @@ class AgentResponse:
     token_count: int
     strategy_used: str | None
     memory_context_size: int
-    artifact: dict | None = None
-    action: dict | None = None
-    widgets: list[dict] | None = None
+    artifact: dict[str, Any] | None = None
+    action: dict[str, Any] | None = None
+    widgets: list[dict[str, Any]] | None = None
 
 
 class TutoringAgent:
@@ -382,7 +383,7 @@ class TutoringAgent:
         student_message: str,
         response_text: str,
         study_group: str | None,
-        artifact_data: dict | None = None,
+        artifact_data: dict[str, Any] | None = None,
         assistant_msg_id: str | None = None,
     ) -> None:
         """Background post-processing: scoring, concept extraction, summarization.
@@ -647,7 +648,7 @@ class TutoringAgent:
         return "\n".join(parts)
 
     @staticmethod
-    def _extract_artifact(response_text: str) -> tuple[str, dict | None]:
+    def _extract_artifact(response_text: str) -> tuple[str, dict[str, Any] | None]:
         """Extract a fenced ```artifact block from the LLM response.
 
         Returns:
@@ -704,7 +705,7 @@ class TutoringAgent:
             return response_text, None
 
     @staticmethod
-    def _extract_action(response_text: str) -> tuple[str, dict | None]:
+    def _extract_action(response_text: str) -> tuple[str, dict[str, Any] | None]:
         """Extract a fenced ```action block from the LLM response.
 
         Returns:
@@ -733,14 +734,14 @@ class TutoringAgent:
             return response_text, None
 
     @staticmethod
-    def _extract_widgets(response_text: str) -> tuple[str, list[dict]]:
+    def _extract_widgets(response_text: str) -> tuple[str, list[dict[str, Any]]]:
         """Extract all ```widget blocks from the LLM response.
 
         Returns:
             (clean_chat_text, list_of_widget_dicts)
         """
         pattern = r"```widget\s*\n(.*?)\n\s*```"
-        widgets: list[dict] = []
+        widgets: list[dict[str, Any]] = []
         clean = response_text
 
         for match in reversed(list(re.finditer(pattern, response_text, re.DOTALL))):

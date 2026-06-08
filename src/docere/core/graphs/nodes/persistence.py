@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from sqlalchemy import select
@@ -14,7 +15,7 @@ from docere.models.conversation import Conversation, Message
 logger = structlog.get_logger()
 
 
-async def persist_messages(state: TutoringState) -> dict:
+async def persist_messages(state: TutoringState) -> dict[str, Any]:
     """Save user + assistant messages to the database and commit."""
     db = state["_db"]
     conversation_id = state["conversation_id"]
@@ -70,7 +71,7 @@ async def persist_messages(state: TutoringState) -> dict:
     return {"assistant_msg_id": str(assistant_msg.id)}
 
 
-async def persist_flashcards(state: TutoringState) -> dict:
+async def persist_flashcards(state: TutoringState) -> dict[str, Any]:
     """Persist flashcard artifacts to the student's deck (background)."""
     artifact = state.get("artifact")
     if not artifact or artifact.get("type") != "flashcards":

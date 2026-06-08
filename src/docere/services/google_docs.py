@@ -1,6 +1,7 @@
 """Google Docs integration: create documents using instructor's OAuth tokens."""
 
 import asyncio
+from typing import Any
 
 import structlog
 from googleapiclient.discovery import build
@@ -23,7 +24,7 @@ class GoogleDocsService:
         instructor_id: str,
         title: str,
         content: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Create a Google Doc with the given title and content.
 
         Returns {"document_id": str, "url": str}.

@@ -2,6 +2,7 @@
 
 import asyncio
 import re
+from typing import Any
 
 import structlog
 from googleapiclient.discovery import build
@@ -29,7 +30,7 @@ class GoogleSheetsService:
         headers: list[str],
         rows: list[list[str]],
         sheet_name: str = "Sheet1",
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Create a Google Sheet with headers and data rows.
 
         Returns {"spreadsheet_id": str, "url": str}.
@@ -79,7 +80,7 @@ class GoogleSheetsService:
         )
         return result
 
-    async def list_spreadsheets(self, instructor_id: str) -> list[dict]:
+    async def list_spreadsheets(self, instructor_id: str) -> list[dict[str, Any]]:
         """List spreadsheets created by Docere (drive.file scope).
 
         Returns [{"id": str, "title": str, "url": str, "modified_time": str}].
@@ -119,7 +120,7 @@ class GoogleSheetsService:
         instructor_id: str,
         spreadsheet_id: str,
         range_name: str = "Sheet1",
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Read data from a Google Sheet.
 
         Returns {"title": str, "headers": list[str], "rows": list[list[str]]}.
@@ -166,7 +167,7 @@ class GoogleSheetsService:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, _read)
 
-    async def read_from_url(self, instructor_id: str, url: str) -> dict:
+    async def read_from_url(self, instructor_id: str, url: str) -> dict[str, Any]:
         """Read a spreadsheet given its Google Sheets URL.
 
         Extracts the spreadsheet ID from the URL and delegates to read_spreadsheet.

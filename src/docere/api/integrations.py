@@ -3,6 +3,7 @@
 import io
 import uuid
 from datetime import datetime
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -68,12 +69,12 @@ async def get_integration_status(
 
 class ExecuteActionRequest(BaseModel):
     action_type: str
-    payload: dict
+    payload: dict[str, Any]
 
 
 class ExecuteActionResponse(BaseModel):
     success: bool
-    result: dict = {}
+    result: dict[str, Any] = {}
     error: str | None = None
 
 
@@ -197,7 +198,7 @@ async def _resolve_email_recipients(
 
 
 async def _execute_email(
-    instructor_id: str, payload: dict, db: AsyncSession
+    instructor_id: str, payload: dict[str, Any], db: AsyncSession
 ) -> ExecuteActionResponse:
     from docere.services.google_gmail import GmailService
 
@@ -220,7 +221,7 @@ async def _execute_email(
 
 
 async def _execute_doc(
-    instructor_id: str, payload: dict, db: AsyncSession
+    instructor_id: str, payload: dict[str, Any], db: AsyncSession
 ) -> ExecuteActionResponse:
     from docere.services.google_docs import GoogleDocsService
 
@@ -234,7 +235,7 @@ async def _execute_doc(
 
 
 async def _execute_sheet(
-    instructor_id: str, payload: dict, db: AsyncSession
+    instructor_id: str, payload: dict[str, Any], db: AsyncSession
 ) -> ExecuteActionResponse:
     from docere.services.google_sheets import GoogleSheetsService
 
@@ -249,7 +250,7 @@ async def _execute_sheet(
     return ExecuteActionResponse(success=True, result=result)
 
 
-async def _execute_lms_announcement(payload: dict) -> ExecuteActionResponse:
+async def _execute_lms_announcement(payload: dict[str, Any]) -> ExecuteActionResponse:
     course_external_id = payload.get("course_id", "")
     title = payload.get("title", "")
     message = payload.get("message", "")
@@ -274,7 +275,7 @@ async def _execute_lms_announcement(payload: dict) -> ExecuteActionResponse:
 
 
 async def _execute_calendar_event(
-    instructor_id: str, payload: dict, db: AsyncSession
+    instructor_id: str, payload: dict[str, Any], db: AsyncSession
 ) -> ExecuteActionResponse:
     from docere.services.google_calendar import GoogleCalendarService
 
@@ -293,7 +294,7 @@ async def _execute_calendar_event(
     )
 
 
-async def _execute_excel(payload: dict) -> ExecuteActionResponse:
+async def _execute_excel(payload: dict[str, Any]) -> ExecuteActionResponse:
     """Generate an Excel file and return a download token.
 
     The file is served via /download-excel/<filename> endpoint.
@@ -374,14 +375,14 @@ async def resolve_recipients(
 
 # ── Excel Upload ──
 
-_upload_cache: dict[str, dict] = {}
+_upload_cache: dict[str, dict[str, Any]] = {}
 
 
 @router.post("/upload-excel")
 async def upload_excel(
     file: UploadFile = File(...),
     _user_id: uuid.UUID = Depends(require_instructor),
-) -> dict:
+) -> dict[str, Any]:
     """Upload and parse an Excel file for gradebook sync.
 
     Returns a dict with keys: upload_id, filename, headers, rows, sheet_names.
@@ -443,7 +444,7 @@ async def upload_excel(
 async def get_uploaded_excel(
     upload_id: str,
     _user_id: uuid.UUID = Depends(require_instructor),
-) -> dict:
+) -> dict[str, Any]:
     """Retrieve previously uploaded Excel data by upload_id."""
     data = _upload_cache.get(upload_id)
     if not data:

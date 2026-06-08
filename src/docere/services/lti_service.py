@@ -1,6 +1,7 @@
 """LTI 1.3 business logic: claim extraction, user/course upsert, adapter creation."""
 
 from dataclasses import dataclass
+from typing import Any
 
 import structlog
 from sqlalchemy import select
@@ -42,7 +43,7 @@ class LTILaunchData:
     platform_id: str
 
 
-def extract_lti_claims(claims: dict, platform: LTIPlatform) -> LTILaunchData:
+def extract_lti_claims(claims: dict[str, Any], platform: LTIPlatform) -> LTILaunchData:
     """Extract normalized user/course data from LTI 1.3 JWT claims.
 
     Handles differences between Canvas and Moodle claim structures.

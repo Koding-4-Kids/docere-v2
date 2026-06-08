@@ -1,6 +1,7 @@
 """Availability computation and meeting booking."""
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -26,7 +27,7 @@ class AvailabilityService:
         self,
         course_id: str,
         days_ahead: int = 7,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Get available meeting slots for a course's instructor.
 
         Combines office hours + Google Calendar free/busy - existing bookings.

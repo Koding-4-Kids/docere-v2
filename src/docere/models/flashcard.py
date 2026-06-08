@@ -3,6 +3,7 @@
 import hashlib
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     ARRAY,
@@ -72,7 +73,7 @@ class FlashcardCard(Base, UUIDMixin):
     concepts: Mapped[list[str] | None] = mapped_column(ARRAY(String))
 
     # FSRS v6 state — full Card object serialized as JSONB
-    fsrs_state: Mapped[dict] = mapped_column(JSONB, default=dict)
+    fsrs_state: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     # Denormalized for efficient SQL queries
     due_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

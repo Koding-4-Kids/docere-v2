@@ -46,12 +46,12 @@ class TutoringResult:
     token_count: int
     strategy_used: str | None
     memory_context_size: int
-    artifact: dict | None = None
-    action: dict | None = None
-    widgets: list[dict] | None = None
+    artifact: dict[str, Any] | None = None
+    action: dict[str, Any] | None = None
+    widgets: list[dict[str, Any]] | None = None
 
 
-def build_tutoring_graph() -> StateGraph:
+def build_tutoring_graph() -> StateGraph[TutoringState]:
     """Build the LangGraph tutoring agent graph."""
     graph = StateGraph(TutoringState)
 
@@ -98,7 +98,7 @@ async def run_tutoring_graph(
     but using LangGraph for state management and observability.
     """
     # Build initial state with injected dependencies
-    initial_state: dict[str, Any] = {
+    initial_state: TutoringState = {
         "student_id": student_id,
         "course_id": course_id,
         "conversation_id": conversation_id,
