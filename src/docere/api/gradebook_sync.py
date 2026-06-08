@@ -1,4 +1,6 @@
 """Gradebook Sync: validate, sync, and fix grades between spreadsheets and LMS."""
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 import io
 import uuid

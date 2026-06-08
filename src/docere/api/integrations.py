@@ -111,7 +111,9 @@ async def execute_action(
         if "invalid_grant" in error_msg or "revoked" in error_msg:
             return ExecuteActionResponse(
                 success=False,
-                error="Google connection expired. Please reconnect your Google account in Settings.",
+                error=(
+                    "Google connection expired. Please reconnect your Google account in Settings."
+                ),
             )
         logger.error(
             "Action execution failed",
@@ -382,7 +384,7 @@ async def upload_excel(
 ) -> dict:
     """Upload and parse an Excel file for gradebook sync.
 
-    Returns {"upload_id": str, "filename": str, "headers": [...], "rows": [[...]], "sheet_names": [...]}.
+    Returns a dict with keys: upload_id, filename, headers, rows, sheet_names.
     """
     import openpyxl
 

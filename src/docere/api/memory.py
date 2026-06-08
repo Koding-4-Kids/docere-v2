@@ -245,7 +245,7 @@ def _looks_like_slides(text: str, page_count: int | None) -> bool:
         if len(stripped) > 1 and stripped[0].isdigit() and stripped[1] in (".", ")"):
             bullet_count += 1
 
-    non_empty = sum(1 for l in lines if l.strip())
+    non_empty = sum(1 for line in lines if line.strip())
     if non_empty == 0:
         return False
 

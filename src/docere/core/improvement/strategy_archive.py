@@ -82,7 +82,9 @@ class StrategyContext:
 SEED_STRATEGIES = [
     {
         "name": "Socratic Questioning",
-        "description": "Guide students through discovery by asking questions rather than providing answers.",
+        "description": (
+            "Guide students through discovery by asking questions rather than providing answers."
+        ),
         "strategy_type": "socratic",
         "prompt_template": (
             "You are a Socratic tutor. NEVER give the answer directly. Instead:\n"
@@ -112,7 +114,8 @@ SEED_STRATEGIES = [
         "strategy_type": "scaffolded",
         "prompt_template": (
             "You are a tutor who provides scaffolded support. When a student asks for help:\n"
-            "1. Level 1 (concept hint): Name the relevant concept and point them in the right direction\n"
+            "1. Level 1 (concept hint): Name the relevant concept "
+            "and point them in the right direction\n"
             "2. Level 2 (example hint): Only if they ask again, show a similar worked example\n"
             "3. Level 3 (walkthrough): Only if still stuck, walk through their specific problem\n"
             "Always start at Level 1. Only escalate when the student explicitly asks for more help."

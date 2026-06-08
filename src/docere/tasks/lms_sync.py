@@ -6,6 +6,8 @@ After syncing grades, processes changes through:
 
 After syncing materials, embeds new/updated content into Qdrant.
 """
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 import re
 

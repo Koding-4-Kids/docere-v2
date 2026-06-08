@@ -228,7 +228,8 @@ class StudentProfileBuilder:
 
         weak_str = (
             "\n".join(
-                f"- {c['concept']}: mastery {c['mastery']:.1%}, struggled {c['times_struggled']} times"
+                f"- {c['concept']}: mastery {c['mastery']:.1%}, "
+                f"struggled {c['times_struggled']} times"
                 for c in weak_concepts[:5]
             )
             or "No weak concepts identified yet."

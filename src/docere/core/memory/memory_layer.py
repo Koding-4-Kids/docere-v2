@@ -6,6 +6,8 @@ Combines:
 - Interaction history: semantically relevant past conversations
 - LMS data: recent grades, upcoming deadlines, submission status
 """
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 import asyncio
 import json
@@ -221,7 +223,7 @@ class MemoryLayer:
         # 3. Concept mastery
         context.concept_mastery = mastery_dict
         if mastery_dict:
-            mastery_text = "\n".join(f"- {c}: {l:.0%}" for c, l in mastery_dict.items())
+            mastery_text = "\n".join(f"- {c}: {level:.0%}" for c, level in mastery_dict.items())
             budget -= _estimate_tokens(mastery_text)
 
         # 4. Recent grades

@@ -3,6 +3,8 @@
 Compresses clusters of raw memories into summary records to keep
 context windows manageable while preserving key information.
 """
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 import structlog
 from sqlalchemy import func, select

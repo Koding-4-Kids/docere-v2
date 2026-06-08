@@ -10,6 +10,8 @@ Scoring dimensions:
 - engagement (0-1): Did the student continue engaging productively?
 - understanding_delta (-1 to 1): Did understanding improve?
 """
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 import json
 from dataclasses import dataclass

@@ -1,10 +1,12 @@
 """Multi-agent instructor system — fast heuristic routing + data-driven summaries + single LLM synthesis."""
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 import structlog
 from sqlalchemy import func, select
@@ -82,7 +84,7 @@ def _engagement_summary(counts: dict[str, int]) -> str:
 # ── Data Types ──
 
 
-class QueryIntent(str, Enum):
+class QueryIntent(StrEnum):
     CLASS_WIDE = "class_wide"
     STUDENT_SPECIFIC = "student_specific"
     MULTI_STUDENT = "multi_student"
@@ -527,14 +529,14 @@ class ClassroomAgent:
 
             # Weak concepts
             weak = sorted(
-                [(c, l) for c, l in mastery.items() if l < 0.45],
+                [(c, level) for c, level in mastery.items() if level < 0.45],
                 key=lambda x: x[1],
             )
             if weak:
                 findings.append(f"Struggling with {', '.join(c for c, _ in weak[:3])}")
 
             # Strong concepts
-            strong = [c for c, l in mastery.items() if l >= 0.75]
+            strong = [c for c, level in mastery.items() if level >= 0.75]
             if strong:
                 findings.append(f"Strong in {', '.join(strong[:3])}")
 
@@ -585,8 +587,8 @@ class ClassroomAgent:
                     "grade_label": _grade_label(s.current_grade),
                     "total_interactions": profile.total_interactions if profile else 0,
                     "top_concepts": [
-                        {"name": c, "mastery_label": _mastery_label(l)}
-                        for c, l in list(s.concept_mastery.items())[:6]
+                        {"name": c, "mastery_label": _mastery_label(level)}
+                        for c, level in list(s.concept_mastery.items())[:6]
                     ],
                     "recent_activity": s.topic_relevance,
                     "profile_summary": s.profile_summary,
@@ -783,12 +785,16 @@ class ClassroomAgent:
         for s in summaries:
             # Show weak concepts first (most actionable), then strong
             weak_concepts = sorted(
-                [(c, l) for c, l in s.concept_mastery.items() if l < 0.45],
+                [(c, level) for c, level in s.concept_mastery.items() if level < 0.45],
                 key=lambda x: x[1],
             )
-            strong_concepts = [(c, l) for c, l in s.concept_mastery.items() if l >= 0.65]
-            weak_str = ", ".join(f"{c} ({_mastery_label(l)})" for c, l in weak_concepts[:6])
-            strong_str = ", ".join(f"{c} ({_mastery_label(l)})" for c, l in strong_concepts[:4])
+            strong_concepts = [
+                (c, level) for c, level in s.concept_mastery.items() if level >= 0.65
+            ]
+            weak_str = ", ".join(f"{c} ({_mastery_label(level)})" for c, level in weak_concepts[:6])
+            strong_str = ", ".join(
+                f"{c} ({_mastery_label(level)})" for c, level in strong_concepts[:4]
+            )
 
             grade_str = _grade_label(s.current_grade)
             if s.current_grade is not None:

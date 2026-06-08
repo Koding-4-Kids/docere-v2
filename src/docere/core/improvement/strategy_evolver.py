@@ -8,6 +8,8 @@ Process:
 3. Prune strategies with >20 uses and avg_score < 0.3
 4. Log all evolution events for research
 """
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 import json
 

@@ -7,6 +7,8 @@ For each student message:
 4. Call LLM → return response immediately
 5. Fire-and-forget: score previous interaction, extract concepts, summarize stale
 """
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 import asyncio
 import json

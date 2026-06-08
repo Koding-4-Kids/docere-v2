@@ -224,7 +224,7 @@ async def lti_launch(
     course, is_new_course = await handle_lti_course(db, lti_data, platform, user)
 
     if course:
-        enrollment = await ensure_enrollment(db, user, course, lti_role=lti_data.role)
+        await ensure_enrollment(db, user, course, lti_role=lti_data.role)
 
     # Discover and sync enrollments for the user's other LMS courses
     # so all their courses show up immediately, not just the launched one

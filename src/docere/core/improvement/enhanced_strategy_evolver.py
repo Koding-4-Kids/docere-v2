@@ -1,4 +1,6 @@
 """Enhanced strategy evolution with robust validation and error handling."""
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 import asyncio
 from typing import Any

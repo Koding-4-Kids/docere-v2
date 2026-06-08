@@ -1,5 +1,7 @@
 """LLM client wrapper — supports OpenAI and Anthropic with retry and circuit breaker."""
 
+from functools import partial
+
 import structlog
 
 from docere.config import settings
@@ -81,12 +83,12 @@ class ClaudeClient:
     ) -> str:
         """Send a chat message with retry and circuit breaker protection."""
         if self.provider == "openai":
-            call = lambda: self._chat_openai(
-                system_prompt, messages, model, max_tokens, temperature
+            call = partial(
+                self._chat_openai, system_prompt, messages, model, max_tokens, temperature
             )
         else:
-            call = lambda: self._chat_anthropic(
-                system_prompt, messages, model, max_tokens, temperature
+            call = partial(
+                self._chat_anthropic, system_prompt, messages, model, max_tokens, temperature
             )
 
         return await self.breaker.call(

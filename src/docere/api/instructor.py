@@ -1,4 +1,6 @@
 """Instructor dashboard endpoints."""
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 import uuid
 from collections import defaultdict
@@ -506,7 +508,6 @@ async def meta_query(
         )
 
     course_ids = [c.id for c in courses]
-    course_names = {str(c.id): c.name for c in courses}
     course_lms_ids = {str(c.id): (c.external_lms_id or "") for c in courses}
 
     # 2. Per-course student counts + engagement
