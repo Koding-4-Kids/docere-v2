@@ -133,7 +133,7 @@ async def generate_response(state: TutoringState) -> dict[str, Any]:
     return {"response_text": response_text}
 
 
-def _should_suggest_meeting(profile: object | None, student_message: str) -> bool:
+def _should_suggest_meeting(profile: Any, student_message: str) -> bool:
     """Determine if meeting scheduling instructions should be injected."""
     if MEETING_KEYWORDS.search(student_message):
         return True

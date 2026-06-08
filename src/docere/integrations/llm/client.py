@@ -19,7 +19,7 @@ _RETRYABLE_OPENAI: tuple[type[Exception], ...] = ()
 _RETRYABLE_ANTHROPIC: tuple[type[Exception], ...] = ()
 
 try:
-    import openai  # type: ignore[import-not-found]
+    import openai
 
     _RETRYABLE_OPENAI = (
         openai.APITimeoutError,
@@ -119,7 +119,7 @@ class ClaudeClient:
             model=model or self.default_model,
             max_tokens=max_tokens,
             temperature=temperature,
-            messages=openai_messages,
+            messages=openai_messages,  # type: ignore[arg-type]
         )
         return response.choices[0].message.content or ""
 
@@ -143,6 +143,7 @@ class ClaudeClient:
         # guards against empty responses
         text_block = next((b for b in response.content if isinstance(b, TextBlock)), None)
         return text_block.text if text_block else ""
+
     async def stream(
         self,
         system_prompt: str,
@@ -194,10 +195,10 @@ class ClaudeClient:
             model=model or self.default_model,
             max_tokens=max_tokens,
             temperature=temperature,
-            messages=openai_messages,
+            messages=openai_messages,  # type: ignore[arg-type]
             stream=True,
         )
-        async for chunk in response:
+        async for chunk in response:  # type: ignore[union-attr]
             delta = chunk.choices[0].delta if chunk.choices else None
             if delta and delta.content:
                 yield delta.content

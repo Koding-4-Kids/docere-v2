@@ -3,7 +3,7 @@
 import asyncio
 from datetime import UTC, datetime
 from functools import partial
-from typing import cast
+from typing import Any, cast
 
 import structlog
 from cryptography.fernet import Fernet
@@ -183,7 +183,7 @@ class GoogleCalendarService:
                     return None
                 raise
 
-            token_record.encrypted_access_token = _encrypt(creds.token)
+            token_record.encrypted_access_token = _encrypt(creds.token or "")
             if creds.refresh_token:
                 token_record.encrypted_refresh_token = _encrypt(creds.refresh_token)
             token_record.token_expiry = creds.expiry.replace(tzinfo=UTC) if creds.expiry else None
@@ -238,7 +238,7 @@ class GoogleCalendarService:
             return None
 
         service = build("calendar", "v3", credentials=creds)
-        event = {
+        event: dict[str, Any] = {
             "summary": summary,
             "description": description,
             "start": {"dateTime": start.isoformat(), "timeZone": "UTC"},

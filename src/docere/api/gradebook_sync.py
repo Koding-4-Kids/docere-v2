@@ -503,7 +503,7 @@ async def validate_gradebook(
             "grades": [],
         }
         for item_id, col_idx in mappings.grade_columns.items():
-            item = grade_item_map.get(item_id)
+            item = grade_item_map.get(item_id)  # type: ignore[assignment]
             if not item:
                 logger.warning("Mapped grade item not found", item_id=item_id)
                 continue

@@ -8,6 +8,7 @@ Handles ingestion and compression of course materials:
 """
 
 import uuid
+from typing import Any, cast
 
 import structlog
 
@@ -251,7 +252,7 @@ class TeacherContextManager:
         seen_ids: set[str] = set()
         merged: list[dict[str, object]] = []
         for r in assignment_results + general_results:
-            point_id = r.get("id", "")
+            point_id: str = cast(str, r.get("id", ""))
             if point_id in seen_ids:
                 continue
             seen_ids.add(point_id)
@@ -266,7 +267,7 @@ class TeacherContextManager:
         # Add detailed content — allow one extra slot when assignment is active
         limit = max_chunks + 1 if assignment_id and assignment_results else max_chunks
         for r in merged[:limit]:
-            payload = r.get("payload", {})
+            payload: dict[str, Any] = cast(dict[str, Any], r.get("payload", {}))
             title = payload.get("title", "")
             content = payload.get("content", "")
             context_parts.append(f"[{title}]\n{content}")
@@ -294,7 +295,7 @@ class TeacherContextManager:
         # Deduplicate by title (multiple chunks share the same title)
         seen_titles: dict[str, str] = {}  # title -> material_type
         for point in all_points:
-            payload = point.get("payload", {})
+            payload = cast(dict[str, Any], point.get("payload", {}))
             title = payload.get("title", "")
             mat_type = payload.get("material_type", "")
             if title and title not in seen_titles:

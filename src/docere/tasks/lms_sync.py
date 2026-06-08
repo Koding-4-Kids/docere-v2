@@ -10,6 +10,7 @@ After syncing materials, embeds new/updated content into Qdrant.
 # ruff: noqa: E501
 
 import re
+import uuid
 
 import structlog
 from sqlalchemy import select
@@ -54,7 +55,7 @@ async def sync_all_courses(
     for course in courses:
         try:
             if course.lms_platform == "canvas":
-                adapter = CanvasAdapter()
+                adapter: CanvasAdapter | MoodleAdapter = CanvasAdapter()
             elif course.lms_platform == "moodle":
                 adapter = MoodleAdapter()
             else:
@@ -334,7 +335,7 @@ async def _process_grade_changes(
 
     # Pre-fetch assignment descriptions for concept extraction
     assignment_ids = list({change.assignment_id for change in changes})
-    assignment_descs: dict[str, str | None] = {}
+    assignment_descs: dict[uuid.UUID, str | None] = {}
     if assignment_ids:
         result = await db.execute(
             select(Assignment.id, Assignment.description).where(Assignment.id.in_(assignment_ids))

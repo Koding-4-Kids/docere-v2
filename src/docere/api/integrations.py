@@ -262,7 +262,7 @@ async def _execute_lms_announcement(payload: dict[str, Any]) -> ExecuteActionRes
     elif settings.canvas_base_url and settings.canvas_api_token:
         from docere.integrations.lms.canvas import CanvasAdapter
 
-        adapter = CanvasAdapter()
+        adapter = CanvasAdapter()  # type: ignore[assignment]
     else:
         raise ValueError("No LMS configured")
 

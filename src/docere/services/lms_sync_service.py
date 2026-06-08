@@ -109,7 +109,7 @@ class LMSSyncService:
             materials=materials,
         )
 
-        new_enrollments = await self._sync_enrollments(course, sync_data, course.lms_platform)
+        new_enrollments = await self._sync_enrollments(course, sync_data, course.lms_platform or "")
         new_assignments = await self._sync_assignments(course, sync_data)
         new_submissions, grade_changes = await self._sync_submissions(course, sync_data)
         new_materials, updated_materials = await self._sync_materials(course, sync_data)

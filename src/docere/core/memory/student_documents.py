@@ -5,7 +5,7 @@ students upload specific reference materials they want searchable verbatim.
 """
 
 import uuid
-from typing import Any
+from typing import Any, cast
 
 import structlog
 
@@ -163,7 +163,7 @@ class StudentDocumentManager:
 
         parts = []
         for r in results:
-            payload = r.get("payload", {})
+            payload: dict[str, Any] = cast(dict[str, Any], r.get("payload", {}))
             title = payload.get("title", "")
             section = payload.get("section_title", "")
             page = payload.get("page_number")
@@ -215,7 +215,7 @@ class StudentDocumentManager:
 
             # Extract sections from document structure
             sections = []
-            for item in doc.iterate_items():
+            for item, _ in doc.iterate_items():
                 if hasattr(item, "text") and item.text:
                     section = {
                         "title": getattr(item, "label", ""),

@@ -13,6 +13,7 @@ import asyncio
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 import structlog
 from sqlalchemy import select
@@ -181,12 +182,12 @@ class MemoryLayer:
         # Build concept mastery dict
         mastery_dict: dict[str, float] = {}
         for c in weak_concepts:
-            mastery_dict[c["concept"]] = c["mastery"]
+            mastery_dict[cast(str, c["concept"])] = cast(float, c["mastery"])
 
         # Format interaction memories
         memory_strings = []
         for interaction in raw_interactions:
-            payload = interaction.get("payload", {})
+            payload: dict[str, Any] = cast(dict[str, Any], interaction.get("payload", {}))
             student_msg = payload.get("student_message", "")
             agent_resp = payload.get("agent_response", "")
             if student_msg or agent_resp:

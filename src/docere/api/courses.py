@@ -167,10 +167,13 @@ async def trigger_sync(
         )
 
     try:
+        from docere.integrations.lms.canvas import CanvasAdapter
+        from docere.integrations.lms.moodle import MoodleAdapter
         from docere.services.lms_sync_service import LMSSyncService
 
-        sync_svc = LMSSyncService(db)
-        await sync_svc.full_sync(course)
+        lms_adapter = CanvasAdapter() if course.lms_platform == "canvas" else MoodleAdapter()
+        sync_svc = LMSSyncService(db, lms_adapter)
+        await sync_svc.full_sync(course.external_lms_id, course.lms_platform)
         await db.commit()
         return SyncResponse(status="ok", message="Sync completed")
     except Exception as e:

@@ -3,6 +3,7 @@
 # ruff: noqa: E501
 
 import asyncio
+import uuid
 from collections.abc import Callable
 from typing import Any
 
@@ -58,7 +59,7 @@ class CircuitBreaker:
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.failure_count = 0
-        self.last_failure_time = None
+        self.last_failure_time: float | None = None
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
 
     async def call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
@@ -146,7 +147,7 @@ class EnhancedStrategyEvolver:
                     failed_mutations.append(strategy.name)
 
             # Step 2: Prune weak strategies
-            pruned = await self._prune_weak_strategies(strategies)
+            pruned = await self._prune_weak_strategies(list(strategies))
 
             await self.db.flush()
 
@@ -424,7 +425,7 @@ class EnhancedStrategyEvolver:
         return pruned
 
     async def _get_score_contexts(
-        self, strategy_id: int, best: bool = True, limit: int = 3
+        self, strategy_id: uuid.UUID, best: bool = True, limit: int = 3
     ) -> list[str]:
         """Get top or bottom scoring interaction contexts for a strategy."""
         order = StrategyScore.score.desc() if best else StrategyScore.score.asc()

@@ -13,6 +13,7 @@ For each student message:
 import asyncio
 import json
 import re
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -29,7 +30,7 @@ from docere.integrations.llm.client import ClaudeClient
 from docere.integrations.vector_db.qdrant import QdrantStore
 from docere.models.conversation import Conversation, Message
 from docere.models.course import Assignment
-from docere.models.memory import MemoryRecord
+from docere.models.memory import MemoryRecord, StudentProfile
 
 logger = structlog.get_logger()
 
@@ -442,10 +443,12 @@ class TutoringAgent:
                             json.loads(raw_content) if isinstance(raw_content, str) else raw_content
                         )
                         added = await fc_svc.add_cards_from_artifact(
-                            student_id=student_id,
-                            course_id=course_id,
+                            student_id=uuid.UUID(student_id),
+                            course_id=uuid.UUID(course_id),
                             cards_json=cards_json,
-                            source_message_id=assistant_msg_id,
+                            source_message_id=uuid.UUID(assistant_msg_id)
+                            if assistant_msg_id
+                            else None,
                             concepts=artifact_data.get("source_concepts", []),
                         )
                         if added:
@@ -573,7 +576,7 @@ class TutoringAgent:
         memory_ctx: MemoryContext,
         strategy: object | None,
         assignment: Assignment | None = None,
-        profile: object | None = None,
+        profile: StudentProfile | None = None,
         suggest_meeting: bool = False,
     ) -> str:
         """Build the full system prompt from memory context, strategy, and profile."""
@@ -758,7 +761,7 @@ class TutoringAgent:
         return clean.strip(), widgets
 
     @staticmethod
-    def _should_suggest_meeting(profile: object | None, student_message: str) -> bool:
+    def _should_suggest_meeting(profile: Any, student_message: str) -> bool:
         """Determine if meeting scheduling instructions should be injected.
 
         Returns True when:

@@ -175,7 +175,7 @@ class FlashcardService:
         )
         card = result.scalar_one()
 
-        fsrs_card = Card.from_dict(card.fsrs_state) if card.fsrs_state else Card()
+        fsrs_card = Card.from_dict(card.fsrs_state) if card.fsrs_state else Card()  # type: ignore[arg-type]
         fsrs_rating = Rating(rating)
         now = datetime.now(UTC)
         updated_card, review_log = self.fsrs.review_card(fsrs_card, fsrs_rating, now)
@@ -246,7 +246,7 @@ class FlashcardService:
 
 def _sync_card_from_fsrs(card: FlashcardCard, fsrs_card: Card) -> None:
     """Sync denormalized DB columns from an FSRS Card object."""
-    card.fsrs_state = fsrs_card.to_dict()
+    card.fsrs_state = fsrs_card.to_dict()  # type: ignore[assignment]
     card.due_at = fsrs_card.due
     card.stability = fsrs_card.stability or 0.0
     card.difficulty = fsrs_card.difficulty or 0.0

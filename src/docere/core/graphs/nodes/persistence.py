@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -85,11 +86,12 @@ async def persist_flashcards(state: TutoringState) -> dict[str, Any]:
         svc = FlashcardService(db)
         raw_content = artifact.get("content", "[]")
         cards_json = json.loads(raw_content) if isinstance(raw_content, str) else raw_content
+        msg_id = state.get("assistant_msg_id")
         added = await svc.add_cards_from_artifact(
-            student_id=state["student_id"],
-            course_id=state["course_id"],
+            student_id=uuid.UUID(state["student_id"]),
+            course_id=uuid.UUID(state["course_id"]),
             cards_json=cards_json,
-            source_message_id=state.get("assistant_msg_id"),
+            source_message_id=uuid.UUID(msg_id) if msg_id else None,
             concepts=artifact.get("source_concepts", []),
         )
         if added:

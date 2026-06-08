@@ -471,7 +471,7 @@ async def get_my_memory_graph(
         mid = f"mem_{mem.id}"
         if mem.concepts:
             for concept in mem.concepts:
-                cid = concept_node_ids.get(concept.lower())
+                cid = concept_node_ids.get(concept.lower())  # type: ignore[assignment]
                 if cid:
                     edges.append(
                         MemoryGraphEdge(
@@ -500,8 +500,8 @@ async def get_my_memory_graph(
     concept_shared: dict[str, set[str]] = defaultdict(set)
     for mem in memories:
         if mem.concepts:
-            for c in mem.concepts:
-                concept_shared[c.lower()].add(f"mem_{mem.id}")
+            for c in mem.concepts:  # type: ignore[assignment]
+                concept_shared[c.lower()].add(f"mem_{mem.id}")  # type: ignore[attr-defined]
 
     for i in range(len(concept_keys)):
         for j in range(i + 1, len(concept_keys)):

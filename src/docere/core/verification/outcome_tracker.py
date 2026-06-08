@@ -53,7 +53,7 @@ class OutcomeTracker:
         conversation_ids = [row[0] for row in conv_result.all()]
 
         if not conversation_ids:
-            return 0
+            return 0, []
 
         # Find interaction scores for these conversations
         score_result = await self.db.execute(

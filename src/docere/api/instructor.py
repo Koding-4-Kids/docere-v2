@@ -1167,7 +1167,7 @@ async def add_concept(
             MemoryRecord.course_id == course_id,
             MemoryRecord.is_compressed.is_(False),
             or_(
-                MemoryRecord.concepts.any(normalized),
+                MemoryRecord.concepts.any(normalized),  # type: ignore[arg-type]
                 func.lower(MemoryRecord.content).contains(normalized),
             ),
         )

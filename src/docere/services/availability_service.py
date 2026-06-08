@@ -65,7 +65,7 @@ class AvailabilityService:
                 continue
 
             # Generate candidate slots from office hours
-            candidates = self._generate_slots_from_office_hours(office_hours, now, end_date)
+            candidates = self._generate_slots_from_office_hours(list(office_hours), now, end_date)
 
             # Subtract Google Calendar busy times
             try:

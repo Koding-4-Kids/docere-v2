@@ -13,6 +13,7 @@ Process:
 
 import json
 import uuid
+from typing import Any
 
 import structlog
 from sqlalchemy import select
@@ -61,7 +62,7 @@ class StrategyEvolver:
         self.db = db
         self.claude = claude
 
-    async def evolve(self) -> dict[str, object]:
+    async def evolve(self) -> dict[str, Any]:
         """Run one evolution cycle.
 
         Returns summary of actions taken (mutations, prunings).

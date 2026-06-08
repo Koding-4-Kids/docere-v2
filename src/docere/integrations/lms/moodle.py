@@ -12,7 +12,7 @@ Key functions:
 
 import hashlib
 import io
-from typing import Any
+from typing import Any, cast
 from urllib.parse import unquote
 
 import httpx
@@ -40,9 +40,9 @@ class MoodleAdapter(LMSAdapter):
         self.base_url = (base_url or settings.moodle_base_url).rstrip("/")
         self.api_token = api_token or settings.moodle_api_token
 
-    async def _call(self, function: str, params: dict[str, object] | None = None) -> object:
+    async def _call(self, function: str, params: dict[str, Any] | None = None) -> object:
         """Make a Moodle Web Services API call."""
-        request_params: dict[str, object] = {
+        request_params: dict[str, Any] = {
             "wstoken": self.api_token,
             "wsfunction": function,
             "moodlewsrestformat": "json",
@@ -198,7 +198,7 @@ class MoodleAdapter(LMSAdapter):
                 # API returns assignment IDs, not module IDs. We match by title.
                 if modname == "assign" and title in assignment_attachment_map:
                     attach_info = assignment_attachment_map[title]
-                    file_urls.extend(attach_info["urls"])
+                    file_urls.extend(cast(list[str], attach_info["urls"]))
 
                 # Determine content: page HTML, PDF text, or module description
                 content = module.get("description")
@@ -218,7 +218,7 @@ class MoodleAdapter(LMSAdapter):
 
                 # For assignments, also include the intro text from the API
                 if modname == "assign" and title in assignment_attachment_map:
-                    intro = assignment_attachment_map[title].get("intro")
+                    intro = cast(str | None, assignment_attachment_map[title].get("intro"))
                     if intro and not content:
                         content = intro
                     elif intro and content and intro not in content:
