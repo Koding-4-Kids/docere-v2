@@ -58,7 +58,7 @@ def _build_minimal_pdf(text: str) -> bytes:
     pdf += b"xref\n0 " + str(size).encode() + b"\n"
     pdf += b"0000000000 65535 f \n"
     for off in offsets:
-        pdf += ("%010d 00000 n \n" % off).encode()
+        pdf += f"{off:010d} 00000 n \n".encode()
     pdf += b"trailer\n<< /Size " + str(size).encode() + b" /Root 1 0 R >>\n"
     pdf += b"startxref\n" + str(xref_pos).encode() + b"\n%%EOF"
     return pdf

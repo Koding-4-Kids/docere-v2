@@ -191,9 +191,9 @@ class CanvasAdapter(LMSAdapter):
                 description=a.get("description"),
                 due_at=a.get("due_at"),
                 points_possible=a.get("points_possible"),
-                assignment_type=a.get("submission_types", [None])[0]
-                if a.get("submission_types")
-                else None,
+                assignment_type=(
+                    a["submission_types"][0] if a.get("submission_types") else None
+                ),
             )
             for a in data
             if isinstance(a, dict)
