@@ -1,15 +1,14 @@
 """Flashcard spaced repetition service — FSRS v6 scheduling + card management."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from fsrs import Scheduler, Card, Rating, State
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from fsrs import Card, Rating, Scheduler
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.models.flashcard import CardReview, FlashcardCard, FlashcardDeck
-from docere.models.course import Enrollment
 
 logger = structlog.get_logger()
 
@@ -109,7 +108,7 @@ class FlashcardService:
     async def get_due_cards(
         self, student_id: uuid.UUID, course_id: uuid.UUID, limit: int = 20
     ) -> list[FlashcardCard]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await self.db.execute(
             select(FlashcardCard)
             .join(FlashcardDeck)
@@ -125,7 +124,7 @@ class FlashcardService:
         return list(result.scalars().all())
 
     async def get_due_count(self, student_id: uuid.UUID, course_id: uuid.UUID) -> int:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await self.db.execute(
             select(func.count(FlashcardCard.id))
             .join(FlashcardDeck)
@@ -140,7 +139,7 @@ class FlashcardService:
 
     async def get_all_due_counts(self, student_id: uuid.UUID) -> list[dict]:
         """Due counts across all enrolled courses."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await self.db.execute(
             select(
                 FlashcardDeck.course_id,
@@ -177,7 +176,7 @@ class FlashcardService:
 
         fsrs_card = Card.from_dict(card.fsrs_state) if card.fsrs_state else Card()
         fsrs_rating = Rating(rating)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         updated_card, review_log = self.fsrs.review_card(fsrs_card, fsrs_rating, now)
 
         review = CardReview(

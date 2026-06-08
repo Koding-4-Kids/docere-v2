@@ -4,14 +4,13 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
+    DateTime,
     Float,
     ForeignKey,
-    Integer,
     String,
     Text,
-    Boolean,
     UniqueConstraint,
-    DateTime,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID

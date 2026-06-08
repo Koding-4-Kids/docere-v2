@@ -1,7 +1,5 @@
 """User model: students, instructors, admins."""
 
-import uuid
-
 from sqlalchemy import String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

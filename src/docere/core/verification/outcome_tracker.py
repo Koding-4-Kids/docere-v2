@@ -1,11 +1,11 @@
 """Outcome tracker: links interaction scores to LMS grade outcomes."""
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.core.improvement.strategy_archive import StrategyArchive
 from docere.models.conversation import Conversation, Message
@@ -40,7 +40,7 @@ class OutcomeTracker:
         Returns number of interaction_scores updated.
         """
         percentage = score / max_score if max_score > 0 else 0
-        cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+        cutoff = datetime.now(UTC) - timedelta(days=lookback_days)
 
         # Find recent conversations in this course
         conv_result = await self.db.execute(

@@ -1,7 +1,6 @@
 """Heuristic interaction scoring (no LLM calls needed)."""
 
 import re
-import math
 
 
 class HeuristicScorer:

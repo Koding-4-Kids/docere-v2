@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import AsyncGenerator
+from datetime import UTC
 
 import jwt
 import redis.asyncio as aioredis
@@ -178,9 +179,9 @@ async def require_instructor(
 
 def create_access_token(user_id: uuid.UUID, role: str = "student") -> str:
     """Create a JWT access token for a user."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
         "role": role,

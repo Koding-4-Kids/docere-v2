@@ -5,14 +5,14 @@ from datetime import datetime
 
 from sqlalchemy import (
     ARRAY,
+    Boolean,
+    DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
-    Boolean,
-    DateTime,
-    Index,
     UniqueConstraint,
     func,
 )

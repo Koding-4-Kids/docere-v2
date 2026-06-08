@@ -14,8 +14,8 @@ Scoring dimensions:
 import json
 from dataclasses import dataclass
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.config import settings
 from docere.core.verification.interaction_scorer import HeuristicScorer

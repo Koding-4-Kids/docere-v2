@@ -5,7 +5,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from docere.dependencies import get_db, get_current_user_id
+from docere.dependencies import get_current_user_id, get_db
 from docere.schemas.flashcard import (
     DueCountResponse,
     FlashcardCardResponse,

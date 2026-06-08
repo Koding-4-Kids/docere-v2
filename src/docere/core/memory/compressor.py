@@ -4,15 +4,11 @@ Compresses clusters of raw memories into summary records to keep
 context windows manageable while preserving key information.
 """
 
-import uuid
-from datetime import datetime, timezone
-
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.integrations.llm.client import ClaudeClient
-from docere.integrations.llm.embeddings import generate_embedding, generate_embeddings_batch
 from docere.integrations.vector_db.qdrant import QdrantStore
 from docere.models.memory import MemoryRecord
 

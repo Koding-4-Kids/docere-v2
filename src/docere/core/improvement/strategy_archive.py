@@ -15,13 +15,14 @@ Context-aware selection:
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from docere.models.strategy import Strategy as StrategyModel, StrategyScore
+from docere.models.strategy import Strategy as StrategyModel
+from docere.models.strategy import StrategyScore
 
 logger = structlog.get_logger()
 
@@ -206,7 +207,7 @@ class StrategyArchive:
 
         if best_strategy:
             best_strategy.total_uses += 1
-            best_strategy.last_used_at = datetime.now(timezone.utc)
+            best_strategy.last_used_at = datetime.now(UTC)
             await self.db.flush()
 
         logger.info(

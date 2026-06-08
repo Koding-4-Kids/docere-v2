@@ -2,11 +2,11 @@
 
 import time
 
+import structlog
 from sqlalchemy import select
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-import structlog
 
 from docere.config import settings
 from docere.dependencies import async_session

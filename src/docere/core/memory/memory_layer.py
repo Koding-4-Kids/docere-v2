@@ -10,11 +10,11 @@ Combines:
 import asyncio
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.core.memory.concept_utils import normalize_concept
 from docere.core.memory.interaction_store import InteractionStore
@@ -25,7 +25,7 @@ from docere.integrations.llm.embeddings import generate_embedding
 from docere.integrations.vector_db.qdrant import QdrantStore
 from docere.models.conversation import Conversation, Message
 from docere.models.course import Assignment, Submission
-from docere.models.memory import ConceptMastery, MemoryRecord
+from docere.models.memory import MemoryRecord
 
 logger = structlog.get_logger()
 
@@ -390,7 +390,7 @@ class MemoryLayer:
 
         Returns the number of conversations summarized.
         """
-        cutoff = datetime.now(timezone.utc) - CONVERSATION_IDLE_THRESHOLD
+        cutoff = datetime.now(UTC) - CONVERSATION_IDLE_THRESHOLD
 
         result = await self.db.execute(
             select(Conversation.id, Conversation.student_id, Conversation.course_id).where(

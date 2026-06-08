@@ -1,18 +1,19 @@
 """Enhanced strategy evolution with robust validation and error handling."""
 
-import json
 import asyncio
-from typing import Optional, List, Dict, Any
+from typing import Any
+
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.config import settings
 from docere.integrations.llm.client import ClaudeClient
 from docere.models.conversation import Message
 from docere.models.strategy import Strategy, StrategyScore
 from docere.models.verification import InteractionScore
-from .strategy_validation import StrategyValidator, RobustJSONExtractor
+
+from .strategy_validation import RobustJSONExtractor, StrategyValidator
 
 logger = structlog.get_logger()
 
@@ -108,7 +109,7 @@ class EnhancedStrategyEvolver:
         self.circuit_breaker = CircuitBreaker()
         self.json_extractor = RobustJSONExtractor()
 
-    async def evolve(self) -> Dict[str, Any]:
+    async def evolve(self) -> dict[str, Any]:
         """Run one evolution cycle with enhanced error handling."""
         try:
             result = await self.db.execute(select(Strategy).where(Strategy.is_active.is_(True)))
@@ -169,7 +170,7 @@ class EnhancedStrategyEvolver:
                 "circuit_breaker_state": self.circuit_breaker.state,
             }
 
-    async def _mutate_strategy_robust(self, strategy: Strategy) -> Optional[Strategy]:
+    async def _mutate_strategy_robust(self, strategy: Strategy) -> Strategy | None:
         """Generate strategy variant with robust validation and retry logic."""
         max_attempts = 3
 
@@ -227,8 +228,8 @@ class EnhancedStrategyEvolver:
         return None
 
     async def _generate_mutation_with_retry(
-        self, strategy: Strategy, top_contexts: List[str], bottom_contexts: List[str]
-    ) -> Optional[Dict[str, Any]]:
+        self, strategy: Strategy, top_contexts: list[str], bottom_contexts: list[str]
+    ) -> dict[str, Any] | None:
         """Generate mutation with circuit breaker and retry logic."""
 
         # Prepare context strings with smart truncation
@@ -277,7 +278,7 @@ class EnhancedStrategyEvolver:
             logger.error("Claude API call failed", strategy_name=strategy.name, error=str(e))
             raise
 
-    def _format_contexts(self, contexts: List[str], fallback: str) -> str:
+    def _format_contexts(self, contexts: list[str], fallback: str) -> str:
         """Format context strings with proper fallback."""
         if not contexts:
             return fallback
@@ -367,7 +368,7 @@ class EnhancedStrategyEvolver:
         return processed_words
 
     async def _create_validated_strategy(
-        self, parent_strategy: Strategy, strategy_data: Dict[str, Any]
+        self, parent_strategy: Strategy, strategy_data: dict[str, Any]
     ) -> Strategy:
         """Create a new validated strategy."""
         new_strategy = Strategy(
@@ -393,7 +394,7 @@ class EnhancedStrategyEvolver:
 
         return new_strategy
 
-    async def _prune_weak_strategies(self, strategies: List[Strategy]) -> List[str]:
+    async def _prune_weak_strategies(self, strategies: list[Strategy]) -> list[str]:
         """Prune weak strategies with enhanced criteria."""
         pruned = []
         min_uses = getattr(settings, "strategy_min_uses_for_prune", 20)
@@ -421,7 +422,7 @@ class EnhancedStrategyEvolver:
 
     async def _get_score_contexts(
         self, strategy_id: int, best: bool = True, limit: int = 3
-    ) -> List[str]:
+    ) -> list[str]:
         """Get top or bottom scoring interaction contexts for a strategy."""
         order = StrategyScore.score.desc() if best else StrategyScore.score.asc()
 

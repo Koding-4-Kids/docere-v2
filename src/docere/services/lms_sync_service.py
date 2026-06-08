@@ -12,11 +12,11 @@ Ongoing: sync every 2 hours + webhook triggers.
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.integrations.lms.base import LMSAdapter, LMSFullSync
 from docere.models.course import Assignment, Course, CourseMaterial, Enrollment, Submission
@@ -68,7 +68,7 @@ class LMSSyncService:
         await self._sync_materials(course, sync_data)
 
         # Update last synced timestamp
-        course.last_synced_at = datetime.now(timezone.utc)
+        course.last_synced_at = datetime.now(UTC)
         await self.db.commit()
 
         logger.info(
@@ -114,7 +114,7 @@ class LMSSyncService:
         new_submissions, grade_changes = await self._sync_submissions(course, sync_data)
         new_materials, updated_materials = await self._sync_materials(course, sync_data)
 
-        course.last_synced_at = datetime.now(timezone.utc)
+        course.last_synced_at = datetime.now(UTC)
         await self.db.commit()
 
         return (
@@ -293,7 +293,7 @@ class LMSSyncService:
                 submission.score = lms_sub.score
                 submission.grade = lms_sub.grade
                 submission.workflow_state = lms_sub.workflow_state
-                submission.synced_at = datetime.now(timezone.utc)
+                submission.synced_at = datetime.now(UTC)
 
                 # Detect grade change
                 if lms_sub.score is not None and lms_sub.score != previous_score:

@@ -16,10 +16,11 @@ Usage:
 import asyncio
 import random
 import time
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 import structlog
 

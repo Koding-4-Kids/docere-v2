@@ -1,10 +1,10 @@
 """Student profile builder: tracks learning patterns and generates narrative summaries."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.core.memory.concept_utils import normalize_concept
 from docere.integrations.llm.client import ClaudeClient
@@ -80,7 +80,7 @@ class StudentProfileBuilder:
         profile.total_messages += 1
         n = profile.total_interactions
         profile.avg_confusion_score = (profile.avg_confusion_score * (n - 1) + confusion_score) / n
-        profile.last_interaction_at = datetime.now(timezone.utc)
+        profile.last_interaction_at = datetime.now(UTC)
 
         # Update engagement level based on interaction frequency
         if n >= 20:
@@ -116,7 +116,7 @@ class StudentProfileBuilder:
         )
         mastery = result.scalar_one_or_none()
         correct = confusion_to_correct(confusion_score)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if mastery:
             mastery.times_practiced += 1

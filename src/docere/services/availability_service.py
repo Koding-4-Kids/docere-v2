@@ -1,13 +1,12 @@
 """Availability computation and meeting booking."""
 
-from datetime import datetime, timedelta, timezone, time as dt_time
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import structlog
-from sqlalchemy import select, and_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from docere.config import settings
 from docere.models.calendar import MeetingRequest, OfficeHours
 from docere.models.course import Enrollment
 from docere.models.user import User
@@ -45,7 +44,7 @@ class AvailabilityService:
         if not instructor_enrollments:
             return []
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         end_date = now + timedelta(days=days_ahead)
         all_slots = []
 
@@ -243,8 +242,8 @@ class AvailabilityService:
                     if slot_start > start:
                         slots.append(
                             {
-                                "start": slot_start.astimezone(timezone.utc).isoformat(),
-                                "end": slot_end.astimezone(timezone.utc).isoformat(),
+                                "start": slot_start.astimezone(UTC).isoformat(),
+                                "end": slot_end.astimezone(UTC).isoformat(),
                             }
                         )
                     slot_start = slot_end

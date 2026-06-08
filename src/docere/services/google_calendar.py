@@ -1,7 +1,7 @@
 """Google Calendar integration: OAuth2, token encryption, Calendar API."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import partial
 
 import structlog
@@ -116,19 +116,17 @@ class GoogleCalendarService:
         if existing:
             existing.encrypted_access_token = encrypted_access
             existing.encrypted_refresh_token = encrypted_refresh
-            existing.token_expiry = (
-                creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else None
-            )
+            existing.token_expiry = creds.expiry.replace(tzinfo=UTC) if creds.expiry else None
             existing.scopes = granted_scopes
             existing.is_active = True
-            existing.updated_at = datetime.now(timezone.utc)
+            existing.updated_at = datetime.now(UTC)
             token_record = existing
         else:
             token_record = InstructorCalendarToken(
                 instructor_id=instructor_id,
                 encrypted_access_token=encrypted_access,
                 encrypted_refresh_token=encrypted_refresh,
-                token_expiry=creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else None,
+                token_expiry=creds.expiry.replace(tzinfo=UTC) if creds.expiry else None,
                 scopes=granted_scopes,
             )
             self.db.add(token_record)
@@ -179,7 +177,7 @@ class GoogleCalendarService:
                         instructor_id=instructor_id,
                     )
                     token_record.is_active = False
-                    token_record.updated_at = datetime.now(timezone.utc)
+                    token_record.updated_at = datetime.now(UTC)
                     await self.db.commit()
                     return None
                 raise
@@ -187,10 +185,8 @@ class GoogleCalendarService:
             token_record.encrypted_access_token = _encrypt(creds.token)
             if creds.refresh_token:
                 token_record.encrypted_refresh_token = _encrypt(creds.refresh_token)
-            token_record.token_expiry = (
-                creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else None
-            )
-            token_record.updated_at = datetime.now(timezone.utc)
+            token_record.token_expiry = creds.expiry.replace(tzinfo=UTC) if creds.expiry else None
+            token_record.updated_at = datetime.now(UTC)
             await self.db.commit()
 
         return creds

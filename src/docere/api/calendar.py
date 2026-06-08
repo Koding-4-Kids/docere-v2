@@ -9,14 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.dependencies import get_current_user_id, get_db, require_instructor
 from docere.models.calendar import MeetingRequest, OfficeHours
-from docere.models.course import Enrollment
 from docere.models.memory import StudentProfile
 from docere.schemas.calendar import (
     BookMeetingRequest,
     CalendarStatusResponse,
     MeetingResponse,
     OAuthAuthorizeResponse,
-    OAuthCallbackResponse,
     OfficeHoursCreate,
     OfficeHoursResponse,
     TimeSlotResponse,

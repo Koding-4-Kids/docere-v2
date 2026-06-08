@@ -5,18 +5,19 @@ import hashlib
 import os
 import shutil
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import select, func as sa_func
+from sqlalchemy import func as sa_func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from docere.api.memory import _classify_document
 from docere.config import settings
 from docere.core.memory.student_documents import ALLOWED_EXTENSIONS, collection_name_for
-from docere.dependencies import get_db, get_current_user_id, get_qdrant
-from docere.api.memory import _classify_document
+from docere.dependencies import get_current_user_id, get_db, get_qdrant
 
 logger = structlog.get_logger()
 
@@ -154,7 +155,7 @@ async def _embed_and_update(doc_id: str, student_id: str, course_id: str, text: 
             return
 
         doc.status = "processing"
-        doc.processing_started_at = datetime.now(timezone.utc)
+        doc.processing_started_at = datetime.now(UTC)
         await db.commit()
 
         try:
@@ -163,7 +164,7 @@ async def _embed_and_update(doc_id: str, student_id: str, course_id: str, text: 
             chunk_count = await manager.embed_document(doc_id, student_id, course_id, text)
             doc.status = "completed"
             doc.chunk_count = chunk_count
-            doc.processing_completed_at = datetime.now(timezone.utc)
+            doc.processing_completed_at = datetime.now(UTC)
         except Exception as e:
             logger.error("Document embedding failed", doc_id=doc_id, error=str(e))
             doc.status = "failed"
@@ -243,8 +244,10 @@ async def upload_document_from_url(
     db: AsyncSession = Depends(get_db),
 ):
     """Download a document from URL, parse it, return text for preview."""
+    from urllib.parse import unquote, urlparse
+
     import httpx as httpx_client
-    from urllib.parse import urlparse, unquote
+
     from docere.models.document import StudentDocument
 
     parsed = urlparse(request.url)
@@ -443,6 +446,7 @@ async def get_document_file(
 ):
     """Serve the original uploaded file for in-browser rendering."""
     from fastapi.responses import FileResponse
+
     from docere.models.document import StudentDocument
 
     doc = await db.get(StudentDocument, uuid.UUID(doc_id))

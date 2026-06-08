@@ -201,7 +201,6 @@ class StudentDocumentManager:
     async def _parse_with_docling(self, file_path: str) -> tuple[str, int, list[dict]]:
         """Parse with Docling for rich structure extraction."""
         import asyncio
-        from functools import partial
 
         def _sync_parse():
             from docling.document_converter import DocumentConverter

@@ -1,12 +1,11 @@
 """Qdrant vector database client with retry and circuit breaker."""
 
+import httpx
+import structlog
 from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.http.exceptions import (
     ResponseHandlingException,
-    UnexpectedResponse,
 )
-import httpx
-import structlog
 
 from docere.config import settings
 from docere.core.resilience import CircuitBreaker, retry_async

@@ -2,9 +2,10 @@
 
 import json
 import re
-from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field, validator
+from typing import Any
+
 import structlog
+from pydantic import BaseModel, Field, validator
 
 logger = structlog.get_logger()
 
@@ -47,7 +48,7 @@ class StrategyValidator:
             self._validate_safety,
         ]
 
-    async def validate_strategy(self, strategy_data: Dict[str, Any]) -> tuple[bool, List[str]]:
+    async def validate_strategy(self, strategy_data: dict[str, Any]) -> tuple[bool, list[str]]:
         """Validate a strategy and return (is_valid, error_messages)."""
         errors = []
 
@@ -62,7 +63,7 @@ class StrategyValidator:
         is_valid = len(errors) == 0
         return is_valid, errors
 
-    async def _validate_schema(self, strategy_data: Dict[str, Any]) -> tuple[bool, str]:
+    async def _validate_schema(self, strategy_data: dict[str, Any]) -> tuple[bool, str]:
         """Validate against Pydantic schema."""
         try:
             StrategySchema(**strategy_data)
@@ -71,7 +72,7 @@ class StrategyValidator:
             return False, f"Schema validation failed: {str(e)}"
 
     async def _validate_pedagogical_coherence(
-        self, strategy_data: Dict[str, Any]
+        self, strategy_data: dict[str, Any]
     ) -> tuple[bool, str]:
         """Check if strategy has pedagogical coherence."""
         template = strategy_data.get("prompt_template", "").lower()
@@ -88,7 +89,7 @@ class StrategyValidator:
 
         return True, ""
 
-    async def _validate_prompt_structure(self, strategy_data: Dict[str, Any]) -> tuple[bool, str]:
+    async def _validate_prompt_structure(self, strategy_data: dict[str, Any]) -> tuple[bool, str]:
         """Check prompt template structure."""
         template = strategy_data.get("prompt_template", "")
 
@@ -103,7 +104,7 @@ class StrategyValidator:
 
         return True, ""
 
-    async def _validate_safety(self, strategy_data: Dict[str, Any]) -> tuple[bool, str]:
+    async def _validate_safety(self, strategy_data: dict[str, Any]) -> tuple[bool, str]:
         """Check for safety and appropriateness."""
         template = strategy_data.get("prompt_template", "").lower()
 
@@ -128,7 +129,7 @@ class RobustJSONExtractor:
     """Robust JSON extraction from LLM responses."""
 
     @staticmethod
-    def extract_json(text: str) -> Optional[Dict[str, Any]]:
+    def extract_json(text: str) -> dict[str, Any] | None:
         """Extract JSON from text with multiple fallback methods."""
         methods = [
             RobustJSONExtractor._extract_with_markers,
@@ -147,7 +148,7 @@ class RobustJSONExtractor:
         return None
 
     @staticmethod
-    def _extract_with_markers(text: str) -> Optional[Dict[str, Any]]:
+    def _extract_with_markers(text: str) -> dict[str, Any] | None:
         """Extract JSON using start/end markers."""
         # Remove markdown code fences
         text = re.sub(r"```json\n?", "", text)
@@ -172,7 +173,7 @@ class RobustJSONExtractor:
         return None
 
     @staticmethod
-    def _extract_with_regex(text: str) -> Optional[Dict[str, Any]]:
+    def _extract_with_regex(text: str) -> dict[str, Any] | None:
         """Extract JSON using regex patterns."""
         # Pattern for JSON object
         pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
@@ -187,7 +188,7 @@ class RobustJSONExtractor:
         return None
 
     @staticmethod
-    def _extract_first_complete_object(text: str) -> Optional[Dict[str, Any]]:
+    def _extract_first_complete_object(text: str) -> dict[str, Any] | None:
         """Extract first complete JSON object."""
         # Find all potential JSON starts
         for start_pos in range(len(text)):

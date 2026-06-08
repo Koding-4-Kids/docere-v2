@@ -19,10 +19,10 @@ from docere.core.memory.memory_layer import MemoryLayer
 from docere.core.memory.teacher_context import TeacherContextManager
 from docere.core.verification.outcome_tracker import OutcomeTracker
 from docere.integrations.llm.client import ClaudeClient
-from docere.integrations.vector_db.qdrant import QdrantStore
-from docere.models.course import Assignment, Course, CourseMaterial
 from docere.integrations.lms.canvas import CanvasAdapter
 from docere.integrations.lms.moodle import MoodleAdapter
+from docere.integrations.vector_db.qdrant import QdrantStore
+from docere.models.course import Assignment, Course, CourseMaterial
 from docere.services.lms_sync_service import GradeChange, LMSSyncService
 
 logger = structlog.get_logger()

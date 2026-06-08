@@ -7,14 +7,12 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.config import settings
-from docere.dependencies import get_db, get_claude, require_instructor
+from docere.dependencies import get_claude, get_db, require_instructor
 from docere.integrations.llm.client import ClaudeClient
-from docere.models.course import Course, Enrollment
-from docere.models.user import User
+from docere.models.course import Course
 
 logger = structlog.get_logger()
 
@@ -349,7 +347,7 @@ async def validate_gradebook(
         mapping_prompt = f"Spreadsheet headers: {headers}\nSample rows (first 5):\n"
         for row in sample_rows:
             mapping_prompt += f"  {row}\n"
-        mapping_prompt += f"\nGrade items in LMS:\n"
+        mapping_prompt += "\nGrade items in LMS:\n"
         for item in grade_items:
             mapping_prompt += (
                 f"  - ID: {item['id']}, Name: {item['name']}, Max: {item.get('grade_max', 100)}\n"

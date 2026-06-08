@@ -5,6 +5,7 @@ import uuid
 from urllib.parse import urlencode
 
 import jwt as pyjwt
+import structlog
 from arq import create_pool
 from arq.connections import RedisSettings
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
@@ -12,7 +13,6 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.config import settings
 from docere.dependencies import create_access_token, get_current_user_id, get_db, get_redis

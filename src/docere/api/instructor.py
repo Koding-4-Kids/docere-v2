@@ -2,11 +2,11 @@
 
 import uuid
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import or_, select, func
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.config import settings
@@ -1179,7 +1179,7 @@ async def add_concept(
         student_records[rec.student_id].append(rec)
 
     params = BKTParams()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     students_affected = 0
 
     for student_id, records in student_records.items():

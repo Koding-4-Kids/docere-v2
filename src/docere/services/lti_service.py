@@ -2,9 +2,9 @@
 
 from dataclasses import dataclass
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.core.improvement.experiment_runner import ExperimentRunner
 from docere.integrations.lms.base import LMSAdapter

@@ -12,11 +12,11 @@ import asyncio
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.config import settings
 from docere.core.improvement.strategy_archive import StrategyArchive, StrategyContext
@@ -298,7 +298,7 @@ class TutoringAgent:
             logger.info("Force-injected meeting action for explicit request")
 
         # ── Persist messages + return immediately ──
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         student_msg = Message(
             conversation_id=conversation_id,
@@ -503,7 +503,7 @@ class TutoringAgent:
         if not prev_student:
             return
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         time_delta = int((now - prev_assistant.created_at).total_seconds())
 
         verification = await bg_verifier.score_interaction(

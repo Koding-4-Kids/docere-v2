@@ -8,12 +8,14 @@ Tasks:
 Run with: arq docere.worker.WorkerSettings
 """
 
+from datetime import UTC
+
+import structlog
 from arq import cron
 from arq.connections import RedisSettings
-import structlog
 
 from docere.config import settings
-from docere.dependencies import async_session, init_clients, get_qdrant, get_claude
+from docere.dependencies import async_session, get_claude, get_qdrant, init_clients
 
 logger = structlog.get_logger()
 
@@ -96,12 +98,14 @@ async def run_lti_course_sync(
     After sync, embeds all materials + syllabus into Qdrant.
     """
     import uuid
+
     from sqlalchemy import select
+
     from docere.core.memory.teacher_context import TeacherContextManager
     from docere.models.course import CourseMaterial
     from docere.models.lti_platform import LTIPlatform
-    from docere.services.lti_service import create_adapter
     from docere.services.lms_sync_service import LMSSyncService
+    from docere.services.lti_service import create_adapter
 
     async with async_session() as db:
         platform = await db.get(LTIPlatform, uuid.UUID(platform_id))
@@ -180,11 +184,12 @@ async def run_lti_material_sync(
     new/updated materials afterward.
     """
     import uuid
-    from docere.models.lti_platform import LTIPlatform
-    from docere.services.lti_service import create_adapter
-    from docere.services.lms_sync_service import LMSSyncService
-    from docere.tasks.lms_sync import _embed_new_materials
+
     from docere.models.course import Course
+    from docere.models.lti_platform import LTIPlatform
+    from docere.services.lms_sync_service import LMSSyncService
+    from docere.services.lti_service import create_adapter
+    from docere.tasks.lms_sync import _embed_new_materials
 
     new_count = 0
     updated_count = 0
@@ -205,7 +210,7 @@ async def run_lti_material_sync(
             return {"error": "course_not_found"}
 
         # Pull and sync materials only
-        from docere.integrations.lms.base import LMSFullSync, LMSCourse
+        from docere.integrations.lms.base import LMSCourse, LMSFullSync
 
         materials = await adapter.get_course_materials(external_course_id)
         sync_data = LMSFullSync(
@@ -252,7 +257,7 @@ async def run_document_ingestion(
     """Background: parse, chunk, embed, and store a student-uploaded document."""
     import os
     import shutil
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from docere.core.memory.student_documents import StudentDocumentManager
     from docere.models.document import StudentDocument
@@ -264,7 +269,7 @@ async def run_document_ingestion(
             return {"error": "not_found"}
 
         doc.status = "processing"
-        doc.processing_started_at = datetime.now(timezone.utc)
+        doc.processing_started_at = datetime.now(UTC)
         await db.commit()
 
         try:
@@ -275,7 +280,7 @@ async def run_document_ingestion(
             doc.status = "completed"
             doc.chunk_count = chunk_count
             doc.page_count = page_count
-            doc.processing_completed_at = datetime.now(timezone.utc)
+            doc.processing_completed_at = datetime.now(UTC)
         except Exception as e:
             logger.error("Document ingestion failed", doc_id=doc_id, error=str(e))
             doc.status = "failed"

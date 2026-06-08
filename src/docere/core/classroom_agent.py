@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 import structlog
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.integrations.llm.client import ClaudeClient
