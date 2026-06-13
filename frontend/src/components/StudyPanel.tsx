@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type ReactElement } from 'react'
 import { X, ChevronLeft, ChevronRight, RotateCcw, BookOpen, Layers, FileText, Presentation, Pencil, Eye } from 'lucide-react'
 import type { StudyArtifact } from '../api'
 
@@ -171,8 +171,8 @@ function MarkdownLine({ line }: { line: string }) {
   return <p className="text-sm text-text-200 mb-2 leading-relaxed">{renderInline(trimmed)}</p>
 }
 
-function renderInline(text: string): (string | JSX.Element)[] {
-  const parts: (string | JSX.Element)[] = []
+function renderInline(text: string): (string | ReactElement)[] {
+  const parts: (string | ReactElement)[] = []
   let remaining = text
   let key = 0
   while (remaining) {

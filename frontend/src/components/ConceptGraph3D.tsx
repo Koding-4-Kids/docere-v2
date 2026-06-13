@@ -94,7 +94,7 @@ function sentimentIcon(sentiment: string | null | undefined): string {
 
 export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
   function ConceptGraph3D({ nodes, edges, width, height, filter = 'all', topology = 'student', onStudentClick }, ref) {
-    const fgRef = useRef<ForceGraphMethods | undefined>()
+    const fgRef = useRef<ForceGraphMethods | undefined>(undefined)
     // d3-force mutates these node objects in-place, adding x/y/z positions
     const nodesRef = useRef<any[]>([])
 

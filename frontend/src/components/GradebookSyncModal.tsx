@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type {
   Course,
   IntegrationStatus,
@@ -9,7 +9,6 @@ import type {
   ValidationIssue,
   SyncResult,
   FixResult,
-  ColumnMapping,
 } from '../api'
 import {
   listGoogleSpreadsheets,

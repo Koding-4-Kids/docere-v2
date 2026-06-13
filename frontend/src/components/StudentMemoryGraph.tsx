@@ -71,7 +71,7 @@ function sentimentIcon(sentiment: string | null | undefined): string {
 
 export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
   function StudentMemoryGraph({ nodes, edges, width, height, filter = 'all', onNodeClick }, ref) {
-    const fgRef = useRef<ForceGraphMethods | undefined>()
+    const fgRef = useRef<ForceGraphMethods | undefined>(undefined)
     const nodesRef = useRef<any[]>([])
 
     const graphData = useMemo(() => ({

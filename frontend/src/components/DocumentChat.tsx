@@ -26,7 +26,7 @@ const SUGGESTIONS: Record<string, string[]> = {
   default: ['Summarize this document', 'What are the key points?', 'Quiz me on this'],
 }
 
-export function DocumentChat({ isOpen, onClose, courseId, docId, docName, docType }: Props) {
+export function DocumentChat({ isOpen, onClose, courseId, docName, docType }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)

@@ -11,7 +11,7 @@ import { useInstructorChat } from '../hooks/useInstructorChat'
 import { useMetaChat } from '../hooks/useMetaChat'
 import { CalendarSetup } from '../components/CalendarSetup'
 import { ActionCard } from '../components/ActionCard'
-import { GmailModal, GoogleDocsModal, GoogleSheetsModal, ExcelModal, CalendarEventModal, LMSAnnouncementModal } from '../components/ToolModals'
+import { GmailModal, GoogleDocsModal, CalendarEventModal, LMSAnnouncementModal } from '../components/ToolModals'
 import { GradebookSyncModal } from '../components/GradebookSyncModal'
 
 interface DashboardSummary {

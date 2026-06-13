@@ -87,7 +87,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npx tsc --noEmit
+      - run: npx tsc -b --noEmit
 
   frontend-build:
     name: Frontend Build

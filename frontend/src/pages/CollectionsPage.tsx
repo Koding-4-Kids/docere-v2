@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
-  X, Upload, FileText, Trash2, CheckCircle, AlertCircle, Loader,
+  X, Upload, FileText, Trash2, AlertCircle, Loader,
   Link, BookOpen, Search, Grid3X3, List, File, Image, Presentation,
-  Table, MoreVertical, Clock, HardDrive, Eye, Plus
+  Table, Eye, Plus
 } from 'lucide-react'
 import { DocumentReader } from '../components/DocumentReader'
 import * as api from '../api'
@@ -70,7 +70,7 @@ export function CollectionsPage({ courseId, onClose }: Props) {
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [dragOver, setDragOver] = useState(false)
-  const [contextMenu, setContextMenu] = useState<string | null>(null)
+  const [, setContextMenu] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const contextRef = useRef<HTMLDivElement>(null)
 
