@@ -116,8 +116,8 @@ export function MemoryMapPage({ courseId, onClose }: Props) {
       // Auto-confirm (skip preview, add directly)
       await loadDocs()
       await loadGraph()
-    } catch (e: any) {
-      setUploadError(e.message)
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
       setUploading(false)
     }
@@ -133,8 +133,8 @@ export function MemoryMapPage({ courseId, onClose }: Props) {
       setShowUrlInput(false)
       await loadDocs()
       await loadGraph()
-    } catch (e: any) {
-      setUploadError(e.message)
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
       setUploading(false)
     }

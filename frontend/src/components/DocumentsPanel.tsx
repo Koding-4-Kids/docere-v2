@@ -79,8 +79,8 @@ export function DocumentsPanel({ courseId, onClose }: Props) {
     try {
       await api.uploadDocument(courseId, file)
       await loadDocs()
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
       setUploading(false)
     }
@@ -108,8 +108,8 @@ export function DocumentsPanel({ courseId, onClose }: Props) {
       setUrlInput('')
       setShowUrlInput(false)
       await loadDocs()
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
       setUploading(false)
     }
@@ -119,8 +119,8 @@ export function DocumentsPanel({ courseId, onClose }: Props) {
     try {
       await api.deleteDocument(docId)
       setDocs(prev => prev.filter(d => d.id !== docId))
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Delete failed')
     }
   }
 

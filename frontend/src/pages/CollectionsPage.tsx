@@ -120,8 +120,8 @@ export function CollectionsPage({ courseId, onClose }: Props) {
       setUploadProgress(100)
       await loadDocs()
       setTimeout(() => setActiveDocId(result.doc_id), 200)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
       setUploading(false)
     }
@@ -144,8 +144,8 @@ export function CollectionsPage({ courseId, onClose }: Props) {
       setShowUrlInput(false)
       await loadDocs()
       setActiveDocId(result.doc_id)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
       setUploading(false)
     }
@@ -158,8 +158,8 @@ export function CollectionsPage({ courseId, onClose }: Props) {
       await api.deleteDocument(docId)
       if (activeDocId === docId) setActiveDocId(null)
       setDocs(prev => prev.filter(d => d.id !== docId))
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Delete failed')
     }
   }
 

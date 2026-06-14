@@ -83,11 +83,11 @@ export function DocumentChat({ isOpen, onClose, courseId, docName, docType }: Pr
           )
         },
       )
-    } catch (e: any) {
+    } catch (e) {
       setMessages(prev => [...prev, {
         id: `err-${Date.now()}`,
         role: 'assistant',
-        content: `Something went wrong: ${e.message}`,
+        content: `Something went wrong: ${e instanceof Error ? e.message : String(e)}`,
       }])
     } finally {
       setLoading(false)

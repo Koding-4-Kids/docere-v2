@@ -124,8 +124,8 @@ function SourceStep({ source, onSelect, integrationStatus }: {
     try {
       const data = await readGoogleSpreadsheet(sheet.id)
       onSelect(data)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load spreadsheet')
     } finally {
       setLoading(false)
     }
@@ -138,8 +138,8 @@ function SourceStep({ source, onSelect, integrationStatus }: {
     try {
       const data = await readGoogleSpreadsheetUrl(urlInput.trim())
       onSelect(data)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load spreadsheet')
     } finally {
       setLoading(false)
     }
@@ -153,8 +153,8 @@ function SourceStep({ source, onSelect, integrationStatus }: {
     try {
       const result = await uploadExcel(file)
       onSelect({ title: result.filename, headers: result.headers, rows: result.rows })
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setLoading(false)
     }
@@ -172,8 +172,8 @@ function SourceStep({ source, onSelect, integrationStatus }: {
     try {
       const result = await uploadExcel(file)
       onSelect({ title: result.filename, headers: result.headers, rows: result.rows })
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setLoading(false)
     }
@@ -368,8 +368,8 @@ function DestinationStep({ courses, sourceData, onValidate }: {
     try {
       const result = await validateGradebook(sourceData, selectedCourse, [...selectedItems])
       onValidate(selectedCourse, [...selectedItems], result)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Validation failed')
     } finally {
       setValidating(false)
     }
@@ -511,8 +511,8 @@ function ValidationStep({ result, sourceData, courseId, onSync, onFix, onBack }:
         { ...sourceData, rows: editableRows },
       )
       onSync(syncResult)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sync failed')
     } finally {
       setSyncing(false)
     }
@@ -527,8 +527,8 @@ function ValidationStep({ result, sourceData, courseId, onSync, onFix, onBack }:
         result.issues,
       )
       onFix(fixResult)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Fix failed')
     } finally {
       setFixing(false)
     }

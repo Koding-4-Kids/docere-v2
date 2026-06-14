@@ -1,6 +1,6 @@
 import { useRef, useCallback, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react'
 import ForceGraph3D from 'react-force-graph-3d'
-import type { ForceGraphMethods } from 'react-force-graph-3d'
+import type { ForceGraphMethods, NodeObject, LinkObject } from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
 import * as THREE from 'three'
 
@@ -50,6 +50,58 @@ export interface ConceptGraph3DHandle {
   zoomToFit: () => void
 }
 
+interface ConceptSceneNode {
+  id: string
+  name: string
+  nodeType: 'concept'
+  val: number
+  color: string
+  avgMastery: number
+  studentCount: number
+  timesStruggled: number
+  masteryLabel: string
+}
+
+interface StudentSceneNode {
+  id: string
+  name: string
+  nodeType: 'student'
+  val: number
+  color: string
+  engagement?: string | null
+  totalInteractions: number
+  avgConfusion: number
+}
+
+interface MemorySceneNode {
+  id: string
+  name: string
+  nodeType: 'memory'
+  val: number
+  color: string
+  memoryType?: string | null
+  concepts?: string[] | null
+  confusionScore: number
+  sentiment?: string | null
+}
+
+// d3-force mutates these in-place, adding x/y/z (and velocity) once the simulation runs
+type SceneNode = (ConceptSceneNode | StudentSceneNode | MemorySceneNode) & {
+  x?: number
+  y?: number
+  z?: number
+}
+
+interface SceneLink {
+  source: string | SceneNode
+  target: string | SceneNode
+  edgeType: GraphEdge['type']
+  weight: number | null
+}
+
+type SceneNodeObj = NodeObject<SceneNode>
+type SceneLinkObj = LinkObject<SceneNode, SceneLink>
+
 /** Student node color based on engagement level */
 export function studentColor(engagement: string | null | undefined): string {
   switch (engagement) {
@@ -94,9 +146,9 @@ function sentimentIcon(sentiment: string | null | undefined): string {
 
 export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
   function ConceptGraph3D({ nodes, edges, width, height, filter = 'all', topology = 'student', onStudentClick }, ref) {
-    const fgRef = useRef<ForceGraphMethods | undefined>(undefined)
+    const fgRef = useRef<ForceGraphMethods<SceneNodeObj, SceneLinkObj> | undefined>(undefined)
     // d3-force mutates these node objects in-place, adding x/y/z positions
-    const nodesRef = useRef<any[]>([])
+    const nodesRef = useRef<SceneNodeObj[]>([])
 
     const isDistributed = topology === 'distributed'
 
@@ -151,17 +203,18 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
     nodesRef.current = graphData.nodes
 
     // Visibility based on filter — keeps force layout stable
-    const isNodeVisible = useCallback((node: any): boolean => {
+    const isNodeVisible = useCallback((node: SceneNode): boolean => {
       if (filter === 'all') return true
       if (node.nodeType === 'student') return true
       if (filter === 'students') return false
+      if (node.nodeType === 'concept') return false
       return node.memoryType === filter
     }, [filter])
 
-    const isLinkVisible = useCallback((link: any): boolean => {
+    const isLinkVisible = useCallback((link: SceneLink): boolean => {
       if (filter === 'all') return true
-      const src = typeof link.source === 'object' ? link.source : nodesRef.current.find((n: any) => n.id === link.source)
-      const tgt = typeof link.target === 'object' ? link.target : nodesRef.current.find((n: any) => n.id === link.target)
+      const src = typeof link.source === 'object' ? link.source : nodesRef.current.find(n => n.id === link.source)
+      const tgt = typeof link.target === 'object' ? link.target : nodesRef.current.find(n => n.id === link.target)
       if (!src || !tgt) return false
       return isNodeVisible(src) && isNodeVisible(tgt)
     }, [filter, isNodeVisible])
@@ -169,13 +222,13 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
     const zoomToNode = useCallback((nodeId: string) => {
       const fg = fgRef.current
       if (!fg) return
-      const node = nodesRef.current.find((n: any) => n.id === nodeId)
-      if (!node || node.x === undefined) return
+      const node = nodesRef.current.find(n => n.id === nodeId)
+      if (!node || node.x === undefined || node.y === undefined || node.z === undefined) return
       const distance = node.nodeType === 'student' ? 150 : 80
       const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z)
       fg.cameraPosition(
         { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
-        node,
+        { x: node.x, y: node.y, z: node.z },
         1000,
       )
     }, [])
@@ -192,19 +245,19 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
       if (!fg) return
 
       // Add exponential fog — softens the void when zoomed in
-      const scene = (fg as any).scene?.()
+      const scene = fg.scene()
       if (scene) {
         scene.fog = new THREE.FogExp2('#0a0a1a', 0.0006)
       }
 
       // Subtle bloom post-processing
       try {
-        const composer = (fg as any).postProcessingComposer?.()
+        const composer = fg.postProcessingComposer()
         if (composer) {
           import('three/examples/jsm/postprocessing/UnrealBloomPass.js').then(
             ({ UnrealBloomPass }) => {
               const bloom = new UnrealBloomPass(
-                undefined as any,
+                new THREE.Vector2(256, 256),
                 0.6,   // strength — gentle glow
                 0.3,   // radius
                 0.88,  // threshold — only brightest colors bloom
@@ -218,12 +271,15 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
       }
     }, [])
 
-    const handleNodeClick = useCallback((node: any) => {
+    const handleNodeClick = useCallback((node: SceneNodeObj) => {
       const distance = node.nodeType === 'student' ? 150 : 80
-      const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z)
+      const x = node.x ?? 0
+      const y = node.y ?? 0
+      const z = node.z ?? 0
+      const distRatio = 1 + distance / Math.hypot(x, y, z)
       fgRef.current?.cameraPosition(
-        { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
-        node,
+        { x: x * distRatio, y: y * distRatio, z: z * distRatio },
+        { x, y, z },
         1000,
       )
       if (node.nodeType === 'student' && onStudentClick) {
@@ -232,7 +288,7 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
     }, [onStudentClick])
 
     // Custom 3D objects per node type + topology
-    const renderNode = useCallback((node: any) => {
+    const renderNode = useCallback((node: SceneNodeObj) => {
       // ── Concept hub nodes (octahedron + label) ──
       if (node.nodeType === 'concept') {
         const group = new THREE.Group()
@@ -332,7 +388,7 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
     }
 
     return (
-      <ForceGraph3D
+      <ForceGraph3D<SceneNode, SceneLink>
         ref={fgRef}
         graphData={graphData}
         width={width}
@@ -343,7 +399,7 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
         linkVisibility={isLinkVisible}
         // Custom node rendering
         nodeThreeObject={renderNode}
-        nodeLabel={(node: any) => {
+        nodeLabel={(node: SceneNodeObj) => {
           if (node.nodeType === 'concept') {
             return `<div style="background:rgba(0,0,0,0.9);color:#fff;padding:8px 12px;border-radius:8px;font-size:13px;max-width:240px;line-height:1.5;border:1px solid ${node.color}">
             <b style="color:${node.color}">${node.name}</b><br/>
@@ -369,20 +425,20 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
         </div>`
         }}
         // Links
-        linkWidth={(link: any) => {
+        linkWidth={(link: SceneLinkObj) => {
           if (link.edgeType === 'concept_concept') return 1
           if (link.edgeType === 'concept_student') return 1.2
           if (link.edgeType === 'student_memory') return isDistributed ? 0.8 : 1.5
           return 0.3
         }}
         linkOpacity={0.35}
-        linkColor={(link: any) => {
+        linkColor={(link: SceneLinkObj) => {
           if (link.edgeType === 'concept_concept') return '#9966ff'
           if (link.edgeType === 'concept_student') return '#44ddff'
           if (link.edgeType === 'student_memory') return '#4488ff'
           return '#553388'
         }}
-        linkDirectionalParticles={(link: any) => {
+        linkDirectionalParticles={(link: SceneLinkObj) => {
           if (link.edgeType === 'concept_student') return 1
           if (link.edgeType === 'student_memory' && !isDistributed) return 2
           return 0

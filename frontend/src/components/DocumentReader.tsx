@@ -351,8 +351,8 @@ export function DocumentReader({ docId, courseId, onBack, onStatusChange }: Prop
       await api.confirmDocument(docId)
       setDoc(prev => prev ? { ...prev, status: 'processing' } : prev)
       onStatusChange?.()
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to confirm document')
     } finally {
       setConfirming(false)
     }
