@@ -231,17 +231,6 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
       }
     }, [onStudentClick])
 
-    if (nodes.length === 0) {
-      return (
-        <div
-          className="flex items-center justify-center text-text-500 text-sm"
-          style={{ width, height }}
-        >
-          No data yet — students need to start chatting
-        </div>
-      )
-    }
-
     // Custom 3D objects per node type + topology
     const renderNode = useCallback((node: any) => {
       // ── Concept hub nodes (octahedron + label) ──
@@ -330,6 +319,17 @@ export const ConceptGraph3D = forwardRef<ConceptGraph3DHandle, Props>(
       })
       return new THREE.Mesh(geo, mat)
     }, [topology, isDistributed])
+
+    if (nodes.length === 0) {
+      return (
+        <div
+          className="flex items-center justify-center text-text-500 text-sm"
+          style={{ width, height }}
+        >
+          No data yet — students need to start chatting
+        </div>
+      )
+    }
 
     return (
       <ForceGraph3D

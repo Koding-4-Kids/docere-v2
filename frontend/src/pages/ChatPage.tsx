@@ -239,7 +239,7 @@ export function ChatPage() {
     setIsMeetingPanelOpen(false)
   }
 
-  const handleSendMessage = async (content: string, _files?: File[]) => {
+  const handleSendMessage = async (content: string) => {
     // Course for new conversations: toggled pill > active conversation > first course
     const courseId = activeCourseId || activeConv?.courseId || (courses.length > 0 ? courses[0].id : null)
     if (!courseId) return
@@ -444,7 +444,7 @@ export function ChatPage() {
             } else if (isStudyRequest) {
               closePanel()
             }
-          } catch (fallbackErr) {
+          } catch {
             setIsLoading(false)
             setIsGeneratingArtifact(false)
             if (isStudyRequest) closePanel()

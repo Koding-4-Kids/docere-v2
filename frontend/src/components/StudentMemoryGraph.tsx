@@ -211,17 +211,6 @@ export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
       }
     }, [onNodeClick])
 
-    if (nodes.length === 0) {
-      return (
-        <div
-          className="flex items-center justify-center text-white/40 text-sm"
-          style={{ width, height }}
-        >
-          Start chatting to build your memory map
-        </div>
-      )
-    }
-
     // Custom 3D objects
     const renderNode = useCallback((node: any) => {
       // ── Concept nodes (octahedron + label) ──
@@ -306,6 +295,17 @@ export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
       })
       return new THREE.Mesh(geo, mat)
     }, [])
+
+    if (nodes.length === 0) {
+      return (
+        <div
+          className="flex items-center justify-center text-white/40 text-sm"
+          style={{ width, height }}
+        >
+          Start chatting to build your memory map
+        </div>
+      )
+    }
 
     return (
       <ForceGraph3D
