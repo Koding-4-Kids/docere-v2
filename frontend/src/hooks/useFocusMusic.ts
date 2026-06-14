@@ -70,7 +70,7 @@ export function useFocusMusic() {
   const [isMuted, setIsMuted] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [playerReady, setPlayerReady] = useState(false)
+  const [playerReady, setPlayerReady] = useState(() => !!(window.YT && window.YT.Player))
   const [activeCategory, setActiveCategory] = useState<MusicCategory | null>(null)
 
   const playerRef = useRef<any>(null)
@@ -82,10 +82,7 @@ export function useFocusMusic() {
 
   // Load YouTube IFrame API
   useEffect(() => {
-    if (window.YT && window.YT.Player) {
-      setPlayerReady(true)
-      return
-    }
+    if (window.YT && window.YT.Player) return
     if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
       const tag = document.createElement('script')
       tag.src = 'https://www.youtube.com/iframe_api'

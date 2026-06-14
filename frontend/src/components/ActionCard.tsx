@@ -67,16 +67,12 @@ const ACTION_LABELS: Record<string, { title: string; execute: string }> = {
 }
 
 function EmailRecipientLabel({ to, courseId }: { to: string | string[]; courseId?: string }) {
-  const [label, setLabel] = useState<string | null>(null)
+  // Already a list of emails, or no group to resolve: show directly, no fetch needed
+  const staticLabel = Array.isArray(to) ? to.join(', ') : (!courseId ? to : null)
+  const [label, setLabel] = useState<string | null>(staticLabel)
 
   useEffect(() => {
-    // If it's already a list of emails, just show them
-    if (Array.isArray(to)) {
-      setLabel(to.join(', '))
-      return
-    }
-    // Resolve group target
-    if (!courseId) { setLabel(to); return }
+    if (staticLabel !== null) return
     const token = getStoredToken()
     fetch('/api/v1/integrations/resolve-recipients', {
       method: 'POST',
@@ -85,8 +81,8 @@ function EmailRecipientLabel({ to, courseId }: { to: string | string[]; courseId
     })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setLabel(data.target_label) })
-      .catch(() => setLabel(to))
-  }, [to, courseId])
+      .catch(() => setLabel(to as string))
+  }, [to, courseId, staticLabel])
 
   return <span className="text-white/60">{label ?? 'Resolving...'}</span>
 }

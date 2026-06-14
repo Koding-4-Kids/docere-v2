@@ -28,14 +28,19 @@ export function useTypewriter({
   // Speed up for long content
   const speed = text.length > 3000 ? 5 : charsPerTick
 
-  const isComplete = !enabled || skipped || charIndex >= text.length
-
-  useEffect(() => {
-    // Reset when text changes
+  // Reset when text changes (adjusting state during render, per react.dev)
+  const [prevText, setPrevText] = useState(text)
+  if (text !== prevText) {
+    setPrevText(text)
     setCharIndex(0)
     setSkipped(false)
+  }
+
+  useEffect(() => {
     lastTickRef.current = 0
   }, [text])
+
+  const isComplete = !enabled || skipped || charIndex >= text.length
 
   useEffect(() => {
     if (!enabled || skipped || charIndex >= text.length) return

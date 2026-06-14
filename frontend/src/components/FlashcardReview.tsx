@@ -33,7 +33,6 @@ export function FlashcardReview({ courseId, onClose }: FlashcardReviewProps) {
 
   // Load review session
   useEffect(() => {
-    setLoading(true)
     api.getReviewSession(courseId)
       .then(s => {
         setSession(s)

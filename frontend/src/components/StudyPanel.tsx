@@ -61,7 +61,7 @@ export function StudyPanel({ artifact, isGenerating, onClose }: StudyPanelProps)
         )}
 
         {artifact && (artifact.type === 'notes' || artifact.type === 'study_guide') && (
-          <EditableNotes content={artifact.content} />
+          <EditableNotes key={artifact.content} content={artifact.content} />
         )}
       </div>
     </div>
@@ -74,12 +74,6 @@ function EditableNotes({ content: initialContent }: { content: string }) {
   const [content, setContent] = useState(initialContent)
   const [isEditing, setIsEditing] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  // Sync when new content arrives (e.g. new artifact generated)
-  useEffect(() => {
-    setContent(initialContent)
-    setIsEditing(false)
-  }, [initialContent])
 
   // Auto-resize textarea and focus when entering edit mode
   useEffect(() => {

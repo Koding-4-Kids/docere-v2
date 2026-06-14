@@ -81,15 +81,12 @@ export function ChatPage() {
 
   const activeConv = conversations.find(c => c.id === activeConvId)
 
-  // Load/save notes from localStorage per conversation
-  useEffect(() => {
-    if (activeConvId) {
-      const saved = localStorage.getItem(`docere-notes-${activeConvId}`)
-      setNotesContent(saved || '')
-    } else {
-      setNotesContent('')
-    }
-  }, [activeConvId])
+  // Load notes from localStorage when switching conversations (adjusting state during render)
+  const [notesConvId, setNotesConvId] = useState(activeConvId)
+  if (activeConvId !== notesConvId) {
+    setNotesConvId(activeConvId)
+    setNotesContent(activeConvId ? localStorage.getItem(`docere-notes-${activeConvId}`) || '' : '')
+  }
 
   const handleNotesChange = (value: string) => {
     setNotesContent(value)

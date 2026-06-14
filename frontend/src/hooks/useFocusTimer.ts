@@ -28,6 +28,7 @@ export function useFocusTimer() {
   // Update pomoTime when durations change (if not running)
   useEffect(() => {
     if (!isRunning) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs idle pomoTime to the current duration settings, not derivable at render since pomoTime is also mutated by the tick interval
       if (pomoMode === 'focus') setPomoTime(focusDuration * 60)
       else if (pomoMode === 'shortBreak') setPomoTime(shortBreakDuration * 60)
       else if (pomoMode === 'longBreak') setPomoTime(longBreakDuration * 60)
