@@ -14,6 +14,7 @@ export function LTICallbackPage() {
     try {
       const hash = window.location.hash.substring(1) // remove '#'
       if (!hash) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time synchronous parse of the mount-time URL hash, not derivable from props/state
         setError('No authentication data in URL')
         return
       }

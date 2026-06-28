@@ -11,7 +11,7 @@ import { useInstructorChat } from '../hooks/useInstructorChat'
 import { useMetaChat } from '../hooks/useMetaChat'
 import { CalendarSetup } from '../components/CalendarSetup'
 import { ActionCard } from '../components/ActionCard'
-import { GmailModal, GoogleDocsModal, GoogleSheetsModal, ExcelModal, CalendarEventModal, LMSAnnouncementModal } from '../components/ToolModals'
+import { GmailModal, GoogleDocsModal, CalendarEventModal, LMSAnnouncementModal } from '../components/ToolModals'
 import { GradebookSyncModal } from '../components/GradebookSyncModal'
 
 interface DashboardSummary {
@@ -375,6 +375,7 @@ export function InstructorDashboardPage() {
     const pathParts = window.location.pathname.split('/')
     const cid = pathParts[pathParts.length - 1]
     if (!cid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time synchronous parse of the mount-time URL path, not derivable from props/state
       setError('No course specified')
       setLoading(false)
       return

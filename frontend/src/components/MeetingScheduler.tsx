@@ -30,7 +30,6 @@ export function MeetingScheduler({ courseId, conversationId, action, onClose, on
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
 
   useEffect(() => {
-    setLoading(true)
     api.getAvailableSlots(courseId)
       .then(data => {
         setSlots(data)

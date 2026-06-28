@@ -12,7 +12,7 @@ const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(getStoredUser)
-  const [loading, setLoading] = useState(!!getStoredToken())
+  const [loading, setLoading] = useState(true)
 
   // On mount, verify stored token or auto-login in dev mode
   useEffect(() => {
@@ -27,7 +27,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .finally(() => setLoading(false))
     } else {
       // Auto dev login — skip the login page entirely
-      setLoading(true)
       devLogin('student@test.com')
         .then(data => {
           setUser({ id: data.user_id, name: data.name, email: 'student@test.com', role: data.role })

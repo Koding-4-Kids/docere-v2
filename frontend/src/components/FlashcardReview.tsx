@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, RotateCcw, Check, Undo2 } from 'lucide-react'
 import { Icons } from './ClaudeChatInput'
 import * as api from '../api'
-import type { FlashcardCard, ReviewSession } from '../api'
+import type { ReviewSession } from '../api'
 
 interface FlashcardReviewProps {
   courseId: string
@@ -29,11 +29,10 @@ export function FlashcardReview({ courseId, onClose }: FlashcardReviewProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [exitDir, setExitDir] = useState<'left' | 'right' | null>(null)
   const startRef = useRef({ x: 0, y: 0, time: 0 })
-  const cardStartTime = useRef(Date.now())
+  const cardStartTime = useRef(0)
 
   // Load review session
   useEffect(() => {
-    setLoading(true)
     api.getReviewSession(courseId)
       .then(s => {
         setSession(s)

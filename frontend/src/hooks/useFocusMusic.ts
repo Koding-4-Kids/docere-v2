@@ -55,10 +55,38 @@ const PLAYLISTS: Record<MusicCategory, MusicTrack[]> = {
   ],
 }
 
+interface YTPlayer {
+  setVolume(volume: number): void
+  getVolume(): number
+  getCurrentTime(): number
+  getDuration(): number
+  getPlayerState(): number
+  loadVideoById(videoId: string): void
+  playVideo(): void
+  pauseVideo(): void
+  seekTo(seconds: number, allowSeekAhead: boolean): void
+}
+
+interface YTPlayerEvent {
+  data: number
+}
+
+interface YTPlayerConfig {
+  height: string | number
+  width: string | number
+  playerVars?: Record<string, number>
+  events?: {
+    onReady?: () => void
+    onStateChange?: (event: YTPlayerEvent) => void
+  }
+}
+
 declare global {
   interface Window {
-    YT: any
-    onYouTubeIframeAPIReady: () => void
+    YT?: {
+      Player: new (elementId: string, config: YTPlayerConfig) => YTPlayer
+    }
+    onYouTubeIframeAPIReady?: () => void
   }
 }
 
@@ -70,10 +98,10 @@ export function useFocusMusic() {
   const [isMuted, setIsMuted] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [playerReady, setPlayerReady] = useState(false)
+  const [playerReady, setPlayerReady] = useState(() => !!(window.YT && window.YT.Player))
   const [activeCategory, setActiveCategory] = useState<MusicCategory | null>(null)
 
-  const playerRef = useRef<any>(null)
+  const playerRef = useRef<YTPlayer | null>(null)
   const playlistRef = useRef<MusicTrack[]>([])
   const indexRef = useRef(0)
 
@@ -82,10 +110,7 @@ export function useFocusMusic() {
 
   // Load YouTube IFrame API
   useEffect(() => {
-    if (window.YT && window.YT.Player) {
-      setPlayerReady(true)
-      return
-    }
+    if (window.YT && window.YT.Player) return
     if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
       const tag = document.createElement('script')
       tag.src = 'https://www.youtube.com/iframe_api'
@@ -107,13 +132,14 @@ export function useFocusMusic() {
       div.style.display = 'none'
       document.body.appendChild(div)
     }
+    if (!window.YT) return
     playerRef.current = new window.YT.Player('docere-yt-player', {
       height: '0',
       width: '0',
       playerVars: { autoplay: 0, controls: 0, disablekb: 1, enablejsapi: 1, fs: 0, modestbranding: 1, playsinline: 1, rel: 0 },
       events: {
         onReady: () => { playerRef.current?.setVolume(volume) },
-        onStateChange: (e: any) => {
+        onStateChange: (e: YTPlayerEvent) => {
           if (e.data === 0 && playlistRef.current.length > 0) {
             const next = (indexRef.current + 1) % playlistRef.current.length
             setCurrentTrackIndex(next)

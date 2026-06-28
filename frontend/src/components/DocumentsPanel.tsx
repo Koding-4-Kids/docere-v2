@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Upload, FileText, Trash2, CheckCircle, AlertCircle, Loader, Link, File, Image, Presentation, Table, Eye } from 'lucide-react'
+import { X, Upload, FileText, Trash2, Loader, Link, File, Image, Presentation, Table } from 'lucide-react'
 import * as api from '../api'
 import type { StudentDocument } from '../api'
 
@@ -34,7 +34,7 @@ function getFileConfig(filename: string) {
 }
 
 const STATUS_CONFIG = {
-  pending:    { label: 'Queued', spinning: true },
+  uploaded:   { label: 'Queued', spinning: true },
   processing: { label: 'Indexing', spinning: true },
   completed:  { label: 'Ready', spinning: false },
   failed:     { label: 'Failed', spinning: false },
@@ -61,7 +61,7 @@ export function DocumentsPanel({ courseId, onClose }: Props) {
 
   // Poll for processing docs
   useEffect(() => {
-    const hasProcessing = docs.some(d => d.status === 'pending' || d.status === 'processing')
+    const hasProcessing = docs.some(d => d.status === 'uploaded' || d.status === 'processing')
     if (hasProcessing) {
       pollRef.current = setInterval(loadDocs, 3000)
     } else if (pollRef.current) {
@@ -79,8 +79,8 @@ export function DocumentsPanel({ courseId, onClose }: Props) {
     try {
       await api.uploadDocument(courseId, file)
       await loadDocs()
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
       setUploading(false)
     }
@@ -108,8 +108,8 @@ export function DocumentsPanel({ courseId, onClose }: Props) {
       setUrlInput('')
       setShowUrlInput(false)
       await loadDocs()
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
       setUploading(false)
     }
@@ -119,8 +119,8 @@ export function DocumentsPanel({ courseId, onClose }: Props) {
     try {
       await api.deleteDocument(docId)
       setDocs(prev => prev.filter(d => d.id !== docId))
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Delete failed')
     }
   }
 
@@ -232,7 +232,7 @@ export function DocumentsPanel({ courseId, onClose }: Props) {
           const fileCfg = getFileConfig(doc.filename)
           const FileIcon = fileCfg.icon
           const config = STATUS_CONFIG[doc.status]
-          const isProcessing = doc.status === 'pending' || doc.status === 'processing'
+          const isProcessing = doc.status === 'uploaded' || doc.status === 'processing'
 
           return (
             <div

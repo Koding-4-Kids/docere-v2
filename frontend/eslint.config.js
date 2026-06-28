@@ -19,5 +19,12 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'react-refresh/only-export-components': [
+        'error',
+        { allowConstantExport: true, allowExportNames: ['useAuth', 'Icons', 'studentColor'] },
+      ],
+    },
   },
 ])

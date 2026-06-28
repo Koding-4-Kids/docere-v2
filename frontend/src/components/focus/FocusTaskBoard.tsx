@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Plus, X, ChevronLeft, ChevronRight, ClipboardList, Loader, CheckCircle } from 'lucide-react'
 import type { FocusTask, TaskStatus, Priority } from '../../hooks/useFocusTasks'
 
@@ -33,19 +33,6 @@ export function FocusTaskBoard({ tasks, addTask, updateTask, moveTask, deleteTas
   const [targetColumn, setTargetColumn] = useState<TaskStatus>('planned')
   const [pages, setPages] = useState<Record<TaskStatus, number>>({ 'planned': 1, 'in-progress': 1, 'done': 1 })
   const [form, setForm] = useState({ title: '', note: '', priority: 'medium' as Priority })
-
-  // Keep pages in bounds
-  useEffect(() => {
-    setPages(prev => {
-      const next = { ...prev }
-      let changed = false
-      for (const col of columns) {
-        const total = Math.ceil(tasks.filter(t => t.status === col.id).length / ITEMS_PER_PAGE) || 1
-        if (prev[col.id] > total) { next[col.id] = total; changed = true }
-      }
-      return changed ? next : prev
-    })
-  }, [tasks])
 
   const openAdd = (col: TaskStatus) => {
     setEditingId(null)

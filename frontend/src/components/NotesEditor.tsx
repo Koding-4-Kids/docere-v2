@@ -4,7 +4,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Highlight from '@tiptap/extension-highlight'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
-import React, { useEffect, useCallback, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 
 interface NotesEditorProps {
   content: string
@@ -31,6 +31,33 @@ function DocereLogo({ className }: { className?: string }) {
         <use href="#nl" transform="rotate(135 100 100)"/>
       </g>
     </svg>
+  )
+}
+
+function ToolbarButton({
+  onClick,
+  isActive = false,
+  children,
+  title
+}: {
+  onClick: () => void
+  isActive?: boolean
+  children: React.ReactNode
+  title: string
+}) {
+  return (
+    <button
+      type="button"
+      onMouseDown={(e) => { e.preventDefault(); onClick() }}
+      title={title}
+      className={`w-7 h-7 flex items-center justify-center rounded text-xs transition-colors ${
+        isActive
+          ? 'bg-accent/15 text-accent'
+          : 'text-text-400 hover:text-text-200 hover:bg-bg-200/60'
+      }`}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -82,34 +109,9 @@ export function NotesEditor({
       return
     }
     if (content && content !== '<p></p>') {
-      editor.commands.setContent(content, false)
+      editor.commands.setContent(content, { emitUpdate: false })
     }
   }, [content, editor])
-
-  const ToolbarButton = useCallback(({
-    onClick,
-    isActive = false,
-    children,
-    title
-  }: {
-    onClick: () => void
-    isActive?: boolean
-    children: React.ReactNode
-    title: string
-  }) => (
-    <button
-      type="button"
-      onMouseDown={(e) => { e.preventDefault(); onClick() }}
-      title={title}
-      className={`w-7 h-7 flex items-center justify-center rounded text-xs transition-colors ${
-        isActive
-          ? 'bg-accent/15 text-accent'
-          : 'text-text-400 hover:text-text-200 hover:bg-bg-200/60'
-      }`}
-    >
-      {children}
-    </button>
-  ), [])
 
   if (!editor) return null
 

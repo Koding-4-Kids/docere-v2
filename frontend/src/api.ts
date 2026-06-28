@@ -402,7 +402,7 @@ export async function streamMessage(
         }
       }
     }
-  } catch (err) {
+  } catch {
     // Network error or connection drop mid-stream
     if (!receivedDone) {
       onError('Connection lost — please try again.')

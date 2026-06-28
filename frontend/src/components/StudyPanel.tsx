@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type ReactElement } from 'react'
 import { X, ChevronLeft, ChevronRight, RotateCcw, BookOpen, Layers, FileText, Presentation, Pencil, Eye } from 'lucide-react'
 import type { StudyArtifact } from '../api'
 
@@ -61,7 +61,7 @@ export function StudyPanel({ artifact, isGenerating, onClose }: StudyPanelProps)
         )}
 
         {artifact && (artifact.type === 'notes' || artifact.type === 'study_guide') && (
-          <EditableNotes content={artifact.content} />
+          <EditableNotes key={artifact.content} content={artifact.content} />
         )}
       </div>
     </div>
@@ -74,12 +74,6 @@ function EditableNotes({ content: initialContent }: { content: string }) {
   const [content, setContent] = useState(initialContent)
   const [isEditing, setIsEditing] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  // Sync when new content arrives (e.g. new artifact generated)
-  useEffect(() => {
-    setContent(initialContent)
-    setIsEditing(false)
-  }, [initialContent])
 
   // Auto-resize textarea and focus when entering edit mode
   useEffect(() => {
@@ -171,8 +165,8 @@ function MarkdownLine({ line }: { line: string }) {
   return <p className="text-sm text-text-200 mb-2 leading-relaxed">{renderInline(trimmed)}</p>
 }
 
-function renderInline(text: string): (string | JSX.Element)[] {
-  const parts: (string | JSX.Element)[] = []
+function renderInline(text: string): (string | ReactElement)[] {
+  const parts: (string | ReactElement)[] = []
   let remaining = text
   let key = 0
   while (remaining) {

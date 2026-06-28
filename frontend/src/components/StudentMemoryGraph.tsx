@@ -1,6 +1,6 @@
 import { useRef, useCallback, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react'
 import ForceGraph3D from 'react-force-graph-3d'
-import type { ForceGraphMethods } from 'react-force-graph-3d'
+import type { ForceGraphMethods, NodeObject, LinkObject } from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
 import * as THREE from 'three'
 import type { MemoryGraphNode, MemoryGraphEdge } from '../api'
@@ -20,6 +20,65 @@ export interface StudentMemoryGraphHandle {
   zoomToNode: (nodeId: string) => void
   zoomToFit: () => void
 }
+
+interface ConceptSceneNode {
+  id: string
+  name: string
+  nodeType: 'concept'
+  rawType: 'concept'
+  val: number
+  color: string
+  masteryLevel: number
+  masteryLabel: string
+  timesPracticed: number
+  timesStruggled: number
+  _raw: MemoryGraphNode
+}
+
+interface DocumentSceneNode {
+  id: string
+  name: string
+  nodeType: 'document'
+  rawType: 'document'
+  val: number
+  color: string
+  docType?: string | null
+  status?: string | null
+  pageCount?: number | null
+  chunkCount?: number | null
+  _raw: MemoryGraphNode
+}
+
+interface MemorySceneNode {
+  id: string
+  name: string
+  nodeType: 'memory'
+  rawType: 'memory'
+  val: number
+  color: string
+  memoryType?: string | null
+  concepts?: string[] | null
+  confusionScore: number
+  sentiment?: string | null
+  _raw: MemoryGraphNode
+}
+
+// d3-force mutates these in-place, adding x/y/z (and velocity) once the simulation runs
+type SceneNode = (ConceptSceneNode | DocumentSceneNode | MemorySceneNode) & {
+  x?: number
+  y?: number
+  z?: number
+}
+
+interface SceneLink {
+  source: string | SceneNode
+  target: string | SceneNode
+  edgeType: MemoryGraphEdge['type']
+  weight: number | null
+}
+
+type SceneNodeObj = NodeObject<SceneNode>
+type SceneLinkObj = LinkObject<SceneNode, SceneLink>
 
 // ── Colors ──
 
@@ -71,8 +130,8 @@ function sentimentIcon(sentiment: string | null | undefined): string {
 
 export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
   function StudentMemoryGraph({ nodes, edges, width, height, filter = 'all', onNodeClick }, ref) {
-    const fgRef = useRef<ForceGraphMethods | undefined>()
-    const nodesRef = useRef<any[]>([])
+    const fgRef = useRef<ForceGraphMethods<SceneNodeObj, SceneLinkObj> | undefined>(undefined)
+    const nodesRef = useRef<SceneNodeObj[]>([])
 
     const graphData = useMemo(() => ({
       nodes: nodes.map(n => {
@@ -132,20 +191,20 @@ export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
     nodesRef.current = graphData.nodes
 
     // Visibility
-    const isNodeVisible = useCallback((node: any): boolean => {
+    const isNodeVisible = useCallback((node: SceneNode): boolean => {
       if (filter === 'all') return true
       if (filter === 'memories') return node.nodeType === 'memory' || node.nodeType === 'concept'
       if (filter === 'concepts') return node.nodeType === 'concept'
       if (filter === 'documents') return node.nodeType === 'document' || node.nodeType === 'concept'
-      if (filter === 'struggle') return node.nodeType === 'concept' || node.memoryType === 'struggle'
-      if (filter === 'breakthrough') return node.nodeType === 'concept' || node.memoryType === 'breakthrough'
+      if (filter === 'struggle') return node.nodeType === 'concept' || (node.nodeType === 'memory' && node.memoryType === 'struggle')
+      if (filter === 'breakthrough') return node.nodeType === 'concept' || (node.nodeType === 'memory' && node.memoryType === 'breakthrough')
       return true
     }, [filter])
 
-    const isLinkVisible = useCallback((link: any): boolean => {
+    const isLinkVisible = useCallback((link: SceneLink): boolean => {
       if (filter === 'all') return true
-      const src = typeof link.source === 'object' ? link.source : nodesRef.current.find((n: any) => n.id === link.source)
-      const tgt = typeof link.target === 'object' ? link.target : nodesRef.current.find((n: any) => n.id === link.target)
+      const src = typeof link.source === 'object' ? link.source : nodesRef.current.find(n => n.id === link.source)
+      const tgt = typeof link.target === 'object' ? link.target : nodesRef.current.find(n => n.id === link.target)
       if (!src || !tgt) return false
       return isNodeVisible(src) && isNodeVisible(tgt)
     }, [filter, isNodeVisible])
@@ -153,13 +212,13 @@ export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
     const zoomToNode = useCallback((nodeId: string) => {
       const fg = fgRef.current
       if (!fg) return
-      const node = nodesRef.current.find((n: any) => n.id === nodeId)
-      if (!node || node.x === undefined) return
+      const node = nodesRef.current.find(n => n.id === nodeId)
+      if (!node || node.x === undefined || node.y === undefined || node.z === undefined) return
       const distance = node.nodeType === 'concept' ? 150 : 100
       const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z)
       fg.cameraPosition(
         { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
-        node,
+        { x: node.x, y: node.y, z: node.z },
         1000,
       )
     }, [])
@@ -175,18 +234,18 @@ export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
       const fg = fgRef.current
       if (!fg) return
 
-      const scene = (fg as any).scene?.()
+      const scene = fg.scene()
       if (scene) {
         scene.fog = new THREE.FogExp2('#0a0a1a', 0.0006)
       }
 
       try {
-        const composer = (fg as any).postProcessingComposer?.()
+        const composer = fg.postProcessingComposer()
         if (composer) {
           import('three/examples/jsm/postprocessing/UnrealBloomPass.js').then(
             ({ UnrealBloomPass }) => {
               const bloom = new UnrealBloomPass(
-                undefined as any,
+                new THREE.Vector2(256, 256),
                 0.6,
                 0.3,
                 0.88,
@@ -198,12 +257,15 @@ export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
       } catch {}
     }, [])
 
-    const handleNodeClick = useCallback((node: any) => {
+    const handleNodeClick = useCallback((node: SceneNodeObj) => {
       const distance = node.nodeType === 'concept' ? 150 : 100
-      const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z)
+      const x = node.x ?? 0
+      const y = node.y ?? 0
+      const z = node.z ?? 0
+      const distRatio = 1 + distance / Math.hypot(x, y, z)
       fgRef.current?.cameraPosition(
-        { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
-        node,
+        { x: x * distRatio, y: y * distRatio, z: z * distRatio },
+        { x, y, z },
         1000,
       )
       if (onNodeClick && node._raw) {
@@ -211,19 +273,8 @@ export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
       }
     }, [onNodeClick])
 
-    if (nodes.length === 0) {
-      return (
-        <div
-          className="flex items-center justify-center text-white/40 text-sm"
-          style={{ width, height }}
-        >
-          Start chatting to build your memory map
-        </div>
-      )
-    }
-
     // Custom 3D objects
-    const renderNode = useCallback((node: any) => {
+    const renderNode = useCallback((node: SceneNodeObj) => {
       // ── Concept nodes (octahedron + label) ──
       if (node.nodeType === 'concept') {
         const group = new THREE.Group()
@@ -307,8 +358,19 @@ export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
       return new THREE.Mesh(geo, mat)
     }, [])
 
+    if (nodes.length === 0) {
+      return (
+        <div
+          className="flex items-center justify-center text-white/40 text-sm"
+          style={{ width, height }}
+        >
+          Start chatting to build your memory map
+        </div>
+      )
+    }
+
     return (
-      <ForceGraph3D
+      <ForceGraph3D<SceneNode, SceneLink>
         ref={fgRef}
         graphData={graphData}
         width={width}
@@ -317,7 +379,7 @@ export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
         nodeVisibility={isNodeVisible}
         linkVisibility={isLinkVisible}
         nodeThreeObject={renderNode}
-        nodeLabel={(node: any) => {
+        nodeLabel={(node: SceneNodeObj) => {
           if (node.nodeType === 'concept') {
             return `<div style="background:rgba(0,0,0,0.9);color:#fff;padding:8px 12px;border-radius:8px;font-size:13px;max-width:240px;line-height:1.5;border:1px solid ${node.color}">
               <b style="color:${node.color}">${node.name}</b><br/>
@@ -345,7 +407,7 @@ export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
           </div>`
         }}
         // Links
-        linkWidth={(link: any) => {
+        linkWidth={(link: SceneLinkObj) => {
           if (link.edgeType === 'concept_concept') return 1
           if (link.edgeType === 'memory_concept') return 1.2
           if (link.edgeType === 'doc_concept') return 1.5
@@ -353,14 +415,14 @@ export const StudentMemoryGraph = forwardRef<StudentMemoryGraphHandle, Props>(
           return 0.5
         }}
         linkOpacity={0.3}
-        linkColor={(link: any) => {
+        linkColor={(link: SceneLinkObj) => {
           if (link.edgeType === 'concept_concept') return '#9966ff'
           if (link.edgeType === 'memory_concept') return '#4488ff'
           if (link.edgeType === 'doc_concept') return '#a78bfa'
           if (link.edgeType === 'memory_memory') return '#553388'
           return '#444466'
         }}
-        linkDirectionalParticles={(link: any) => {
+        linkDirectionalParticles={(link: SceneLinkObj) => {
           if (link.edgeType === 'doc_concept') return 2
           if (link.edgeType === 'memory_concept') return 1
           return 0
