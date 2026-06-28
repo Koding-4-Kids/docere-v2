@@ -2,11 +2,11 @@
 
 import uuid
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.dependencies import get_current_user_id, get_db
 from docere.models.course import Course, CourseMaterial, Enrollment
@@ -140,11 +140,7 @@ async def get_course(
         student_count=student_count_r.scalar() or 0,
         material_count=material_count_r.scalar() or 0,
         assignment_count=assignment_count_r.scalar() or 0,
-        last_synced_at=(
-            course.last_synced_at.isoformat()
-            if course.last_synced_at
-            else None
-        ),
+        last_synced_at=(course.last_synced_at.isoformat() if course.last_synced_at else None),
     )
 
 
@@ -171,17 +167,18 @@ async def trigger_sync(
         )
 
     try:
+        from docere.integrations.lms.canvas import CanvasAdapter
+        from docere.integrations.lms.moodle import MoodleAdapter
         from docere.services.lms_sync_service import LMSSyncService
 
-        sync_svc = LMSSyncService(db)
-        await sync_svc.full_sync(course)
+        lms_adapter = CanvasAdapter() if course.lms_platform == "canvas" else MoodleAdapter()
+        sync_svc = LMSSyncService(db, lms_adapter)
+        await sync_svc.full_sync(course.external_lms_id, course.lms_platform)
         await db.commit()
         return SyncResponse(status="ok", message="Sync completed")
     except Exception as e:
         logger.warning("LMS sync failed", error=str(e))
-        return SyncResponse(
-            status="error", message=f"Sync failed: {e}"
-        )
+        return SyncResponse(status="error", message=f"Sync failed: {e}")
 
 
 class MaterialResponse(BaseModel):

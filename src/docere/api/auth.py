@@ -5,6 +5,7 @@ import uuid
 from urllib.parse import urlencode
 
 import jwt as pyjwt
+import structlog
 from arq import create_pool
 from arq.connections import RedisSettings
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
@@ -12,7 +13,6 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.config import settings
 from docere.dependencies import create_access_token, get_current_user_id, get_db, get_redis
@@ -54,6 +54,7 @@ class UserResponse(BaseModel):
 
 class DevLoginRequest(BaseModel):
     """For development only — login by email without password."""
+
     email: str
 
 
@@ -131,8 +132,13 @@ async def lti_login_get(
 ) -> RedirectResponse:
     """OIDC login initiation via GET (some LMS use GET)."""
     return await _handle_lti_login(
-        iss, login_hint, client_id, target_link_uri,
-        lti_message_hint, lti_deployment_id, db,
+        iss,
+        login_hint,
+        client_id,
+        target_link_uri,
+        lti_message_hint,
+        lti_deployment_id,
+        db,
     )
 
 
@@ -218,7 +224,7 @@ async def lti_launch(
     course, is_new_course = await handle_lti_course(db, lti_data, platform, user)
 
     if course:
-        enrollment = await ensure_enrollment(db, user, course, lti_role=lti_data.role)
+        await ensure_enrollment(db, user, course, lti_role=lti_data.role)
 
     # Discover and sync enrollments for the user's other LMS courses
     # so all their courses show up immediately, not just the launched one
@@ -264,13 +270,15 @@ async def lti_launch(
     token = create_access_token(user.id, role=user.role)
 
     # Use hash fragment to avoid server logging of tokens
-    fragment = urlencode({
-        "token": token,
-        "user_id": str(user.id),
-        "name": user.name,
-        "role": user.role,
-        "course_id": str(course.id) if course else "",
-    })
+    fragment = urlencode(
+        {
+            "token": token,
+            "user_id": str(user.id),
+            "name": user.name,
+            "role": user.role,
+            "course_id": str(course.id) if course else "",
+        }
+    )
 
     # Route instructors to the dashboard, students to the chat
     if user.role in ("instructor", "admin", "ta") and course:
@@ -300,9 +308,7 @@ async def dev_login(
     This endpoint exists so the frontend can authenticate during development
     without a full LTI flow. Should be disabled in production.
     """
-    result = await db.execute(
-        select(User).where(User.email == request.email)
-    )
+    result = await db.execute(select(User).where(User.email == request.email))
     user = result.scalar_one_or_none()
 
     if not user:

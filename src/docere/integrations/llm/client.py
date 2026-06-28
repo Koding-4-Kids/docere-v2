@@ -1,5 +1,9 @@
 """LLM client wrapper — supports OpenAI and Anthropic with retry and circuit breaker."""
 
+from collections.abc import AsyncIterator
+from functools import partial
+from typing import Any, cast
+
 import structlog
 
 from docere.config import settings
@@ -16,6 +20,7 @@ _RETRYABLE_ANTHROPIC: tuple[type[Exception], ...] = ()
 
 try:
     import openai
+
     _RETRYABLE_OPENAI = (
         openai.APITimeoutError,
         openai.APIConnectionError,
@@ -27,6 +32,7 @@ except ImportError:
 
 try:
     import anthropic
+
     _RETRYABLE_ANTHROPIC = (
         anthropic.APITimeoutError,
         anthropic.APIConnectionError,
@@ -50,6 +56,7 @@ class ClaudeClient:
 
         if self.provider == "openai":
             import openai
+
             self.openai_client = openai.AsyncOpenAI(
                 api_key=settings.openai_api_key,
                 timeout=30.0,
@@ -59,6 +66,7 @@ class ClaudeClient:
             logger.info("LLM client initialized", provider="openai", model=self.default_model)
         else:
             import anthropic
+
             self.anthropic_client = anthropic.AsyncAnthropic(
                 api_key=settings.anthropic_api_key,
                 timeout=30.0,
@@ -77,18 +85,25 @@ class ClaudeClient:
     ) -> str:
         """Send a chat message with retry and circuit breaker protection."""
         if self.provider == "openai":
-            call = lambda: self._chat_openai(system_prompt, messages, model, max_tokens, temperature)
-        else:
-            call = lambda: self._chat_anthropic(system_prompt, messages, model, max_tokens, temperature)
-
-        return await self.breaker.call(
-            lambda: retry_async(
-                call,
-                max_retries=3,
-                base_delay=0.5,
-                max_delay=10.0,
-                retryable=self._retryable or (Exception,),
+            call = partial(
+                self._chat_openai, system_prompt, messages, model, max_tokens, temperature
             )
+        else:
+            call = partial(
+                self._chat_anthropic, system_prompt, messages, model, max_tokens, temperature
+            )
+
+        return cast(
+            str,
+            await self.breaker.call(
+                lambda: retry_async(
+                    call,
+                    max_retries=3,
+                    base_delay=0.5,
+                    max_delay=10.0,
+                    retryable=self._retryable or (Exception,),
+                )
+            ),
         )
 
     async def _chat_openai(
@@ -104,9 +119,9 @@ class ClaudeClient:
             model=model or self.default_model,
             max_tokens=max_tokens,
             temperature=temperature,
-            messages=openai_messages,
+            messages=openai_messages,  # type: ignore[arg-type]
         )
-        return response.choices[0].message.content
+        return response.choices[0].message.content or ""
 
     async def _chat_anthropic(
         self,
@@ -116,14 +131,18 @@ class ClaudeClient:
         max_tokens: int,
         temperature: float,
     ) -> str:
+        from anthropic.types import TextBlock
+
         response = await self.anthropic_client.messages.create(
             model=model or self.default_model,
             max_tokens=max_tokens,
             temperature=temperature,
             system=system_prompt,
-            messages=messages,
+            messages=cast(list[Any], messages),
         )
-        return response.content[0].text
+        # guards against empty responses
+        text_block = next((b for b in response.content if isinstance(b, TextBlock)), None)
+        return text_block.text if text_block else ""
 
     async def stream(
         self,
@@ -132,7 +151,7 @@ class ClaudeClient:
         model: str | None = None,
         max_tokens: int = 2048,
         temperature: float = 0.7,
-    ):
+    ) -> AsyncIterator[str]:
         """Yield text chunks as they arrive from the LLM.
 
         Circuit breaker wraps the connection setup (not individual chunks).
@@ -148,7 +167,7 @@ class ClaudeClient:
         # then yield the rest outside (mid-stream errors surface naturally).
         first_chunk_holder: list[str] = []
 
-        async def _connect():
+        async def _connect() -> None:
             async for chunk in gen:
                 first_chunk_holder.append(chunk)
                 break  # got the first chunk, connection is healthy
@@ -170,16 +189,16 @@ class ClaudeClient:
         model: str | None,
         max_tokens: int,
         temperature: float,
-    ):
+    ) -> AsyncIterator[str]:
         openai_messages = [{"role": "system", "content": system_prompt}] + messages
         response = await self.openai_client.chat.completions.create(
             model=model or self.default_model,
             max_tokens=max_tokens,
             temperature=temperature,
-            messages=openai_messages,
+            messages=openai_messages,  # type: ignore[arg-type]
             stream=True,
         )
-        async for chunk in response:
+        async for chunk in response:  # type: ignore[union-attr]
             delta = chunk.choices[0].delta if chunk.choices else None
             if delta and delta.content:
                 yield delta.content
@@ -191,13 +210,13 @@ class ClaudeClient:
         model: str | None,
         max_tokens: int,
         temperature: float,
-    ):
+    ) -> AsyncIterator[str]:
         async with self.anthropic_client.messages.stream(
             model=model or self.default_model,
             max_tokens=max_tokens,
             temperature=temperature,
             system=system_prompt,
-            messages=messages,
+            messages=cast(list[Any], messages),
         ) as stream:
             async for text in stream.text_stream:
                 yield text

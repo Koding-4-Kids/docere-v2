@@ -6,6 +6,7 @@ allowing the rest of the system to work with any LMS.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -120,7 +121,7 @@ class LMSAdapter(ABC):
         """Get all courses a specific user is enrolled in."""
         ...
 
-    async def get_grade_items(self, course_id: str) -> list[dict]:
+    async def get_grade_items(self, course_id: str) -> list[dict[str, Any]]:
         """Get gradebook columns (assignments/grade items) for a course.
 
         Returns [{"id": str, "name": str, "category": str, "grade_max": float}].
@@ -134,16 +135,14 @@ class LMSAdapter(ABC):
         student_id: str,
         grade: float,
         feedback: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Write a single grade to the LMS gradebook.
 
         Returns {"success": bool}.
         """
         raise NotImplementedError("This LMS adapter does not support grade writing")
 
-    async def post_announcement(
-        self, course_id: str, title: str, message: str
-    ) -> dict:
+    async def post_announcement(self, course_id: str, title: str, message: str) -> dict[str, Any]:
         """Post an announcement to the LMS course.
 
         Returns {"id": str, "url": str}.

@@ -8,13 +8,16 @@ Process:
 3. Prune strategies with >20 uses and avg_score < 0.3
 4. Log all evolution events for research
 """
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 import json
+import uuid
+from typing import Any
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
-import structlog
 
 from docere.config import settings
 from docere.integrations.llm.client import ClaudeClient
@@ -59,14 +62,12 @@ class StrategyEvolver:
         self.db = db
         self.claude = claude
 
-    async def evolve(self) -> dict[str, object]:
+    async def evolve(self) -> dict[str, Any]:
         """Run one evolution cycle.
 
         Returns summary of actions taken (mutations, prunings).
         """
-        result = await self.db.execute(
-            select(Strategy).where(Strategy.is_active.is_(True))
-        )
+        result = await self.db.execute(select(Strategy).where(Strategy.is_active.is_(True)))
         strategies = result.scalars().all()
 
         if not strategies:
@@ -210,7 +211,7 @@ class StrategyEvolver:
         return False
 
     async def _get_score_contexts(
-        self, strategy_id, best: bool = True, limit: int = 3
+        self, strategy_id: uuid.UUID, best: bool = True, limit: int = 3
     ) -> list[str]:
         """Get top or bottom scoring interaction contexts for a strategy.
 

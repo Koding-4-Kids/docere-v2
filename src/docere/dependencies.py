@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import AsyncGenerator
+from datetime import UTC
 
 import jwt
 import redis.asyncio as aioredis
@@ -65,7 +66,7 @@ _redis: aioredis.Redis | None = None
 async def init_redis() -> None:
     """Initialize the async Redis client. Called once during app startup."""
     global _redis
-    _redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+    _redis = aioredis.from_url(settings.redis_url, decode_responses=True)  # type: ignore[no-untyped-call]
 
 
 def get_redis() -> aioredis.Redis:
@@ -178,9 +179,9 @@ async def require_instructor(
 
 def create_access_token(user_id: uuid.UUID, role: str = "student") -> str:
     """Create a JWT access token for a user."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
         "role": role,

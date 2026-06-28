@@ -2,9 +2,10 @@
 
 import asyncio
 import re
+from typing import Any
 
 import structlog
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.services.google_calendar import GoogleCalendarService
@@ -29,7 +30,7 @@ class GoogleSheetsService:
         headers: list[str],
         rows: list[list[str]],
         sheet_name: str = "Sheet1",
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Create a Google Sheet with headers and data rows.
 
         Returns {"spreadsheet_id": str, "url": str}.
@@ -38,15 +39,19 @@ class GoogleSheetsService:
         if not creds:
             raise ValueError("Google not connected. Please connect your Google account first.")
 
-        def _create():
+        def _create() -> dict[str, Any]:
             sheets_service = build("sheets", "v4", credentials=creds, static_discovery=False)
 
-            spreadsheet = sheets_service.spreadsheets().create(
-                body={
-                    "properties": {"title": title},
-                    "sheets": [{"properties": {"title": sheet_name}}],
-                }
-            ).execute()
+            spreadsheet = (
+                sheets_service.spreadsheets()
+                .create(
+                    body={
+                        "properties": {"title": title},
+                        "sheets": [{"properties": {"title": sheet_name}}],
+                    }
+                )
+                .execute()
+            )
 
             spreadsheet_id = spreadsheet["spreadsheetId"]
 
@@ -75,7 +80,7 @@ class GoogleSheetsService:
         )
         return result
 
-    async def list_spreadsheets(self, instructor_id: str) -> list[dict]:
+    async def list_spreadsheets(self, instructor_id: str) -> list[dict[str, Any]]:
         """List spreadsheets created by Docere (drive.file scope).
 
         Returns [{"id": str, "title": str, "url": str, "modified_time": str}].
@@ -84,14 +89,18 @@ class GoogleSheetsService:
         if not creds:
             raise ValueError("Google not connected. Please connect your Google account first.")
 
-        def _list():
+        def _list() -> list[dict[str, Any]]:
             drive_service = build("drive", "v3", credentials=creds, static_discovery=False)
-            results = drive_service.files().list(
-                q="mimeType='application/vnd.google-apps.spreadsheet'",
-                fields="files(id,name,modifiedTime)",
-                orderBy="modifiedTime desc",
-                pageSize=50,
-            ).execute()
+            results = (
+                drive_service.files()
+                .list(
+                    q="mimeType='application/vnd.google-apps.spreadsheet'",
+                    fields="files(id,name,modifiedTime)",
+                    orderBy="modifiedTime desc",
+                    pageSize=50,
+                )
+                .execute()
+            )
             files = results.get("files", [])
             return [
                 {
@@ -111,7 +120,7 @@ class GoogleSheetsService:
         instructor_id: str,
         spreadsheet_id: str,
         range_name: str = "Sheet1",
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Read data from a Google Sheet.
 
         Returns {"title": str, "headers": list[str], "rows": list[list[str]]}.
@@ -120,21 +129,30 @@ class GoogleSheetsService:
         if not creds:
             raise ValueError("Google not connected. Please connect your Google account first.")
 
-        def _read():
+        def _read() -> dict[str, Any]:
             sheets_service = build("sheets", "v4", credentials=creds, static_discovery=False)
 
             # Get spreadsheet title
-            meta = sheets_service.spreadsheets().get(
-                spreadsheetId=spreadsheet_id,
-                fields="properties.title",
-            ).execute()
+            meta = (
+                sheets_service.spreadsheets()
+                .get(
+                    spreadsheetId=spreadsheet_id,
+                    fields="properties.title",
+                )
+                .execute()
+            )
             title = meta.get("properties", {}).get("title", "Untitled")
 
             # Read all values
-            result = sheets_service.spreadsheets().values().get(
-                spreadsheetId=spreadsheet_id,
-                range=range_name,
-            ).execute()
+            result = (
+                sheets_service.spreadsheets()
+                .values()
+                .get(
+                    spreadsheetId=spreadsheet_id,
+                    range=range_name,
+                )
+                .execute()
+            )
             values = result.get("values", [])
 
             if not values:
@@ -149,7 +167,7 @@ class GoogleSheetsService:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, _read)
 
-    async def read_from_url(self, instructor_id: str, url: str) -> dict:
+    async def read_from_url(self, instructor_id: str, url: str) -> dict[str, Any]:
         """Read a spreadsheet given its Google Sheets URL.
 
         Extracts the spreadsheet ID from the URL and delegates to read_spreadsheet.

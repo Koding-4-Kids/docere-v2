@@ -1,10 +1,11 @@
 """Student profile builder: tracks learning patterns and generates narrative summaries."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.core.memory.concept_utils import normalize_concept
 from docere.integrations.llm.client import ClaudeClient
@@ -52,9 +53,7 @@ class StudentProfileBuilder:
         )
         return result.scalar_one_or_none()
 
-    async def get_or_create_profile(
-        self, student_id: str, course_id: str
-    ) -> StudentProfile:
+    async def get_or_create_profile(self, student_id: str, course_id: str) -> StudentProfile:
         """Get existing profile or create a new one."""
         profile = await self.get_profile(student_id, course_id)
         if not profile:
@@ -81,10 +80,8 @@ class StudentProfileBuilder:
         profile.total_interactions += 1
         profile.total_messages += 1
         n = profile.total_interactions
-        profile.avg_confusion_score = (
-            (profile.avg_confusion_score * (n - 1) + confusion_score) / n
-        )
-        profile.last_interaction_at = datetime.now(timezone.utc)
+        profile.avg_confusion_score = (profile.avg_confusion_score * (n - 1) + confusion_score) / n
+        profile.last_interaction_at = datetime.now(UTC)
 
         # Update engagement level based on interaction frequency
         if n >= 20:
@@ -120,7 +117,7 @@ class StudentProfileBuilder:
         )
         mastery = result.scalar_one_or_none()
         correct = confusion_to_correct(confusion_score)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if mastery:
             mastery.times_practiced += 1
@@ -128,7 +125,9 @@ class StudentProfileBuilder:
                 mastery.times_struggled += 1
 
             # Load or initialize BKT state from evidence JSONB
-            evidence = mastery.evidence or {}
+            evidence: dict[str, Any] = (
+                mastery.evidence if isinstance(mastery.evidence, dict) else {}
+            )
             p_learned = evidence.get("bkt_p_learned", mastery.mastery_level or 0.1)
             params = BKTParams(**evidence.get("bkt_params", {}))
 
@@ -147,13 +146,15 @@ class StudentProfileBuilder:
 
             # Keep last 20 observations for analysis
             obs_history = evidence.get("observation_history", [])
-            obs_history.append({
-                "correct": correct,
-                "confusion": confusion_score,
-                "timestamp": now.isoformat(),
-            })
+            obs_history.append(
+                {
+                    "correct": correct,
+                    "confusion": confusion_score,
+                    "timestamp": now.isoformat(),
+                }
+            )
             evidence["observation_history"] = obs_history[-20:]
-            mastery.evidence = evidence
+            mastery.evidence = evidence  # type: ignore[assignment]
             mastery.last_practiced_at = now
         else:
             # First observation for this concept
@@ -177,11 +178,13 @@ class StudentProfileBuilder:
                             "p_guess": params.p_guess,
                             "p_slip": params.p_slip,
                         },
-                        "observation_history": [{
-                            "correct": correct,
-                            "confusion": confusion_score,
-                            "timestamp": now.isoformat(),
-                        }],
+                        "observation_history": [
+                            {
+                                "correct": correct,
+                                "confusion": confusion_score,
+                                "timestamp": now.isoformat(),
+                            }
+                        ],
                     },
                 )
             )
@@ -226,14 +229,19 @@ class StudentProfileBuilder:
         )
         recent_memories = result.scalars().all()
 
-        weak_str = "\n".join(
-            f"- {c['concept']}: mastery {c['mastery']:.1%}, struggled {c['times_struggled']} times"
-            for c in weak_concepts[:5]
-        ) or "No weak concepts identified yet."
+        weak_str = (
+            "\n".join(
+                f"- {c['concept']}: mastery {c['mastery']:.1%}, "
+                f"struggled {c['times_struggled']} times"
+                for c in weak_concepts[:5]
+            )
+            or "No weak concepts identified yet."
+        )
 
-        memory_str = "\n".join(
-            f"- [{m.memory_type}] {m.content[:100]}" for m in recent_memories
-        ) or "No memories recorded yet."
+        memory_str = (
+            "\n".join(f"- [{m.memory_type}] {m.content[:100]}" for m in recent_memories)
+            or "No memories recorded yet."
+        )
 
         prompt = NARRATIVE_PROMPT.format(
             total_interactions=profile.total_interactions,

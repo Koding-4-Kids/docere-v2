@@ -3,9 +3,10 @@
 import asyncio
 import base64
 from email.mime.text import MIMEText
+from typing import Any
 
 import structlog
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.services.google_calendar import GoogleCalendarService
@@ -28,7 +29,7 @@ class GmailService:
         body: str,
         cc: list[str] | None = None,
         bcc: list[str] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Send an email via Gmail API.
 
         Returns {"message_id": str, "thread_id": str} on success.
@@ -48,12 +49,17 @@ class GmailService:
 
         raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
-        def _send():
+        def _send() -> Any:
             service = build("gmail", "v1", credentials=creds, static_discovery=False)
-            result = service.users().messages().send(
-                userId="me",
-                body={"raw": raw},
-            ).execute()
+            result = (
+                service.users()
+                .messages()
+                .send(
+                    userId="me",
+                    body={"raw": raw},
+                )
+                .execute()
+            )
             return result
 
         loop = asyncio.get_event_loop()

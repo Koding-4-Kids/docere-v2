@@ -1,10 +1,11 @@
 """LTI 1.3 business logic: claim extraction, user/course upsert, adapter creation."""
 
 from dataclasses import dataclass
+from typing import Any
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.core.improvement.experiment_runner import ExperimentRunner
 from docere.integrations.lms.base import LMSAdapter
@@ -42,7 +43,7 @@ class LTILaunchData:
     platform_id: str
 
 
-def extract_lti_claims(claims: dict, platform: LTIPlatform) -> LTILaunchData:
+def extract_lti_claims(claims: dict[str, Any], platform: LTIPlatform) -> LTILaunchData:
     """Extract normalized user/course data from LTI 1.3 JWT claims.
 
     Handles differences between Canvas and Moodle claim structures.
@@ -301,11 +302,13 @@ async def sync_user_enrollments(
             )
         )
         if not result.scalar_one_or_none():
-            db.add(Enrollment(
-                user_id=user.id,
-                course_id=course.id,
-                lms_role="student",
-            ))
+            db.add(
+                Enrollment(
+                    user_id=user.id,
+                    course_id=course.id,
+                    lms_role="student",
+                )
+            )
             created += 1
 
     if created:

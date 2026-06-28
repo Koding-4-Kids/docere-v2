@@ -2,6 +2,7 @@
 
 import math
 import uuid
+from typing import cast
 
 import structlog
 
@@ -100,7 +101,7 @@ class InteractionStore:
             if len(selected) >= top_k:
                 break
 
-            result_vector = result.get("vector", query_embedding)
+            result_vector: list[float] = cast(list[float], result.get("vector", query_embedding))
 
             # For the first result, always include it
             if not selected_embeddings:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
 
 from docere.config import settings
@@ -11,7 +13,7 @@ from docere.core.memory.memory_layer import MemoryContext
 logger = structlog.get_logger()
 
 
-async def load_context(state: TutoringState) -> dict:
+async def load_context(state: TutoringState) -> dict[str, Any]:
     """Load memory context, student profile, assignment, and conversation history in parallel."""
     import asyncio
 
@@ -33,7 +35,7 @@ async def load_context(state: TutoringState) -> dict:
     assignment_id = state.get("assignment_id")
     study_group = state.get("study_group")
 
-    async def _load_assignment():
+    async def _load_assignment() -> Any:
         if not assignment_id:
             return None
         try:
@@ -43,7 +45,7 @@ async def load_context(state: TutoringState) -> dict:
             logger.warning("Assignment lookup failed", error=str(e))
             return None
 
-    async def _load_memory():
+    async def _load_memory() -> Any:
         if study_group == "control":
             return MemoryContext.empty()
         try:
@@ -58,7 +60,7 @@ async def load_context(state: TutoringState) -> dict:
             logger.warning("Memory retrieval failed, using empty context", error=str(e))
             return MemoryContext.empty()
 
-    async def _load_profile():
+    async def _load_profile() -> Any:
         if study_group == "control":
             return None
         try:
@@ -67,7 +69,7 @@ async def load_context(state: TutoringState) -> dict:
             logger.warning("Profile loading failed", error=str(e))
             return None
 
-    async def _load_history():
+    async def _load_history() -> Any:
         try:
             result = await db.execute(
                 select(Message)
@@ -81,7 +83,7 @@ async def load_context(state: TutoringState) -> dict:
             logger.warning("History loading failed", error=str(e))
             return []
 
-    async def _load_student_docs():
+    async def _load_student_docs() -> Any:
         from docere.core.memory.student_documents import StudentDocumentManager
 
         try:
@@ -92,7 +94,10 @@ async def load_context(state: TutoringState) -> dict:
             return ""
 
     assignment, memory_ctx, profile, history, student_doc_ctx = await asyncio.gather(
-        _load_assignment(), _load_memory(), _load_profile(), _load_history(),
+        _load_assignment(),
+        _load_memory(),
+        _load_profile(),
+        _load_history(),
         _load_student_docs(),
     )
 
@@ -105,7 +110,7 @@ async def load_context(state: TutoringState) -> dict:
     }
 
 
-async def extract_concepts(state: TutoringState) -> dict:
+async def extract_concepts(state: TutoringState) -> dict[str, Any]:
     """Extract concepts, confusion, and sentiment from the exchange (background)."""
     from docere.core.memory.memory_layer import MemoryLayer
 
@@ -129,7 +134,7 @@ async def extract_concepts(state: TutoringState) -> dict:
         return {"extracted_concepts": [], "confusion_score": 0.0, "sentiment": "neutral"}
 
 
-async def update_metrics(state: TutoringState) -> dict:
+async def update_metrics(state: TutoringState) -> dict[str, Any]:
     """Update StudentProfile + ConceptMastery from extracted concepts (background)."""
     from docere.core.memory.memory_layer import MemoryLayer
 
@@ -152,7 +157,7 @@ async def update_metrics(state: TutoringState) -> dict:
     return {}
 
 
-async def summarize_stale(state: TutoringState) -> dict:
+async def summarize_stale(state: TutoringState) -> dict[str, Any]:
     """Summarize conversations idle for 1+ hours (background)."""
     from docere.core.memory.memory_layer import MemoryLayer
 

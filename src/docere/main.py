@@ -1,18 +1,32 @@
 """FastAPI application entry point."""
 
 import os
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import structlog
 
+from docere.api import (
+    analytics,
+    auth,
+    calendar,
+    chat,
+    courses,
+    documents,
+    flashcards,
+    gradebook_sync,
+    instructor,
+    integrations,
+    lms,
+    memory,
+    students,
+)
 from docere.config import settings
-from docere.api import auth, calendar, chat, courses, students, instructor, memory, analytics, lms, integrations, gradebook_sync, flashcards, documents
-from docere.dependencies import engine, init_clients, get_qdrant, init_redis, shutdown_redis
+from docere.dependencies import engine, get_qdrant, init_clients, init_redis, shutdown_redis
 from docere.middleware.csp import CSPMiddleware
 from docere.middleware.rate_limit import RateLimitMiddleware
 
@@ -37,7 +51,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         init_clients()
         logger.info("Claude and Qdrant clients initialized")
     except Exception as e:
-        logger.error("Failed to initialize LLM/vector clients — app will not function", error=str(e))
+        logger.error(
+            "Failed to initialize LLM/vector clients — app will not function", error=str(e)
+        )
         raise
 
     try:
@@ -108,9 +124,11 @@ async def health_check() -> dict[str, str]:
 # Serve built frontend (must be AFTER API routes so /api/* takes priority)
 # Check multiple locations: relative to source, relative to CWD, env override
 _frontend_candidates = [
-    Path(os.environ.get("FRONTEND_DIST_DIR", "")),           # explicit override
-    Path(__file__).resolve().parent.parent.parent / "frontend" / "dist",  # dev: src/docere/../../frontend/dist
-    Path("frontend/dist"),                                     # docker: /app/frontend/dist
+    Path(os.environ.get("FRONTEND_DIST_DIR", "")),  # explicit override
+    Path(__file__).resolve().parent.parent.parent
+    / "frontend"
+    / "dist",  # dev: src/docere/../../frontend/dist
+    Path("frontend/dist"),  # docker: /app/frontend/dist
 ]
 for _candidate in _frontend_candidates:
     if _candidate.is_dir():

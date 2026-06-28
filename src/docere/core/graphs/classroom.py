@@ -32,7 +32,7 @@ logger = structlog.get_logger()
 # ── Node functions ──
 
 
-async def load_classroom(state: ClassroomState) -> dict:
+async def load_classroom(state: ClassroomState) -> dict[str, Any]:
     """Load roster + profiles + concept overview."""
     db = state["_db"]
     qdrant = state["_qdrant"]
@@ -53,7 +53,7 @@ async def load_classroom(state: ClassroomState) -> dict:
     return {"context": context, "sources": sources}
 
 
-def route_intent(state: ClassroomState) -> dict:
+def route_intent(state: ClassroomState) -> dict[str, Any]:
     """Heuristic intent classification — no LLM call."""
     db = state["_db"]
     qdrant = state["_qdrant"]
@@ -64,21 +64,25 @@ def route_intent(state: ClassroomState) -> dict:
     question = state["question"]
 
     if context.total_students == 0:
-        return {"routing": RoutingDecision(
-            intent=QueryIntent.META,
-            target_student_ids=[],
-            target_student_names=[],
-            reasoning="No students enrolled",
-        )}
+        return {
+            "routing": RoutingDecision(
+                intent=QueryIntent.META,
+                target_student_ids=[],
+                target_student_names=[],
+                reasoning="No students enrolled",
+            )
+        }
 
     routing = agent._route_heuristic(question, context)
 
     sources = list(state.get("sources", []))
-    sources.append(SourceRef(
-        type="routing",
-        label=f"Query type: {routing.intent.value}",
-        detail=routing.reasoning,
-    ))
+    sources.append(
+        SourceRef(
+            type="routing",
+            label=f"Query type: {routing.intent.value}",
+            detail=routing.reasoning,
+        )
+    )
 
     logger.info(
         "Routed instructor query",
@@ -100,7 +104,7 @@ def decide_path(state: ClassroomState) -> str:
     return "load_mastery"
 
 
-async def find_topic_students(state: ClassroomState) -> dict:
+async def find_topic_students(state: ClassroomState) -> dict[str, Any]:
     """Find students who have mastery data for the topic concept."""
     db = state["_db"]
     qdrant = state["_qdrant"]
@@ -121,16 +125,18 @@ async def find_topic_students(state: ClassroomState) -> dict:
     sources = list(state.get("sources", []))
     filters = state.get("source_filters", {})
     if filters.get("mastery", True):
-        sources.append(SourceRef(
-            type="concept_mastery",
-            label=f"Concept filter: {routing.topic_filter}",
-            detail=f"{len(routing.target_student_ids)} students matched",
-        ))
+        sources.append(
+            SourceRef(
+                type="concept_mastery",
+                label=f"Concept filter: {routing.topic_filter}",
+                detail=f"{len(routing.target_student_ids)} students matched",
+            )
+        )
 
     return {"routing": routing, "sources": sources}
 
 
-async def load_mastery(state: ClassroomState) -> dict:
+async def load_mastery(state: ClassroomState) -> dict[str, Any]:
     """Batch-load concept mastery for target students."""
     filters = state.get("source_filters", {})
     if not filters.get("mastery", True):
@@ -146,7 +152,7 @@ async def load_mastery(state: ClassroomState) -> dict:
     return {"mastery_by_student": mastery}
 
 
-def build_summaries(state: ClassroomState) -> dict:
+def build_summaries(state: ClassroomState) -> dict[str, Any]:
     """Build student summaries from structured data — no LLM."""
     agent_stub = ClassroomAgent.__new__(ClassroomAgent)
     summaries = agent_stub._build_summaries(
@@ -169,16 +175,18 @@ def build_summaries(state: ClassroomState) -> dict:
             parts.append("profile")
         if filters.get("mastery", True) and s.concept_mastery:
             parts.append(f"{len(s.concept_mastery)} concepts")
-        sources.append(SourceRef(
-            type="student_profile",
-            label=", ".join(parts) if parts else "enrollment only",
-            student_name=s.student_name,
-        ))
+        sources.append(
+            SourceRef(
+                type="student_profile",
+                label=", ".join(parts) if parts else "enrollment only",
+                student_name=s.student_name,
+            )
+        )
 
     return {"summaries": summaries, "sources": sources}
 
 
-async def synthesize(state: ClassroomState) -> dict:
+async def synthesize(state: ClassroomState) -> dict[str, Any]:
     """LLM synthesis of student summaries into instructor-friendly answer."""
     db = state["_db"]
     qdrant = state["_qdrant"]
@@ -197,7 +205,7 @@ async def synthesize(state: ClassroomState) -> dict:
     return {"answer": response.text, "widgets": response.widgets, "sources": response.sources}
 
 
-async def synthesize_meta(state: ClassroomState) -> dict:
+async def synthesize_meta(state: ClassroomState) -> dict[str, Any]:
     """LLM synthesis for aggregate/meta questions."""
     db = state["_db"]
     qdrant = state["_qdrant"]
@@ -208,15 +216,19 @@ async def synthesize_meta(state: ClassroomState) -> dict:
     sources = list(state.get("sources", []))
 
     if filters.get("profiles", True):
-        sources.append(SourceRef(
-            type="student_profile",
-            label="Aggregate engagement & confusion scores",
-        ))
+        sources.append(
+            SourceRef(
+                type="student_profile",
+                label="Aggregate engagement & confusion scores",
+            )
+        )
     if filters.get("mastery", True) and state["context"].concept_overview:
-        sources.append(SourceRef(
-            type="concept_mastery",
-            label=f"Top {len(state['context'].concept_overview)} concepts by struggle count",
-        ))
+        sources.append(
+            SourceRef(
+                type="concept_mastery",
+                label=f"Top {len(state['context'].concept_overview)} concepts by struggle count",
+            )
+        )
 
     response = await agent._answer_meta(
         state["question"],
@@ -228,7 +240,7 @@ async def synthesize_meta(state: ClassroomState) -> dict:
     return {"answer": response.text, "widgets": response.widgets, "sources": response.sources}
 
 
-def build_widgets(state: ClassroomState) -> dict:
+def build_widgets(state: ClassroomState) -> dict[str, Any]:
     """Build widget data from already-loaded context (no-op if synthesize already built them)."""
     # Widgets are already built in synthesize/synthesize_meta via ClassroomAgent internals
     return {}
@@ -237,7 +249,7 @@ def build_widgets(state: ClassroomState) -> dict:
 # ── Build the graph ──
 
 
-def build_classroom_graph() -> StateGraph:
+def build_classroom_graph() -> StateGraph[ClassroomState]:
     """Build the LangGraph classroom agent graph."""
     graph = StateGraph(ClassroomState)
 
@@ -253,11 +265,15 @@ def build_classroom_graph() -> StateGraph:
     # Edges
     graph.add_edge(START, "load_classroom")
     graph.add_edge("load_classroom", "route_intent")
-    graph.add_conditional_edges("route_intent", decide_path, {
-        "synthesize_meta": "synthesize_meta",
-        "find_topic_students": "find_topic_students",
-        "load_mastery": "load_mastery",
-    })
+    graph.add_conditional_edges(
+        "route_intent",
+        decide_path,
+        {
+            "synthesize_meta": "synthesize_meta",
+            "find_topic_students": "find_topic_students",
+            "load_mastery": "load_mastery",
+        },
+    )
     graph.add_edge("find_topic_students", "load_mastery")
     graph.add_edge("load_mastery", "build_summaries")
     graph.add_edge("build_summaries", "synthesize")
@@ -287,7 +303,7 @@ async def run_classroom_graph(
     This replaces ClassroomAgent.answer() with the same behavior
     but using LangGraph for state management and observability.
     """
-    initial_state: dict[str, Any] = {
+    initial_state: ClassroomState = {
         "course_id": course_id,
         "question": question,
         "history": history,

@@ -135,8 +135,10 @@ class TestClaudeClientStreamOpenAI:
             mock_chunks.append(chunk)
 
         async def _create(**kwargs):
-            for c in mock_chunks:
-                yield c
+            async def _stream():
+                for c in mock_chunks:
+                    yield c
+            return _stream()
 
         mock_openai = MagicMock()
         mock_openai.chat.completions.create = _create

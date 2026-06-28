@@ -1,13 +1,16 @@
 """Multi-agent instructor system — fast heuristic routing + data-driven summaries + single LLM synthesis."""
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 import structlog
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.integrations.llm.client import ClaudeClient
@@ -82,7 +85,7 @@ def _engagement_summary(counts: dict[str, int]) -> str:
 # ── Data Types ──
 
 
-class QueryIntent(str, Enum):
+class QueryIntent(StrEnum):
     CLASS_WIDE = "class_wide"
     STUDENT_SPECIFIC = "student_specific"
     MULTI_STUDENT = "multi_student"
@@ -116,6 +119,7 @@ class StudentSummary:
 @dataclass
 class SourceRef:
     """A reference to a data source used to answer the query."""
+
     type: str  # "student_profile", "concept_mastery", "enrollment", "routing"
     label: str  # human-readable description
     student_name: str | None = None
@@ -124,15 +128,15 @@ class SourceRef:
 
 @dataclass
 class ClassroomContext:
-    student_roster: list[dict]
-    concept_overview: list[dict]
+    student_roster: list[dict[str, Any]]
+    concept_overview: list[dict[str, Any]]
     total_students: int
 
 
 @dataclass
 class ClassroomResponse:
     text: str
-    widgets: list[dict] = field(default_factory=list)
+    widgets: list[dict[str, Any]] = field(default_factory=list)
     sources: list[SourceRef] = field(default_factory=list)
 
 
@@ -193,10 +197,12 @@ class ClassroomAgent:
         if context.total_students == 0:
             return ClassroomResponse(text="No students are currently enrolled in this course.")
 
-        sources.append(SourceRef(
-            type="enrollment",
-            label=f"Student roster ({context.total_students} enrolled)",
-        ))
+        sources.append(
+            SourceRef(
+                type="enrollment",
+                label=f"Student roster ({context.total_students} enrolled)",
+            )
+        )
 
         # 2. Route with heuristics (no LLM)
         routing = self._route_heuristic(question, context)
@@ -207,21 +213,29 @@ class ClassroomAgent:
             topic_filter=routing.topic_filter,
             reasoning=routing.reasoning,
         )
-        sources.append(SourceRef(
-            type="routing",
-            label=f"Query type: {routing.intent.value}",
-            detail=routing.reasoning,
-        ))
+        sources.append(
+            SourceRef(
+                type="routing",
+                label=f"Query type: {routing.intent.value}",
+                detail=routing.reasoning,
+            )
+        )
 
         # 3. META → answer from aggregate data (1 LLM call)
         if routing.intent == QueryIntent.META:
             if use_profiles:
-                sources.append(SourceRef(type="student_profile", label="Aggregate engagement & confusion scores"))
+                sources.append(
+                    SourceRef(
+                        type="student_profile", label="Aggregate engagement & confusion scores"
+                    )
+                )
             if use_mastery and context.concept_overview:
-                sources.append(SourceRef(
-                    type="concept_mastery",
-                    label=f"Top {len(context.concept_overview)} concepts by struggle count",
-                ))
+                sources.append(
+                    SourceRef(
+                        type="concept_mastery",
+                        label=f"Top {len(context.concept_overview)} concepts by struggle count",
+                    )
+                )
             return await self._answer_meta(question, context, history, sources)
 
         # 4. For topic queries, refine targets to students who have that concept
@@ -234,11 +248,13 @@ class ClassroomAgent:
                     roster_by_id[sid]["name"] for sid in topic_ids if sid in roster_by_id
                 ]
             if use_mastery:
-                sources.append(SourceRef(
-                    type="concept_mastery",
-                    label=f"Concept filter: {routing.topic_filter}",
-                    detail=f"{len(routing.target_student_ids)} students matched",
-                ))
+                sources.append(
+                    SourceRef(
+                        type="concept_mastery",
+                        label=f"Concept filter: {routing.topic_filter}",
+                        detail=f"{len(routing.target_student_ids)} students matched",
+                    )
+                )
 
         # 5. Batch-load concept mastery for targets (1 SQL query)
         mastery: dict[str, dict[str, float]] = {}
@@ -250,18 +266,22 @@ class ClassroomAgent:
 
         # Track per-student sources
         for s in summaries:
-            roster_entry = next((r for r in context.student_roster if r["id"] == s.student_id), None)
+            roster_entry = next(
+                (r for r in context.student_roster if r["id"] == s.student_id), None
+            )
             profile = roster_entry["profile"] if roster_entry else None
             parts: list[str] = []
             if use_profiles and profile:
                 parts.append("profile")
             if use_mastery and s.concept_mastery:
                 parts.append(f"{len(s.concept_mastery)} concepts")
-            sources.append(SourceRef(
-                type="student_profile",
-                label=", ".join(parts) if parts else "enrollment only",
-                student_name=s.student_name,
-            ))
+            sources.append(
+                SourceRef(
+                    type="student_profile",
+                    label=", ".join(parts) if parts else "enrollment only",
+                    student_name=s.student_name,
+                )
+            )
 
         # 7. Synthesize (1 LLM call)
         return await self._synthesize(question, routing, summaries, context, history, sources)
@@ -339,13 +359,13 @@ class ClassroomAgent:
         )
 
     @staticmethod
-    def _pick_notable_students(context: ClassroomContext, limit: int = 6) -> list[dict]:
+    def _pick_notable_students(context: ClassroomContext, limit: int = 6) -> list[dict[str, Any]]:
         """Pick the most notable students — struggling, disengaged, or outliers."""
         with_profiles = [s for s in context.student_roster if s["profile"]]
         if not with_profiles:
             return context.student_roster[:limit]
 
-        def score(s: dict) -> float:
+        def score(s: dict[str, Any]) -> float:
             p = s["profile"]
             # Higher score = more notable (needs attention)
             val = p.avg_confusion_score * 2
@@ -353,7 +373,7 @@ class ClassroomAgent:
                 val += 1.5
             if p.current_grade is not None and p.current_grade < 70:
                 val += 1.0
-            return val
+            return float(val)
 
         with_profiles.sort(key=score, reverse=True)
         return with_profiles[:limit]
@@ -400,7 +420,7 @@ class ClassroomAgent:
                 for uid, name in students_result.all()
             ]
 
-        concept_overview: list[dict] = []
+        concept_overview: list[dict[str, Any]] = []
         if include_concepts:
             concepts_result = await self.db.execute(
                 select(
@@ -431,7 +451,9 @@ class ClassroomAgent:
         )
 
     async def _load_student_mastery(
-        self, course_id: str, student_ids: list[str],
+        self,
+        course_id: str,
+        student_ids: list[str],
     ) -> dict[str, dict[str, float]]:
         """Batch-load concept mastery for target students — 1 SQL query."""
         if not student_ids:
@@ -508,34 +530,34 @@ class ClassroomAgent:
 
             # Weak concepts
             weak = sorted(
-                [(c, l) for c, l in mastery.items() if l < 0.45],
+                [(c, level) for c, level in mastery.items() if level < 0.45],
                 key=lambda x: x[1],
             )
             if weak:
-                findings.append(
-                    f"Struggling with {', '.join(c for c, _ in weak[:3])}"
-                )
+                findings.append(f"Struggling with {', '.join(c for c, _ in weak[:3])}")
 
             # Strong concepts
-            strong = [c for c, l in mastery.items() if l >= 0.75]
+            strong = [c for c, level in mastery.items() if level >= 0.75]
             if strong:
                 findings.append(f"Strong in {', '.join(strong[:3])}")
 
             if not findings:
                 findings = ["No significant concerns"]
 
-            summaries.append(StudentSummary(
-                student_id=student_id,
-                student_name=info["name"],
-                profile_summary=profile_summary,
-                relevant_memories=[],
-                concept_mastery=mastery,
-                engagement_level=profile.engagement_level if profile else "unknown",
-                avg_confusion=profile.avg_confusion_score if profile else 0.0,
-                current_grade=profile.current_grade if profile else None,
-                topic_relevance=profile_summary,
-                key_findings=findings,
-            ))
+            summaries.append(
+                StudentSummary(
+                    student_id=student_id,
+                    student_name=info["name"],
+                    profile_summary=profile_summary,
+                    relevant_memories=[],
+                    concept_mastery=mastery,
+                    engagement_level=profile.engagement_level if profile else "unknown",
+                    avg_confusion=profile.avg_confusion_score if profile else 0.0,
+                    current_grade=profile.current_grade if profile else None,
+                    topic_relevance=profile_summary,
+                    key_findings=findings,
+                )
+            )
 
         return summaries
 
@@ -546,9 +568,9 @@ class ClassroomAgent:
         routing: RoutingDecision,
         summaries: list[StudentSummary],
         context: ClassroomContext,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Pre-compute structured widget data from already-loaded context."""
-        widgets: list[dict] = []
+        widgets: list[dict[str, Any]] = []
         roster_by_id = {s["id"]: s for s in context.student_roster}
 
         # Student Card: single-student queries
@@ -556,61 +578,75 @@ class ClassroomAgent:
             s = summaries[0]
             roster_entry = roster_by_id.get(s.student_id, {})
             profile = roster_entry.get("profile")
-            widgets.append({
-                "type": "student_card",
-                "student_name": s.student_name,
-                "student_id": s.student_id,
-                "engagement_level": s.engagement_level,
-                "confusion_label": _confusion_label(s.avg_confusion),
-                "grade_label": _grade_label(s.current_grade),
-                "total_interactions": profile.total_interactions if profile else 0,
-                "top_concepts": [
-                    {"name": c, "mastery_label": _mastery_label(l)}
-                    for c, l in list(s.concept_mastery.items())[:6]
-                ],
-                "recent_activity": s.topic_relevance,
-                "profile_summary": s.profile_summary,
-            })
+            widgets.append(
+                {
+                    "type": "student_card",
+                    "student_name": s.student_name,
+                    "student_id": s.student_id,
+                    "engagement_level": s.engagement_level,
+                    "confusion_label": _confusion_label(s.avg_confusion),
+                    "grade_label": _grade_label(s.current_grade),
+                    "total_interactions": profile.total_interactions if profile else 0,
+                    "top_concepts": [
+                        {"name": c, "mastery_label": _mastery_label(level)}
+                        for c, level in list(s.concept_mastery.items())[:6]
+                    ],
+                    "recent_activity": s.topic_relevance,
+                    "profile_summary": s.profile_summary,
+                }
+            )
 
         # At-Risk Table: class-wide / multi-student
         at_risk = [
-            s for s in summaries
+            s
+            for s in summaries
             if s.avg_confusion > 0.5 or s.engagement_level in ("low", "inactive")
         ]
         if at_risk and routing.intent in (QueryIntent.CLASS_WIDE, QueryIntent.MULTI_STUDENT):
-            widgets.append({
-                "type": "at_risk_table",
-                "title": "At-Risk Students",
-                "students": [
-                    {
-                        "student_name": s.student_name,
-                        "student_id": s.student_id,
-                        "risk_reason": s.key_findings[0] if s.key_findings else "Low engagement",
-                        "confusion_label": _confusion_label(s.avg_confusion),
-                        "engagement_level": s.engagement_level,
-                        "grade_label": _grade_label(s.current_grade),
-                        "recommended_action": s.key_findings[-1] if len(s.key_findings) > 1 else "Schedule check-in",
-                    }
-                    for s in at_risk[:10]
-                ],
-            })
+            widgets.append(
+                {
+                    "type": "at_risk_table",
+                    "title": "At-Risk Students",
+                    "students": [
+                        {
+                            "student_name": s.student_name,
+                            "student_id": s.student_id,
+                            "risk_reason": s.key_findings[0]
+                            if s.key_findings
+                            else "Low engagement",
+                            "confusion_label": _confusion_label(s.avg_confusion),
+                            "engagement_level": s.engagement_level,
+                            "grade_label": _grade_label(s.current_grade),
+                            "recommended_action": s.key_findings[-1]
+                            if len(s.key_findings) > 1
+                            else "Schedule check-in",
+                        }
+                        for s in at_risk[:10]
+                    ],
+                }
+            )
 
         # Concept Heatmap: class-wide or topic-specific
-        if context.concept_overview and routing.intent in (QueryIntent.CLASS_WIDE, QueryIntent.TOPIC_SPECIFIC):
-            widgets.append({
-                "type": "concept_heatmap",
-                "title": "Class Concept Mastery",
-                "cells": [
-                    {
-                        "concept": c["concept_name"],
-                        "mastery_label": _mastery_label(c["avg_mastery"]),
-                        "mastery_value": round(c["avg_mastery"], 2),
-                        "student_count": c["student_count"],
-                        "times_struggled": c["total_struggled"],
-                    }
-                    for c in context.concept_overview[:15]
-                ],
-            })
+        if context.concept_overview and routing.intent in (
+            QueryIntent.CLASS_WIDE,
+            QueryIntent.TOPIC_SPECIFIC,
+        ):
+            widgets.append(
+                {
+                    "type": "concept_heatmap",
+                    "title": "Class Concept Mastery",
+                    "cells": [
+                        {
+                            "concept": c["concept_name"],
+                            "mastery_label": _mastery_label(c["avg_mastery"]),
+                            "mastery_value": round(c["avg_mastery"], 2),
+                            "student_count": c["student_count"],
+                            "times_struggled": c["total_struggled"],
+                        }
+                        for c in context.concept_overview[:15]
+                    ],
+                }
+            )
 
         # Engagement Chart: class-wide
         if routing.intent == QueryIntent.CLASS_WIDE:
@@ -619,38 +655,42 @@ class ClassroomAgent:
                 p = s_data["profile"]
                 level = p.engagement_level if p else "unknown"
                 eng_buckets.setdefault(level, []).append(s_data["name"])
-            widgets.append({
-                "type": "engagement_chart",
-                "title": "Class Engagement",
-                "total_students": context.total_students,
-                "buckets": [
-                    {"level": level, "count": len(names), "student_names": names[:8]}
-                    for level, names in eng_buckets.items()
-                    if names
-                ],
-            })
+            widgets.append(
+                {
+                    "type": "engagement_chart",
+                    "title": "Class Engagement",
+                    "total_students": context.total_students,
+                    "buckets": [
+                        {"level": level, "count": len(names), "student_names": names[:8]}
+                        for level, names in eng_buckets.items()
+                        if names
+                    ],
+                }
+            )
 
         return widgets
 
-    def _build_meta_widgets(self, context: ClassroomContext) -> list[dict]:
+    def _build_meta_widgets(self, context: ClassroomContext) -> list[dict[str, Any]]:
         """Build widgets for meta (aggregate) questions."""
-        widgets: list[dict] = []
+        widgets: list[dict[str, Any]] = []
 
         if context.concept_overview:
-            widgets.append({
-                "type": "concept_heatmap",
-                "title": "Class Concept Mastery",
-                "cells": [
-                    {
-                        "concept": c["concept_name"],
-                        "mastery_label": _mastery_label(c["avg_mastery"]),
-                        "mastery_value": round(c["avg_mastery"], 2),
-                        "student_count": c["student_count"],
-                        "times_struggled": c["total_struggled"],
-                    }
-                    for c in context.concept_overview[:15]
-                ],
-            })
+            widgets.append(
+                {
+                    "type": "concept_heatmap",
+                    "title": "Class Concept Mastery",
+                    "cells": [
+                        {
+                            "concept": c["concept_name"],
+                            "mastery_label": _mastery_label(c["avg_mastery"]),
+                            "mastery_value": round(c["avg_mastery"], 2),
+                            "student_count": c["student_count"],
+                            "times_struggled": c["total_struggled"],
+                        }
+                        for c in context.concept_overview[:15]
+                    ],
+                }
+            )
 
         eng_buckets: dict[str, list[str]] = {}
         for s_data in context.student_roster:
@@ -658,16 +698,18 @@ class ClassroomAgent:
             level = p.engagement_level if p else "unknown"
             eng_buckets.setdefault(level, []).append(s_data["name"])
         if eng_buckets:
-            widgets.append({
-                "type": "engagement_chart",
-                "title": "Class Engagement",
-                "total_students": context.total_students,
-                "buckets": [
-                    {"level": level, "count": len(names), "student_names": names[:8]}
-                    for level, names in eng_buckets.items()
-                    if names
-                ],
-            })
+            widgets.append(
+                {
+                    "type": "engagement_chart",
+                    "title": "Class Engagement",
+                    "total_students": context.total_students,
+                    "buckets": [
+                        {"level": level, "count": len(names), "student_names": names[:8]}
+                        for level, names in eng_buckets.items()
+                        if names
+                    ],
+                }
+            )
 
         return widgets
 
@@ -685,9 +727,9 @@ class ClassroomAgent:
         with_profiles = [s for s in context.student_roster if s["profile"]]
         roster_summary = f"{context.total_students} students enrolled."
         if with_profiles:
-            avg_confusion = sum(
-                s["profile"].avg_confusion_score for s in with_profiles
-            ) / len(with_profiles)
+            avg_confusion = sum(s["profile"].avg_confusion_score for s in with_profiles) / len(
+                with_profiles
+            )
             eng_counts: dict[str, int] = {}
             for s in with_profiles:
                 lvl = s["profile"].engagement_level or "unknown"
@@ -703,7 +745,7 @@ class ClassroomAgent:
             struggled = c["total_struggled"]
             n_students = c["student_count"]
             concept_lines.append(
-                f'- {c["concept_name"]}: class has {label} '
+                f"- {c['concept_name']}: class has {label} "
                 f"({n_students} students have worked on it, "
                 f"{struggled} times someone struggled)"
             )
@@ -744,12 +786,16 @@ class ClassroomAgent:
         for s in summaries:
             # Show weak concepts first (most actionable), then strong
             weak_concepts = sorted(
-                [(c, l) for c, l in s.concept_mastery.items() if l < 0.45],
+                [(c, level) for c, level in s.concept_mastery.items() if level < 0.45],
                 key=lambda x: x[1],
             )
-            strong_concepts = [(c, l) for c, l in s.concept_mastery.items() if l >= 0.65]
-            weak_str = ", ".join(f"{c} ({_mastery_label(l)})" for c, l in weak_concepts[:6])
-            strong_str = ", ".join(f"{c} ({_mastery_label(l)})" for c, l in strong_concepts[:4])
+            strong_concepts = [
+                (c, level) for c, level in s.concept_mastery.items() if level >= 0.65
+            ]
+            weak_str = ", ".join(f"{c} ({_mastery_label(level)})" for c, level in weak_concepts[:6])
+            strong_str = ", ".join(
+                f"{c} ({_mastery_label(level)})" for c, level in strong_concepts[:4]
+            )
 
             grade_str = _grade_label(s.current_grade)
             if s.current_grade is not None:
@@ -763,16 +809,13 @@ class ClassroomAgent:
                 f"Grade: {grade_str}\n"
                 f"Struggling with: {weak_str or 'none'}\n"
                 f"Strong in: {strong_str or 'none'}\n"
-                f"Findings:\n"
-                + "\n".join(f"- {f}" for f in s.key_findings)
+                f"Findings:\n" + "\n".join(f"- {f}" for f in s.key_findings)
             )
             summary_blocks.append(block)
 
         aggregate_section = ""
         if routing.intent in (QueryIntent.CLASS_WIDE, QueryIntent.TOPIC_SPECIFIC):
-            top_concepts = ", ".join(
-                c["concept_name"] for c in context.concept_overview[:5]
-            )
+            top_concepts = ", ".join(c["concept_name"] for c in context.concept_overview[:5])
             aggregate_section = (
                 f"\n## Class Aggregate\n"
                 f"Total students: {context.total_students}\n"

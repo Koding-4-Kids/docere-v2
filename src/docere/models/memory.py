@@ -2,8 +2,21 @@
 
 import uuid
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import ARRAY, Float, ForeignKey, Integer, String, Text, Boolean, DateTime, Index, UniqueConstraint, func
+from sqlalchemy import (
+    ARRAY,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,7 +48,7 @@ class MemoryRecord(Base, UUIDMixin):
     source_message_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("messages.id")
     )
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict)
     is_compressed: Mapped[bool] = mapped_column(Boolean, default=False)
     compressed_into: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_at: Mapped[datetime] = mapped_column(
@@ -48,9 +61,7 @@ class StudentProfile(Base, UUIDMixin):
     """Aggregate student profile for a course."""
 
     __tablename__ = "student_profiles"
-    __table_args__ = (
-        UniqueConstraint("student_id", "course_id", name="uq_student_profile"),
-    )
+    __table_args__ = (UniqueConstraint("student_id", "course_id", name="uq_student_profile"),)
 
     student_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
@@ -66,7 +77,7 @@ class StudentProfile(Base, UUIDMixin):
     current_grade: Mapped[float | None] = mapped_column(Float)
     last_interaction_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     avg_session_duration_minutes: Mapped[float | None] = mapped_column(Float)
-    preferred_interaction_times: Mapped[dict | None] = mapped_column(JSONB)
+    preferred_interaction_times: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     profile_summary: Mapped[str | None] = mapped_column(Text)
     profile_embedding_id: Mapped[str | None] = mapped_column(String(255))
     updated_at: Mapped[datetime] = mapped_column(
@@ -93,4 +104,4 @@ class ConceptMastery(Base, UUIDMixin):
     times_practiced: Mapped[int] = mapped_column(Integer, default=0)
     times_struggled: Mapped[int] = mapped_column(Integer, default=0)
     last_practiced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    evidence: Mapped[list | None] = mapped_column(JSONB, default=list)
+    evidence: Mapped[list[Any] | None] = mapped_column(JSONB, default=list)

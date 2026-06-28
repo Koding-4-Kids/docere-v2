@@ -6,15 +6,18 @@ Combines:
 - Interaction history: semantically relevant past conversations
 - LMS data: recent grades, upcoming deadlines, submission status
 """
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 
 import asyncio
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.core.memory.concept_utils import normalize_concept
 from docere.core.memory.interaction_store import InteractionStore
@@ -25,7 +28,7 @@ from docere.integrations.llm.embeddings import generate_embedding
 from docere.integrations.vector_db.qdrant import QdrantStore
 from docere.models.conversation import Conversation, Message
 from docere.models.course import Assignment, Submission
-from docere.models.memory import ConceptMastery, MemoryRecord
+from docere.models.memory import MemoryRecord
 
 logger = structlog.get_logger()
 
@@ -90,7 +93,11 @@ class MemoryContext:
         if self.recent_grades:
             grade_lines = []
             for g in self.recent_grades[:5]:
-                pct = f"{g['score']}/{g['max_score']}" if g.get("max_score") else str(g.get("score", "N/A"))
+                pct = (
+                    f"{g['score']}/{g['max_score']}"
+                    if g.get("max_score")
+                    else str(g.get("score", "N/A"))
+                )
                 grade_lines.append(f"- {g.get('title', 'Unknown')}: {pct}")
             parts.append("## Recent Grades\n" + "\n".join(grade_lines))
 
@@ -106,8 +113,6 @@ class MemoryContext:
 # Rough token estimation: 1 token ≈ 4 characters
 def _estimate_tokens(text: str) -> int:
     return len(text) // 4
-
-
 
 
 class MemoryLayer:
@@ -150,7 +155,10 @@ class MemoryLayer:
         # queries on the same connection). Qdrant calls can run in parallel.
         teacher_context, raw_interactions = await asyncio.gather(
             self.teacher_ctx.retrieve_relevant_context(
-                course_id, current_query, max_chunks=3, assignment_id=assignment_id,
+                course_id,
+                current_query,
+                max_chunks=3,
+                assignment_id=assignment_id,
             ),
             self.interaction_store.retrieve_relevant(
                 student_id, course_id, query_embedding, top_k=5
@@ -174,18 +182,16 @@ class MemoryLayer:
         # Build concept mastery dict
         mastery_dict: dict[str, float] = {}
         for c in weak_concepts:
-            mastery_dict[c["concept"]] = c["mastery"]
+            mastery_dict[cast(str, c["concept"])] = cast(float, c["mastery"])
 
         # Format interaction memories
         memory_strings = []
         for interaction in raw_interactions:
-            payload = interaction.get("payload", {})
+            payload: dict[str, Any] = cast(dict[str, Any], interaction.get("payload", {}))
             student_msg = payload.get("student_message", "")
             agent_resp = payload.get("agent_response", "")
             if student_msg or agent_resp:
-                memory_strings.append(
-                    f"Student: {student_msg[:200]}\nTutor: {agent_resp[:300]}"
-                )
+                memory_strings.append(f"Student: {student_msg[:200]}\nTutor: {agent_resp[:300]}")
 
         # Token budgeting: materials > profile > grades > history
         # Materials get the highest priority because the agent needs to
@@ -218,7 +224,7 @@ class MemoryLayer:
         # 3. Concept mastery
         context.concept_mastery = mastery_dict
         if mastery_dict:
-            mastery_text = "\n".join(f"- {c}: {l:.0%}" for c, l in mastery_dict.items())
+            mastery_text = "\n".join(f"- {c}: {level:.0%}" for c, level in mastery_dict.items())
             budget -= _estimate_tokens(mastery_text)
 
         # 4. Recent grades
@@ -387,11 +393,10 @@ class MemoryLayer:
 
         Returns the number of conversations summarized.
         """
-        cutoff = datetime.now(timezone.utc) - CONVERSATION_IDLE_THRESHOLD
+        cutoff = datetime.now(UTC) - CONVERSATION_IDLE_THRESHOLD
 
         result = await self.db.execute(
-            select(Conversation.id, Conversation.student_id, Conversation.course_id)
-            .where(
+            select(Conversation.id, Conversation.student_id, Conversation.course_id).where(
                 Conversation.student_id == student_id,
                 Conversation.course_id == course_id,
                 Conversation.status == "active",
@@ -501,9 +506,9 @@ class MemoryLayer:
             sentiment_arc = ""
 
         # Collect all concepts from the conversation (normalized for matching)
-        all_concepts = list(set(
-            normalize_concept(c) for c in key_struggles + breakthroughs if c.strip()
-        ))
+        all_concepts = list(
+            set(normalize_concept(c) for c in key_struggles + breakthroughs if c.strip())
+        )
 
         # Build the full summary content for storage
         full_summary = summary_text

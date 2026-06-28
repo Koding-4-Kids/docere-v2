@@ -1,15 +1,15 @@
 """Flashcard spaced repetition service — FSRS v6 scheduling + card management."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
-from fsrs import Scheduler, Card, Rating, State
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from fsrs import Card, Rating, Scheduler
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.models.flashcard import CardReview, FlashcardCard, FlashcardDeck
-from docere.models.course import Enrollment
 
 logger = structlog.get_logger()
 
@@ -51,7 +51,7 @@ class FlashcardService:
         self,
         student_id: uuid.UUID,
         course_id: uuid.UUID,
-        cards_json: list[dict],
+        cards_json: list[dict[str, Any]],
         source_message_id: uuid.UUID | None = None,
         concepts: list[str] | None = None,
     ) -> int:
@@ -91,7 +91,9 @@ class FlashcardService:
                 difficulty=fsrs_card.difficulty or 0.0,
                 reps=0,
                 lapses=0,
-                state=fsrs_card.state.name if hasattr(fsrs_card.state, "name") else str(fsrs_card.state),
+                state=fsrs_card.state.name
+                if hasattr(fsrs_card.state, "name")
+                else str(fsrs_card.state),
             )
             self.db.add(new_card)
             added += 1
@@ -107,7 +109,7 @@ class FlashcardService:
     async def get_due_cards(
         self, student_id: uuid.UUID, course_id: uuid.UUID, limit: int = 20
     ) -> list[FlashcardCard]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await self.db.execute(
             select(FlashcardCard)
             .join(FlashcardDeck)
@@ -122,10 +124,8 @@ class FlashcardService:
         )
         return list(result.scalars().all())
 
-    async def get_due_count(
-        self, student_id: uuid.UUID, course_id: uuid.UUID
-    ) -> int:
-        now = datetime.now(timezone.utc)
+    async def get_due_count(self, student_id: uuid.UUID, course_id: uuid.UUID) -> int:
+        now = datetime.now(UTC)
         result = await self.db.execute(
             select(func.count(FlashcardCard.id))
             .join(FlashcardDeck)
@@ -138,11 +138,9 @@ class FlashcardService:
         )
         return result.scalar() or 0
 
-    async def get_all_due_counts(
-        self, student_id: uuid.UUID
-    ) -> list[dict]:
+    async def get_all_due_counts(self, student_id: uuid.UUID) -> list[dict[str, Any]]:
         """Due counts across all enrolled courses."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await self.db.execute(
             select(
                 FlashcardDeck.course_id,
@@ -157,8 +155,7 @@ class FlashcardService:
             .group_by(FlashcardDeck.course_id)
         )
         return [
-            {"course_id": str(row.course_id), "due_count": row.due_count}
-            for row in result.all()
+            {"course_id": str(row.course_id), "due_count": row.due_count} for row in result.all()
         ]
 
     # ── Review Card ──
@@ -178,9 +175,9 @@ class FlashcardService:
         )
         card = result.scalar_one()
 
-        fsrs_card = Card.from_dict(card.fsrs_state) if card.fsrs_state else Card()
+        fsrs_card = Card.from_dict(card.fsrs_state) if card.fsrs_state else Card()  # type: ignore[arg-type]
         fsrs_rating = Rating(rating)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         updated_card, review_log = self.fsrs.review_card(fsrs_card, fsrs_rating, now)
 
         review = CardReview(
@@ -249,7 +246,7 @@ class FlashcardService:
 
 def _sync_card_from_fsrs(card: FlashcardCard, fsrs_card: Card) -> None:
     """Sync denormalized DB columns from an FSRS Card object."""
-    card.fsrs_state = fsrs_card.to_dict()
+    card.fsrs_state = fsrs_card.to_dict()  # type: ignore[assignment]
     card.due_at = fsrs_card.due
     card.stability = fsrs_card.stability or 0.0
     card.difficulty = fsrs_card.difficulty or 0.0

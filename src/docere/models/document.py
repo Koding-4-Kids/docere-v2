@@ -24,9 +24,7 @@ class StudentDocument(Base, UUIDMixin):
 
     __tablename__ = "student_documents"
     __table_args__ = (
-        UniqueConstraint(
-            "student_id", "course_id", "content_hash", name="uq_student_doc_hash"
-        ),
+        UniqueConstraint("student_id", "course_id", "content_hash", name="uq_student_doc_hash"),
         Index("ix_student_doc_lookup", "student_id", "course_id"),
     )
 

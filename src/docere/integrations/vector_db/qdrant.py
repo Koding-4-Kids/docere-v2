@@ -1,12 +1,13 @@
 """Qdrant vector database client with retry and circuit breaker."""
 
+from typing import cast
+
+import httpx
+import structlog
 from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.http.exceptions import (
     ResponseHandlingException,
-    UnexpectedResponse,
 )
-import httpx
-import structlog
 
 from docere.config import settings
 from docere.core.resilience import CircuitBreaker, retry_async
@@ -29,7 +30,7 @@ class QdrantStore:
     """Qdrant vector database for semantic memory storage and retrieval."""
 
     def __init__(self) -> None:
-        self.client = AsyncQdrantClient(url=settings.qdrant_url, timeout=15.0)
+        self.client = AsyncQdrantClient(url=settings.qdrant_url, timeout=15)
         self.dimensions = settings.embedding_dimensions
         self.breaker = _qdrant_breaker
 
@@ -88,13 +89,13 @@ class QdrantStore:
             must_conditions = [
                 models.FieldCondition(
                     key=key,
-                    match=models.MatchValue(value=value),
+                    match=models.MatchValue(value=value),  # type: ignore[arg-type]
                 )
                 for key, value in filter_conditions.items()
             ]
-            query_filter = models.Filter(must=must_conditions)
+            query_filter = models.Filter(must=must_conditions)  # type: ignore[arg-type]
 
-        async def _do_search():
+        async def _do_search() -> list[dict[str, object]]:
             results = await self.client.query_points(
                 collection_name=collection_name,
                 query=query_vector,
@@ -115,13 +116,16 @@ class QdrantStore:
                 items.append(item)
             return items
 
-        return await self.breaker.call(
-            lambda: retry_async(
-                _do_search,
-                max_retries=2,
-                base_delay=0.3,
-                retryable=_RETRYABLE_QDRANT,
-            )
+        return cast(
+            list[dict[str, object]],
+            await self.breaker.call(
+                lambda: retry_async(
+                    _do_search,
+                    max_retries=2,
+                    base_delay=0.3,
+                    retryable=_RETRYABLE_QDRANT,
+                )
+            ),
         )
 
     async def scroll(
@@ -156,7 +160,7 @@ class QdrantStore:
             return
         await self.client.delete(
             collection_name=collection_name,
-            points_selector=models.PointIdsList(points=point_ids),
+            points_selector=models.PointIdsList(points=point_ids),  # type: ignore[arg-type]
         )
 
     async def delete(
@@ -168,13 +172,13 @@ class QdrantStore:
         must_conditions = [
             models.FieldCondition(
                 key=key,
-                match=models.MatchValue(value=value),
+                match=models.MatchValue(value=value),  # type: ignore[arg-type]
             )
             for key, value in filter_conditions.items()
         ]
         await self.client.delete(
             collection_name=collection_name,
             points_selector=models.FilterSelector(
-                filter=models.Filter(must=must_conditions),
+                filter=models.Filter(must=must_conditions),  # type: ignore[arg-type]
             ),
         )

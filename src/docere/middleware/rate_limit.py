@@ -12,7 +12,7 @@ import time
 
 import jwt
 import structlog
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
@@ -54,7 +54,8 @@ def _extract_user_id(request: Request) -> str | None:
     token = auth[7:]
     try:
         payload = jwt.decode(
-            token, settings.jwt_secret,
+            token,
+            settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
             options={"verify_exp": False},
         )
@@ -74,7 +75,7 @@ def _get_client_ip(request: Request) -> str:
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Redis-backed sliding window rate limiter."""
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Skip health check and static paths
         path = request.url.path
         if path in ("/health", "/docs", "/openapi.json"):
@@ -98,6 +99,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # Check rate limit via Redis
         try:
             from docere.dependencies import get_redis
+
             redis = get_redis()
             current = await redis.incr(redis_key)
             if current == 1:
@@ -111,7 +113,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Set rate limit headers
-        response = None
+        response: Response
         if current > max_requests:
             response = JSONResponse(
                 status_code=429,

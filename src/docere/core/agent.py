@@ -8,15 +8,19 @@ For each student message:
 5. Fire-and-forget: score previous interaction, extract concepts, summarize stale
 """
 
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 import asyncio
 import json
 import re
+import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.config import settings
 from docere.core.improvement.strategy_archive import StrategyArchive, StrategyContext
@@ -26,7 +30,7 @@ from docere.integrations.llm.client import ClaudeClient
 from docere.integrations.vector_db.qdrant import QdrantStore
 from docere.models.conversation import Conversation, Message
 from docere.models.course import Assignment
-from docere.models.memory import MemoryRecord
+from docere.models.memory import MemoryRecord, StudentProfile
 
 logger = structlog.get_logger()
 
@@ -160,9 +164,9 @@ class AgentResponse:
     token_count: int
     strategy_used: str | None
     memory_context_size: int
-    artifact: dict | None = None
-    action: dict | None = None
-    widgets: list[dict] | None = None
+    artifact: dict[str, Any] | None = None
+    action: dict[str, Any] | None = None
+    widgets: list[dict[str, Any]] | None = None
 
 
 class TutoringAgent:
@@ -208,9 +212,7 @@ class TutoringAgent:
         async def _load_assignment() -> Assignment | None:
             if not assignment_id:
                 return None
-            r = await self.db.execute(
-                select(Assignment).where(Assignment.id == assignment_id)
-            )
+            r = await self.db.execute(select(Assignment).where(Assignment.id == assignment_id))
             return r.scalar_one_or_none()
 
         async def _load_memory() -> MemoryContext:
@@ -228,7 +230,7 @@ class TutoringAgent:
                 logger.warning("Memory retrieval failed, using empty context", error=str(e))
                 return MemoryContext.empty()
 
-        async def _load_profile():
+        async def _load_profile() -> Any:
             if study_group == "control":
                 return None
             return await self.memory.profile_builder.get_profile(student_id, course_id)
@@ -257,7 +259,10 @@ class TutoringAgent:
         suggest_meeting = self._should_suggest_meeting(profile, student_message)
 
         system_prompt = self._build_system_prompt(
-            memory_ctx, strategy, assignment, profile=profile,
+            memory_ctx,
+            strategy,
+            assignment,
+            profile=profile,
             suggest_meeting=suggest_meeting,
         )
 
@@ -278,14 +283,16 @@ class TutoringAgent:
         # Force-inject meeting action if student explicitly asked but LLM missed the format
         explicit_meeting_request = bool(MEETING_KEYWORDS.search(student_message))
         if explicit_meeting_request and not action_data:
-            struggle_concepts = []
+            struggle_concepts: list[str] = []
             if profile and hasattr(profile, "top_confused_concepts"):
                 struggle_concepts = profile.top_confused_concepts or []
             elif profile:
                 # Fall back to extracting from memory context
-                struggle_concepts = [
-                    c for c in (memory_ctx.concepts or [])
-                ] if hasattr(memory_ctx, "concepts") else []
+                struggle_concepts = (
+                    [c for c in (memory_ctx.concepts or [])]
+                    if hasattr(memory_ctx, "concepts")
+                    else []
+                )
 
             action_data = {
                 "type": "meeting_suggestion",
@@ -295,7 +302,7 @@ class TutoringAgent:
             logger.info("Force-injected meeting action for explicit request")
 
         # ── Persist messages + return immediately ──
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         student_msg = Message(
             conversation_id=conversation_id,
@@ -345,16 +352,18 @@ class TutoringAgent:
 
         # ── Fire-and-forget: all non-critical work runs AFTER response ──
         # These don't block the user — they run in the background.
-        asyncio.create_task(self._post_process(
-            conversation_id=conversation_id,
-            student_id=student_id,
-            course_id=course_id,
-            student_message=student_message,
-            response_text=response_text,
-            study_group=study_group,
-            artifact_data=artifact_data,
-            assistant_msg_id=str(assistant_msg.id),
-        ))
+        asyncio.create_task(
+            self._post_process(
+                conversation_id=conversation_id,
+                student_id=student_id,
+                course_id=course_id,
+                student_message=student_message,
+                response_text=response_text,
+                study_group=study_group,
+                artifact_data=artifact_data,
+                assistant_msg_id=str(assistant_msg.id),
+            )
+        )
 
         return AgentResponse(
             content=chat_text,
@@ -375,7 +384,7 @@ class TutoringAgent:
         student_message: str,
         response_text: str,
         study_group: str | None,
-        artifact_data: dict | None = None,
+        artifact_data: dict[str, Any] | None = None,
         assistant_msg_id: str | None = None,
     ) -> None:
         """Background post-processing: scoring, concept extraction, summarization.
@@ -427,14 +436,19 @@ class TutoringAgent:
                 if artifact_data and artifact_data.get("type") == "flashcards":
                     try:
                         from docere.services.flashcard_service import FlashcardService
+
                         fc_svc = FlashcardService(db)
                         raw_content = artifact_data.get("content", "[]")
-                        cards_json = json.loads(raw_content) if isinstance(raw_content, str) else raw_content
+                        cards_json = (
+                            json.loads(raw_content) if isinstance(raw_content, str) else raw_content
+                        )
                         added = await fc_svc.add_cards_from_artifact(
-                            student_id=student_id,
-                            course_id=course_id,
+                            student_id=uuid.UUID(student_id),
+                            course_id=uuid.UUID(course_id),
                             cards_json=cards_json,
-                            source_message_id=assistant_msg_id,
+                            source_message_id=uuid.UUID(assistant_msg_id)
+                            if assistant_msg_id
+                            else None,
                             concepts=artifact_data.get("source_concepts", []),
                         )
                         if added:
@@ -495,7 +509,7 @@ class TutoringAgent:
         if not prev_student:
             return
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         time_delta = int((now - prev_assistant.created_at).total_seconds())
 
         verification = await bg_verifier.score_interaction(
@@ -513,18 +527,16 @@ class TutoringAgent:
         if profile:
             n = profile.total_interactions or 1
             old_avg = profile.avg_interaction_score or 0.0
-            profile.avg_interaction_score = (
-                (old_avg * (n - 1) + verification.composite_score) / n
-            )
+            profile.avg_interaction_score = (old_avg * (n - 1) + verification.composite_score) / n
 
         # If a strategy was used, record the outcome for the bandit
         metadata = prev_assistant.metadata_ or {}
         strategy_id = metadata.get("strategy_id")
         if strategy_id:
             mem_result = await db.execute(
-                select(MemoryRecord.concepts).where(
-                    MemoryRecord.source_message_id == prev_assistant.id
-                ).limit(1)
+                select(MemoryRecord.concepts)
+                .where(MemoryRecord.source_message_id == prev_assistant.id)
+                .limit(1)
             )
             concepts = mem_result.scalar_one_or_none() or []
 
@@ -564,7 +576,7 @@ class TutoringAgent:
         memory_ctx: MemoryContext,
         strategy: object | None,
         assignment: Assignment | None = None,
-        profile: object | None = None,
+        profile: StudentProfile | None = None,
         suggest_meeting: bool = False,
     ) -> str:
         """Build the full system prompt from memory context, strategy, and profile."""
@@ -598,18 +610,12 @@ class TutoringAgent:
         # Score-based prompt adaptation (reads from profile, no extra DB queries)
         if profile:
             adaptations = []
-            if (
-                (profile.avg_interaction_score or 0) < 0.4
-                and profile.total_interactions >= 3
-            ):
+            if (profile.avg_interaction_score or 0) < 0.4 and profile.total_interactions >= 3:
                 adaptations.append(
                     "Previous approaches haven't been effective with this student. "
                     "Try a completely different angle than what might have been tried before."
                 )
-            if (
-                profile.avg_confusion_score > 0.6
-                and profile.engagement_level != "high"
-            ):
+            if profile.avg_confusion_score > 0.6 and profile.engagement_level != "high":
                 adaptations.append(
                     "This student is frequently confused. Use very short, concrete "
                     "examples. Avoid abstract explanations."
@@ -645,7 +651,7 @@ class TutoringAgent:
         return "\n".join(parts)
 
     @staticmethod
-    def _extract_artifact(response_text: str) -> tuple[str, dict | None]:
+    def _extract_artifact(response_text: str) -> tuple[str, dict[str, Any] | None]:
         """Extract a fenced ```artifact block from the LLM response.
 
         Returns:
@@ -654,9 +660,9 @@ class TutoringAgent:
         """
         # Try strict pattern first, then progressively more lenient
         patterns = [
-            r"```artifact\s*\n(.*?)\n\s*```",       # strict: newline-bounded
-            r"```artifact\s*\n?([\s\S]*?)\n```",     # relaxed opening newline
-            r"```artifact\s*\n?([\s\S]*?)```",       # no closing newline required
+            r"```artifact\s*\n(.*?)\n\s*```",  # strict: newline-bounded
+            r"```artifact\s*\n?([\s\S]*?)\n```",  # relaxed opening newline
+            r"```artifact\s*\n?([\s\S]*?)```",  # no closing newline required
         ]
         match = None
         for pat in patterns:
@@ -664,9 +670,11 @@ class TutoringAgent:
             if match:
                 break
         if not match:
-            logger.warning("No artifact block found in response",
-                           has_artifact_keyword="```artifact" in response_text,
-                           response_len=len(response_text))
+            logger.warning(
+                "No artifact block found in response",
+                has_artifact_keyword="```artifact" in response_text,
+                response_len=len(response_text),
+            )
             return response_text, None
 
         try:
@@ -690,7 +698,7 @@ class TutoringAgent:
                 artifact["content"] = json.dumps(artifact["content"])
 
             # Strip the artifact block from the chat text
-            chat_text = response_text[:match.start()] + response_text[match.end():]
+            chat_text = response_text[: match.start()] + response_text[match.end() :]
             chat_text = chat_text.strip()
 
             return chat_text, artifact
@@ -700,7 +708,7 @@ class TutoringAgent:
             return response_text, None
 
     @staticmethod
-    def _extract_action(response_text: str) -> tuple[str, dict | None]:
+    def _extract_action(response_text: str) -> tuple[str, dict[str, Any] | None]:
         """Extract a fenced ```action block from the LLM response.
 
         Returns:
@@ -721,7 +729,7 @@ class TutoringAgent:
             if "reason" not in action:
                 return response_text, None
 
-            chat_text = response_text[:match.start()] + response_text[match.end():]
+            chat_text = response_text[: match.start()] + response_text[match.end() :]
             return chat_text.strip(), action
 
         except (json.JSONDecodeError, KeyError) as e:
@@ -729,14 +737,14 @@ class TutoringAgent:
             return response_text, None
 
     @staticmethod
-    def _extract_widgets(response_text: str) -> tuple[str, list[dict]]:
+    def _extract_widgets(response_text: str) -> tuple[str, list[dict[str, Any]]]:
         """Extract all ```widget blocks from the LLM response.
 
         Returns:
             (clean_chat_text, list_of_widget_dicts)
         """
         pattern = r"```widget\s*\n(.*?)\n\s*```"
-        widgets: list[dict] = []
+        widgets: list[dict[str, Any]] = []
         clean = response_text
 
         for match in reversed(list(re.finditer(pattern, response_text, re.DOTALL))):
@@ -746,14 +754,14 @@ class TutoringAgent:
                 if "type" not in widget:
                     continue
                 widgets.insert(0, widget)
-                clean = clean[:match.start()] + clean[match.end():]
+                clean = clean[: match.start()] + clean[match.end() :]
             except (json.JSONDecodeError, KeyError) as e:
                 logger.warning("Failed to parse widget block", error=str(e))
 
         return clean.strip(), widgets
 
     @staticmethod
-    def _should_suggest_meeting(profile: object | None, student_message: str) -> bool:
+    def _should_suggest_meeting(profile: Any, student_message: str) -> bool:
         """Determine if meeting scheduling instructions should be injected.
 
         Returns True when:
@@ -786,7 +794,4 @@ class TutoringAgent:
         )
         messages = list(reversed(result.scalars().all()))
 
-        return [
-            {"role": msg.role, "content": msg.content}
-            for msg in messages
-        ]
+        return [{"role": msg.role, "content": msg.content} for msg in messages]

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from sqlalchemy import select
@@ -14,7 +16,7 @@ from docere.models.conversation import Conversation, Message
 logger = structlog.get_logger()
 
 
-async def persist_messages(state: TutoringState) -> dict:
+async def persist_messages(state: TutoringState) -> dict[str, Any]:
     """Save user + assistant messages to the database and commit."""
     db = state["_db"]
     conversation_id = state["conversation_id"]
@@ -52,9 +54,7 @@ async def persist_messages(state: TutoringState) -> dict:
     db.add(assistant_msg)
 
     # Update conversation timestamp
-    result = await db.execute(
-        select(Conversation).where(Conversation.id == conversation_id)
-    )
+    result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     if conversation:
         conversation.last_message_at = now
@@ -72,7 +72,7 @@ async def persist_messages(state: TutoringState) -> dict:
     return {"assistant_msg_id": str(assistant_msg.id)}
 
 
-async def persist_flashcards(state: TutoringState) -> dict:
+async def persist_flashcards(state: TutoringState) -> dict[str, Any]:
     """Persist flashcard artifacts to the student's deck (background)."""
     artifact = state.get("artifact")
     if not artifact or artifact.get("type") != "flashcards":
@@ -86,11 +86,12 @@ async def persist_flashcards(state: TutoringState) -> dict:
         svc = FlashcardService(db)
         raw_content = artifact.get("content", "[]")
         cards_json = json.loads(raw_content) if isinstance(raw_content, str) else raw_content
+        msg_id = state.get("assistant_msg_id")
         added = await svc.add_cards_from_artifact(
-            student_id=state["student_id"],
-            course_id=state["course_id"],
+            student_id=uuid.UUID(state["student_id"]),
+            course_id=uuid.UUID(state["course_id"]),
             cards_json=cards_json,
-            source_message_id=state.get("assistant_msg_id"),
+            source_message_id=uuid.UUID(msg_id) if msg_id else None,
             concepts=artifact.get("source_concepts", []),
         )
         if added:

@@ -1,9 +1,10 @@
 """Google Docs integration: create documents using instructor's OAuth tokens."""
 
 import asyncio
+from typing import Any
 
 import structlog
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.services.google_calendar import GoogleCalendarService
@@ -23,7 +24,7 @@ class GoogleDocsService:
         instructor_id: str,
         title: str,
         content: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Create a Google Doc with the given title and content.
 
         Returns {"document_id": str, "url": str}.
@@ -32,7 +33,7 @@ class GoogleDocsService:
         if not creds:
             raise ValueError("Google not connected. Please connect your Google account first.")
 
-        def _create():
+        def _create() -> dict[str, Any]:
             docs_service = build("docs", "v1", credentials=creds, static_discovery=False)
             doc = docs_service.documents().create(body={"title": title}).execute()
             doc_id = doc["documentId"]

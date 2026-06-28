@@ -1,20 +1,22 @@
 """Gradebook Sync: validate, sync, and fix grades between spreadsheets and LMS."""
 
+# E501 intentional here: file holds long prompt/instruction string constants.
+# ruff: noqa: E501
 import io
 import uuid
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.config import settings
-from docere.dependencies import get_db, get_claude, require_instructor
+from docere.dependencies import get_claude, get_db, require_instructor
 from docere.integrations.llm.client import ClaudeClient
-from docere.models.course import Course, Enrollment
-from docere.models.user import User
+from docere.integrations.lms.base import LMSAdapter
+from docere.models.course import Course
 
 logger = structlog.get_logger()
 
@@ -62,7 +64,7 @@ class ValidationResult(BaseModel):
     valid: bool
     mappings: ColumnMapping | None = None
     issues: list[ValidationIssue] = []
-    preview: list[dict] = []
+    preview: list[dict[str, Any]] = []
     student_count: int = 0
 
 
@@ -76,7 +78,7 @@ class SyncRequest(BaseModel):
 class SyncResult(BaseModel):
     synced: int
     failed: int
-    errors: list[dict] = []
+    errors: list[dict[str, Any]] = []
 
 
 class FixRequest(BaseModel):
@@ -86,7 +88,7 @@ class FixRequest(BaseModel):
 
 class FixResult(BaseModel):
     fixed_data: SpreadsheetData
-    changes: list[dict] = []
+    changes: list[dict[str, Any]] = []
 
 
 # ── Google Sheets Sources ──
@@ -96,7 +98,7 @@ class FixResult(BaseModel):
 async def list_google_spreadsheets(
     user_id: uuid.UUID = Depends(require_instructor),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """List Docere-created Google Sheets for this instructor."""
     from docere.services.google_sheets import GoogleSheetsService
 
@@ -116,7 +118,7 @@ async def read_google_spreadsheet(
     request: ReadSheetRequest,
     user_id: uuid.UUID = Depends(require_instructor),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Read data from a Google Sheet by spreadsheet ID."""
     from docere.services.google_sheets import GoogleSheetsService
 
@@ -135,7 +137,7 @@ async def read_google_spreadsheet_url(
     request: ReadSheetUrlRequest,
     user_id: uuid.UUID = Depends(require_instructor),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Read data from a Google Sheet by URL."""
     from docere.services.google_sheets import GoogleSheetsService
 
@@ -152,13 +154,15 @@ async def read_google_spreadsheet_url(
 # ── LMS Destinations ──
 
 
-def _get_lms_adapter():
+def _get_lms_adapter() -> LMSAdapter | None:
     """Get the configured LMS adapter."""
     if settings.moodle_base_url and settings.moodle_api_token:
         from docere.integrations.lms.moodle import MoodleAdapter
+
         return MoodleAdapter()
     elif settings.canvas_base_url and settings.canvas_api_token:
         from docere.integrations.lms.canvas import CanvasAdapter
+
         return CanvasAdapter()
     return None
 
@@ -168,7 +172,7 @@ async def get_grade_items(
     course_id: uuid.UUID,
     user_id: uuid.UUID = Depends(require_instructor),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Get assignment/grade items from the LMS for a course."""
     course = await db.get(Course, course_id)
     if not course or not course.external_lms_id:
@@ -189,6 +193,7 @@ def _normalize(s: str) -> str:
     s = s.lower().strip()
     # Remove numbering prefixes like "1. ", "1) "
     import re as _re
+
     s = _re.sub(r"^\d+[\.\)]\s*", "", s)
     return s
 
@@ -207,13 +212,16 @@ def _find_student_column(headers: list[str], sample_rows: list[list[str]]) -> in
         values = [row[i] for row in sample_rows if i < len(row)]
         if values and all(
             " " in v and not v.replace(" ", "").replace(".", "").replace("-", "").isdigit()
-            for v in values if v.strip()
+            for v in values
+            if v.strip()
         ):
             return i
     return None
 
 
-def _match_headers_to_items(headers: list[str], grade_items: list[dict]) -> dict[str, int]:
+def _match_headers_to_items(
+    headers: list[str], grade_items: list[dict[str, Any]]
+) -> dict[str, int]:
     """Deterministically match spreadsheet headers to grade items by name similarity.
 
     Returns {grade_item_id: column_index}.
@@ -342,15 +350,14 @@ async def validate_gradebook(
     if not fixed_grade_columns:
         logger.info("Deterministic matching failed, trying Claude fallback")
         sample_rows = request.source_data.rows[:5]
-        mapping_prompt = (
-            f"Spreadsheet headers: {headers}\n"
-            f"Sample rows (first 5):\n"
-        )
+        mapping_prompt = f"Spreadsheet headers: {headers}\nSample rows (first 5):\n"
         for row in sample_rows:
             mapping_prompt += f"  {row}\n"
-        mapping_prompt += f"\nGrade items in LMS:\n"
+        mapping_prompt += "\nGrade items in LMS:\n"
         for item in grade_items:
-            mapping_prompt += f"  - ID: {item['id']}, Name: {item['name']}, Max: {item.get('grade_max', 100)}\n"
+            mapping_prompt += (
+                f"  - ID: {item['id']}, Name: {item['name']}, Max: {item.get('grade_max', 100)}\n"
+            )
         mapping_prompt += "\nIdentify the column mappings."
 
         mapping_text = await claude.chat(
@@ -420,7 +427,11 @@ async def validate_gradebook(
         if len(unmatched_items) == 1 and len(numeric_cols) == 1:
             # Only one grade item and one numeric column — obvious match
             fixed_grade_columns[unmatched_items[0]["id"]] = numeric_cols[0]
-            logger.info("Auto-assigned single grade column", item=unmatched_items[0]["name"], col=numeric_cols[0])
+            logger.info(
+                "Auto-assigned single grade column",
+                item=unmatched_items[0]["name"],
+                col=numeric_cols[0],
+            )
         elif len(unmatched_items) == len(numeric_cols) and len(numeric_cols) > 0:
             # Same number of items and numeric columns — assign in order
             for item, col in zip(unmatched_items, numeric_cols):
@@ -431,8 +442,8 @@ async def validate_gradebook(
         raise HTTPException(
             status_code=422,
             detail="Could not match any spreadsheet columns to gradebook items. "
-                   "Make sure your spreadsheet column headers include the assignment names "
-                   f"(e.g. {', '.join(g['name'] for g in grade_items[:3])}).",
+            "Make sure your spreadsheet column headers include the assignment names "
+            f"(e.g. {', '.join(g['name'] for g in grade_items[:3])}).",
         )
 
     mappings = ColumnMapping(
@@ -442,16 +453,21 @@ async def validate_gradebook(
 
     # Validate row by row
     issues: list[ValidationIssue] = []
-    preview: list[dict] = []
+    preview: list[dict[str, Any]] = []
 
     for row_idx, row in enumerate(request.source_data.rows):
         # Get student name
         if mappings.student_name_col >= len(row):
-            issues.append(ValidationIssue(
-                row=row_idx, col=mappings.student_name_col,
-                type="format_error", current="", expected="Student name",
-                suggestion="Row is missing student name column",
-            ))
+            issues.append(
+                ValidationIssue(
+                    row=row_idx,
+                    col=mappings.student_name_col,
+                    type="format_error",
+                    current="",
+                    expected="Student name",
+                    suggestion="Row is missing student name column",
+                )
+            )
             continue
 
         student_name = row[mappings.student_name_col].strip()
@@ -468,29 +484,41 @@ async def validate_gradebook(
                     break
 
         if not student_lms_id:
-            issues.append(ValidationIssue(
-                row=row_idx, col=mappings.student_name_col,
-                type="missing_student", current=student_name,
-                expected="Enrolled student name",
-                suggestion=f"'{student_name}' not found in course roster",
-            ))
+            issues.append(
+                ValidationIssue(
+                    row=row_idx,
+                    col=mappings.student_name_col,
+                    type="missing_student",
+                    current=student_name,
+                    expected="Enrolled student name",
+                    suggestion=f"'{student_name}' not found in course roster",
+                )
+            )
             continue
 
         # Validate each grade column
-        student_preview: dict = {"student": student_name, "student_lms_id": student_lms_id, "grades": []}
+        student_preview: dict[str, Any] = {
+            "student": student_name,
+            "student_lms_id": student_lms_id,
+            "grades": [],
+        }
         for item_id, col_idx in mappings.grade_columns.items():
-            item = grade_item_map.get(item_id)
+            item = grade_item_map.get(item_id)  # type: ignore[assignment]
             if not item:
                 logger.warning("Mapped grade item not found", item_id=item_id)
                 continue
 
             if col_idx >= len(row):
-                issues.append(ValidationIssue(
-                    row=row_idx, col=col_idx,
-                    type="format_error", current="",
-                    expected=f"Grade for {item['name']}",
-                    suggestion="Missing grade column value",
-                ))
+                issues.append(
+                    ValidationIssue(
+                        row=row_idx,
+                        col=col_idx,
+                        type="format_error",
+                        current="",
+                        expected=f"Grade for {item['name']}",
+                        suggestion="Missing grade column value",
+                    )
+                )
                 continue
 
             cell_value = row[col_idx].strip()
@@ -511,32 +539,46 @@ async def validate_gradebook(
                 grade_val = float(cleaned)
                 grade_max = item.get("grade_max", 100)
                 if grade_val < 0:
-                    issues.append(ValidationIssue(
-                        row=row_idx, col=col_idx,
-                        type="invalid_grade", current=cell_value,
-                        expected=f"0-{grade_max}",
-                        suggestion="Grade cannot be negative",
-                    ))
+                    issues.append(
+                        ValidationIssue(
+                            row=row_idx,
+                            col=col_idx,
+                            type="invalid_grade",
+                            current=cell_value,
+                            expected=f"0-{grade_max}",
+                            suggestion="Grade cannot be negative",
+                        )
+                    )
                 elif grade_val > grade_max:
-                    issues.append(ValidationIssue(
-                        row=row_idx, col=col_idx,
-                        type="invalid_grade", current=cell_value,
-                        expected=f"0-{grade_max}",
-                        suggestion=f"Grade exceeds maximum ({grade_max})",
-                    ))
+                    issues.append(
+                        ValidationIssue(
+                            row=row_idx,
+                            col=col_idx,
+                            type="invalid_grade",
+                            current=cell_value,
+                            expected=f"0-{grade_max}",
+                            suggestion=f"Grade exceeds maximum ({grade_max})",
+                        )
+                    )
                 else:
-                    student_preview["grades"].append({
-                        "item": item["name"],
-                        "item_id": item_id,
-                        "new": grade_val,
-                    })
+                    student_preview["grades"].append(
+                        {
+                            "item": item["name"],
+                            "item_id": item_id,
+                            "new": grade_val,
+                        }
+                    )
             except ValueError:
-                issues.append(ValidationIssue(
-                    row=row_idx, col=col_idx,
-                    type="format_error", current=cell_value,
-                    expected="Numeric grade",
-                    suggestion=f"'{cell_value}' is not a valid number — use a numeric value (e.g. 85, 92.5)",
-                ))
+                issues.append(
+                    ValidationIssue(
+                        row=row_idx,
+                        col=col_idx,
+                        type="format_error",
+                        current=cell_value,
+                        expected="Numeric grade",
+                        suggestion=f"'{cell_value}' is not a valid number — use a numeric value (e.g. 85, 92.5)",
+                    )
+                )
 
         if student_preview["grades"]:
             preview.append(student_preview)
@@ -576,7 +618,7 @@ async def sync_gradebook(
 
     synced = 0
     failed = 0
-    errors: list[dict] = []
+    errors: list[dict[str, Any]] = []
 
     for row_idx, row in enumerate(request.source_data.rows):
         if row_idx in request.skip_rows:
@@ -621,11 +663,13 @@ async def sync_gradebook(
                 grade_val = float(cleaned)
             except ValueError:
                 failed += 1
-                errors.append({
-                    "student": student_name,
-                    "item_id": item_id,
-                    "error": f"'{cell_value}' is not a valid number",
-                })
+                errors.append(
+                    {
+                        "student": student_name,
+                        "item_id": item_id,
+                        "error": f"'{cell_value}' is not a valid number",
+                    }
+                )
                 continue
 
             try:
@@ -638,11 +682,13 @@ async def sync_gradebook(
                 synced += 1
             except Exception as e:
                 failed += 1
-                errors.append({
-                    "student": student_name,
-                    "item_id": item_id,
-                    "error": str(e),
-                })
+                errors.append(
+                    {
+                        "student": student_name,
+                        "item_id": item_id,
+                        "error": str(e),
+                    }
+                )
                 logger.warning(
                     "Grade sync failed",
                     student=student_name,
@@ -707,7 +753,7 @@ async def fix_gradebook(
     )
 
     # Parse fixes
-    changes: list[dict] = []
+    changes: list[dict[str, Any]] = []
     fixed_rows = [list(row) for row in request.source_data.rows]  # Deep copy
 
     try:
@@ -722,13 +768,15 @@ async def fix_gradebook(
                 if row < len(fixed_rows) and col < len(fixed_rows[row]):
                     old_val = fixed_rows[row][col]
                     fixed_rows[row][col] = new_val
-                    changes.append({
-                        "row": row,
-                        "col": col,
-                        "old": old_val,
-                        "new": new_val,
-                        "reason": fix.get("reason", ""),
-                    })
+                    changes.append(
+                        {
+                            "row": row,
+                            "col": col,
+                            "old": old_val,
+                            "new": new_val,
+                            "reason": fix.get("reason", ""),
+                        }
+                    )
     except (json.JSONDecodeError, KeyError) as e:
         logger.error("Failed to parse fix response", error=str(e))
 
@@ -751,7 +799,7 @@ async def download_fixed_excel(
     _user_id: uuid.UUID = Depends(require_instructor),
 ) -> StreamingResponse:
     """Generate an Excel file from the current (fixed) spreadsheet data."""
-    import openpyxl
+    import openpyxl  # type: ignore[import-untyped]
 
     wb = openpyxl.Workbook()
     ws = wb.active

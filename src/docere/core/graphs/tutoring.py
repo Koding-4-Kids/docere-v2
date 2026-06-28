@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from langgraph.graph import END, START, StateGraph
@@ -46,12 +46,12 @@ class TutoringResult:
     token_count: int
     strategy_used: str | None
     memory_context_size: int
-    artifact: dict | None = None
-    action: dict | None = None
-    widgets: list[dict] | None = None
+    artifact: dict[str, Any] | None = None
+    action: dict[str, Any] | None = None
+    widgets: list[dict[str, Any]] | None = None
 
 
-def build_tutoring_graph() -> StateGraph:
+def build_tutoring_graph() -> StateGraph[TutoringState]:
     """Build the LangGraph tutoring agent graph."""
     graph = StateGraph(TutoringState)
 
@@ -98,7 +98,7 @@ async def run_tutoring_graph(
     but using LangGraph for state management and observability.
     """
     # Build initial state with injected dependencies
-    initial_state: dict[str, Any] = {
+    initial_state: TutoringState = {
         "student_id": student_id,
         "course_id": course_id,
         "conversation_id": conversation_id,
@@ -180,9 +180,10 @@ async def stream_tutoring_graph(
 
     try:
         # ── Pre-LLM nodes (fast, ~100ms total) ──
-        state.update(await load_context(state))
-        state.update(await select_strategy(state))
-        state.update(build_prompt(state))
+        ts = cast(TutoringState, state)
+        state.update(await load_context(ts))
+        state.update(await select_strategy(ts))
+        state.update(build_prompt(ts))
 
         # ── Stream LLM response ──
         history = state.get("history", [])
@@ -202,8 +203,8 @@ async def stream_tutoring_graph(
         state["response_text"] = response_text
 
         # ── Post-LLM nodes on the full text ──
-        state.update(parse_output(state))
-        state.update(await persist_messages(state))
+        state.update(parse_output(ts))
+        state.update(await persist_messages(ts))
 
         strategy = state.get("strategy")
         memory_ctx = state.get("memory_context")
@@ -253,18 +254,19 @@ async def _run_background(state: dict[str, Any]) -> None:
     try:
         async with async_session() as db:
             bg_state = {**state, "_db": db}
+            ts = cast(TutoringState, bg_state)
 
-            await score_previous(bg_state)
-            await extract_concepts(bg_state)
+            await score_previous(ts)
+            await extract_concepts(ts)
 
             # Merge extracted concepts back for metric updates
             bg_state["extracted_concepts"] = bg_state.get("extracted_concepts", [])
             bg_state["confusion_score"] = bg_state.get("confusion_score", 0.0)
             bg_state["sentiment"] = bg_state.get("sentiment", "neutral")
 
-            await update_metrics(bg_state)
-            await summarize_stale(bg_state)
-            await persist_flashcards(bg_state)
+            await update_metrics(ts)
+            await summarize_stale(ts)
+            await persist_flashcards(ts)
 
             await db.commit()
     except Exception as e:

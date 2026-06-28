@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from sqlalchemy import select
@@ -16,7 +16,7 @@ from docere.models.memory import MemoryRecord
 logger = structlog.get_logger()
 
 
-async def score_previous(state: TutoringState) -> dict:
+async def score_previous(state: TutoringState) -> dict[str, Any]:
     """Score the previous assistant message now that we have the student's followup."""
     if state.get("study_group") == "control":
         return {}
@@ -78,7 +78,9 @@ async def score_previous(state: TutoringState) -> dict:
             return {}
 
         # Time from assistant response to student's followup (not to "now")
-        time_delta = int((current_student_msg.created_at - prev_assistant.created_at).total_seconds())
+        time_delta = int(
+            (current_student_msg.created_at - prev_assistant.created_at).total_seconds()
+        )
 
         verification = await verifier.score_interaction(
             message_id=str(prev_assistant.id),

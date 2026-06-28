@@ -1,15 +1,16 @@
 """Google Calendar integration: OAuth2, token encryption, Calendar API."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import partial
+from typing import Any, cast
 
 import structlog
 from cryptography.fernet import Fernet
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import Flow  # type: ignore[import-untyped]
+from googleapiclient.discovery import build  # type: ignore[import-untyped]
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,7 +31,9 @@ SCOPES = [
 def _get_fernet() -> Fernet:
     """Get Fernet cipher for token encryption."""
     if not settings.token_encryption_key:
-        raise ValueError("token_encryption_key not configured — generate one with Fernet.generate_key()")
+        raise ValueError(
+            "token_encryption_key not configured — generate one with Fernet.generate_key()"
+        )
     return Fernet(settings.token_encryption_key.encode())
 
 
@@ -71,11 +74,9 @@ class GoogleCalendarService:
             prompt="consent",
             state=state or "",
         )
-        return url
+        return cast(str, url)
 
-    async def handle_oauth_callback(
-        self, code: str, instructor_id: str
-    ) -> InstructorCalendarToken:
+    async def handle_oauth_callback(self, code: str, instructor_id: str) -> InstructorCalendarToken:
         """Exchange auth code for tokens and store encrypted."""
         flow = Flow.from_client_config(
             {
@@ -93,6 +94,7 @@ class GoogleCalendarService:
 
         # Google often returns extra scopes (openid, userinfo) — allow it
         import os
+
         os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
 
         # fetch_token is a blocking HTTP call — run in thread
@@ -115,17 +117,17 @@ class GoogleCalendarService:
         if existing:
             existing.encrypted_access_token = encrypted_access
             existing.encrypted_refresh_token = encrypted_refresh
-            existing.token_expiry = creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else None
+            existing.token_expiry = creds.expiry.replace(tzinfo=UTC) if creds.expiry else None
             existing.scopes = granted_scopes
             existing.is_active = True
-            existing.updated_at = datetime.now(timezone.utc)
+            existing.updated_at = datetime.now(UTC)
             token_record = existing
         else:
             token_record = InstructorCalendarToken(
                 instructor_id=instructor_id,
                 encrypted_access_token=encrypted_access,
                 encrypted_refresh_token=encrypted_refresh,
-                token_expiry=creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else None,
+                token_expiry=creds.expiry.replace(tzinfo=UTC) if creds.expiry else None,
                 scopes=granted_scopes,
             )
             self.db.add(token_record)
@@ -154,7 +156,7 @@ class GoogleCalendarService:
         # Use only the scopes the user actually granted (not the full SCOPES list)
         # to avoid invalid_scope errors on token refresh
         granted = token_record.scopes.split(",") if token_record.scopes else []
-        creds = Credentials(
+        creds = Credentials(  # type: ignore[no-untyped-call]
             token=access_token,
             refresh_token=refresh_token,
             token_uri="https://oauth2.googleapis.com/token",
@@ -176,16 +178,16 @@ class GoogleCalendarService:
                         instructor_id=instructor_id,
                     )
                     token_record.is_active = False
-                    token_record.updated_at = datetime.now(timezone.utc)
+                    token_record.updated_at = datetime.now(UTC)
                     await self.db.commit()
                     return None
                 raise
 
-            token_record.encrypted_access_token = _encrypt(creds.token)
+            token_record.encrypted_access_token = _encrypt(creds.token or "")
             if creds.refresh_token:
                 token_record.encrypted_refresh_token = _encrypt(creds.refresh_token)
-            token_record.token_expiry = creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else None
-            token_record.updated_at = datetime.now(timezone.utc)
+            token_record.token_expiry = creds.expiry.replace(tzinfo=UTC) if creds.expiry else None
+            token_record.updated_at = datetime.now(UTC)
             await self.db.commit()
 
         return creds
@@ -236,7 +238,7 @@ class GoogleCalendarService:
             return None
 
         service = build("calendar", "v3", credentials=creds)
-        event = {
+        event: dict[str, Any] = {
             "summary": summary,
             "description": description,
             "start": {"dateTime": start.isoformat(), "timeZone": "UTC"},
@@ -245,15 +247,19 @@ class GoogleCalendarService:
         if attendee_email:
             event["attendees"] = [{"email": attendee_email}]
 
-        created = service.events().insert(
-            calendarId=calendar_id,
-            body=event,
-            sendUpdates="all" if attendee_email else "none",
-        ).execute()
+        created = (
+            service.events()
+            .insert(
+                calendarId=calendar_id,
+                body=event,
+                sendUpdates="all" if attendee_email else "none",
+            )
+            .execute()
+        )
 
         event_id = created.get("id")
         logger.info("Calendar event created", event_id=event_id, instructor_id=instructor_id)
-        return event_id
+        return cast(str | None, event_id)
 
     async def cancel_event(
         self,

@@ -12,6 +12,7 @@ Key functions:
 
 import hashlib
 import io
+from typing import Any, cast
 from urllib.parse import unquote
 
 import httpx
@@ -39,9 +40,9 @@ class MoodleAdapter(LMSAdapter):
         self.base_url = (base_url or settings.moodle_base_url).rstrip("/")
         self.api_token = api_token or settings.moodle_api_token
 
-    async def _call(self, function: str, params: dict[str, object] | None = None) -> object:
+    async def _call(self, function: str, params: dict[str, Any] | None = None) -> object:
         """Make a Moodle Web Services API call."""
-        request_params: dict[str, object] = {
+        request_params: dict[str, Any] = {
             "wstoken": self.api_token,
             "wsfunction": function,
             "moodlewsrestformat": "json",
@@ -126,9 +127,9 @@ class MoodleAdapter(LMSAdapter):
             LMSEnrollment(
                 user_id=str(u["id"]),
                 course_id=course_id,
-                role="student" if any(
-                    r.get("shortname") == "student" for r in u.get("roles", [])
-                ) else "teacher",
+                role="student"
+                if any(r.get("shortname") == "student" for r in u.get("roles", []))
+                else "teacher",
                 name=u.get("fullname", ""),
                 email=u.get("email"),
             )
@@ -197,7 +198,7 @@ class MoodleAdapter(LMSAdapter):
                 # API returns assignment IDs, not module IDs. We match by title.
                 if modname == "assign" and title in assignment_attachment_map:
                     attach_info = assignment_attachment_map[title]
-                    file_urls.extend(attach_info["urls"])
+                    file_urls.extend(cast(list[str], attach_info["urls"]))
 
                 # Determine content: page HTML, PDF text, or module description
                 content = module.get("description")
@@ -217,7 +218,7 @@ class MoodleAdapter(LMSAdapter):
 
                 # For assignments, also include the intro text from the API
                 if modname == "assign" and title in assignment_attachment_map:
-                    intro = assignment_attachment_map[title].get("intro")
+                    intro = cast(str | None, assignment_attachment_map[title].get("intro"))
                     if intro and not content:
                         content = intro
                     elif intro and content and intro not in content:
@@ -241,7 +242,7 @@ class MoodleAdapter(LMSAdapter):
                 )
         return materials
 
-    async def get_grade_items(self, course_id: str) -> list[dict]:
+    async def get_grade_items(self, course_id: str) -> list[dict[str, Any]]:
         """Get assignment/grade items from Moodle gradebook.
 
         Uses mod_assign_get_assignments to get assignment items with their
@@ -254,15 +255,17 @@ class MoodleAdapter(LMSAdapter):
         if not isinstance(data, dict):
             return []
 
-        items: list[dict] = []
+        items: list[dict[str, Any]] = []
         for course_data in data.get("courses", []):
             for a in course_data.get("assignments", []):
-                items.append({
-                    "id": str(a["id"]),
-                    "name": a.get("name", ""),
-                    "category": "assignments",
-                    "grade_max": float(a.get("grade", 100)),
-                })
+                items.append(
+                    {
+                        "id": str(a["id"]),
+                        "name": a.get("name", ""),
+                        "category": "assignments",
+                        "grade_max": float(a.get("grade", 100)),
+                    }
+                )
         return items
 
     async def save_grade(
@@ -272,7 +275,7 @@ class MoodleAdapter(LMSAdapter):
         student_id: str,
         grade: float,
         feedback: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Write a grade to Moodle via mod_assign_save_grade.
 
         This is per-student — no bulk endpoint available.
@@ -296,9 +299,7 @@ class MoodleAdapter(LMSAdapter):
             raise ValueError(f"Moodle grade save failed: {result.get('message', 'Unknown error')}")
         return {"success": True}
 
-    async def post_announcement(
-        self, course_id: str, title: str, message: str
-    ) -> dict:
+    async def post_announcement(self, course_id: str, title: str, message: str) -> dict[str, Any]:
         """Post announcement via Moodle forum (mod_forum_add_discussion).
 
         Moodle announcements are forum posts in the 'Announcements' forum (type=news).
@@ -336,9 +337,7 @@ class MoodleAdapter(LMSAdapter):
             "url": f"{self.base_url}/mod/forum/discuss.php?d={discussion_id}",
         }
 
-    async def _get_assignment_attachments(
-        self, course_id: str
-    ) -> dict[str, dict[str, object]]:
+    async def _get_assignment_attachments(self, course_id: str) -> dict[str, dict[str, object]]:
         """Fetch PDF attachments from assignment intros.
 
         Moodle's core_course_get_contents doesn't include assignment intro

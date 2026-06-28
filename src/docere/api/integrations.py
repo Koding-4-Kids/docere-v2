@@ -3,9 +3,10 @@
 import io
 import uuid
 from datetime import datetime
+from typing import Any
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -44,9 +45,7 @@ async def get_integration_status(
     )
     google_token = result.scalar_one_or_none()
     google_connected = google_token is not None
-    google_scopes = (
-        google_token.scopes.split(",") if google_token and google_token.scopes else []
-    )
+    google_scopes = google_token.scopes.split(",") if google_token and google_token.scopes else []
 
     lms_type: str | None = None
     lms_connected = False
@@ -70,12 +69,12 @@ async def get_integration_status(
 
 class ExecuteActionRequest(BaseModel):
     action_type: str
-    payload: dict
+    payload: dict[str, Any]
 
 
 class ExecuteActionResponse(BaseModel):
     success: bool
-    result: dict = {}
+    result: dict[str, Any] = {}
     error: str | None = None
 
 
@@ -113,7 +112,9 @@ async def execute_action(
         if "invalid_grant" in error_msg or "revoked" in error_msg:
             return ExecuteActionResponse(
                 success=False,
-                error="Google connection expired. Please reconnect your Google account in Settings.",
+                error=(
+                    "Google connection expired. Please reconnect your Google account in Settings."
+                ),
             )
         logger.error(
             "Action execution failed",
@@ -155,8 +156,7 @@ async def _resolve_email_recipients(
         .join(Enrollment, Enrollment.user_id == User.id)
         .outerjoin(
             StudentProfile,
-            (StudentProfile.student_id == User.id)
-            & (StudentProfile.course_id == course_id),
+            (StudentProfile.student_id == User.id) & (StudentProfile.course_id == course_id),
         )
         .where(
             Enrollment.course_id == course_id,
@@ -173,26 +173,23 @@ async def _resolve_email_recipients(
         emails = [r.email for r in rows]
     elif target == "struggling_students":
         emails = [
-            r.email for r in rows
-            if r[2] and (r[2].avg_confusion_score > 0.5 or r[2].engagement_level in ("low", "inactive"))
+            r.email
+            for r in rows
+            if r[2]
+            and (r[2].avg_confusion_score > 0.5 or r[2].engagement_level in ("low", "inactive"))
         ]
     elif target == "low_engagement":
-        emails = [
-            r.email for r in rows
-            if r[2] and r[2].engagement_level in ("low", "inactive")
-        ]
+        emails = [r.email for r in rows if r[2] and r[2].engagement_level in ("low", "inactive")]
     elif target == "at_risk":
         emails = [
-            r.email for r in rows
+            r.email
+            for r in rows
             if r[2] and r[2].current_grade is not None and r[2].current_grade < 70
         ]
     else:
         # Try to match comma-separated student names
         target_names = [n.strip().lower() for n in to_field.split(",")]
-        emails = [
-            r.email for r in rows
-            if any(tn in r.name.lower() for tn in target_names)
-        ]
+        emails = [r.email for r in rows if any(tn in r.name.lower() for tn in target_names)]
 
     if not emails:
         raise ValueError(f"No students matched target '{to_field}' (or none have email addresses)")
@@ -201,7 +198,7 @@ async def _resolve_email_recipients(
 
 
 async def _execute_email(
-    instructor_id: str, payload: dict, db: AsyncSession
+    instructor_id: str, payload: dict[str, Any], db: AsyncSession
 ) -> ExecuteActionResponse:
     from docere.services.google_gmail import GmailService
 
@@ -224,7 +221,7 @@ async def _execute_email(
 
 
 async def _execute_doc(
-    instructor_id: str, payload: dict, db: AsyncSession
+    instructor_id: str, payload: dict[str, Any], db: AsyncSession
 ) -> ExecuteActionResponse:
     from docere.services.google_docs import GoogleDocsService
 
@@ -238,7 +235,7 @@ async def _execute_doc(
 
 
 async def _execute_sheet(
-    instructor_id: str, payload: dict, db: AsyncSession
+    instructor_id: str, payload: dict[str, Any], db: AsyncSession
 ) -> ExecuteActionResponse:
     from docere.services.google_sheets import GoogleSheetsService
 
@@ -253,7 +250,7 @@ async def _execute_sheet(
     return ExecuteActionResponse(success=True, result=result)
 
 
-async def _execute_lms_announcement(payload: dict) -> ExecuteActionResponse:
+async def _execute_lms_announcement(payload: dict[str, Any]) -> ExecuteActionResponse:
     course_external_id = payload.get("course_id", "")
     title = payload.get("title", "")
     message = payload.get("message", "")
@@ -265,7 +262,7 @@ async def _execute_lms_announcement(payload: dict) -> ExecuteActionResponse:
     elif settings.canvas_base_url and settings.canvas_api_token:
         from docere.integrations.lms.canvas import CanvasAdapter
 
-        adapter = CanvasAdapter()
+        adapter = CanvasAdapter()  # type: ignore[assignment]
     else:
         raise ValueError("No LMS configured")
 
@@ -278,7 +275,7 @@ async def _execute_lms_announcement(payload: dict) -> ExecuteActionResponse:
 
 
 async def _execute_calendar_event(
-    instructor_id: str, payload: dict, db: AsyncSession
+    instructor_id: str, payload: dict[str, Any], db: AsyncSession
 ) -> ExecuteActionResponse:
     from docere.services.google_calendar import GoogleCalendarService
 
@@ -297,12 +294,12 @@ async def _execute_calendar_event(
     )
 
 
-async def _execute_excel(payload: dict) -> ExecuteActionResponse:
+async def _execute_excel(payload: dict[str, Any]) -> ExecuteActionResponse:
     """Generate an Excel file and return a download token.
 
     The file is served via /download-excel/<filename> endpoint.
     """
-    import openpyxl
+    import openpyxl  # type: ignore[import-untyped]
 
     title = payload.get("title", "Export")
     headers = payload.get("headers", [])
@@ -327,7 +324,10 @@ async def _execute_excel(payload: dict) -> ExecuteActionResponse:
 
     return ExecuteActionResponse(
         success=True,
-        result={"filename": filename, "download_url": f"/api/v1/integrations/download-excel/{filename}"},
+        result={
+            "filename": filename,
+            "download_url": f"/api/v1/integrations/download-excel/{filename}",
+        },
     )
 
 
@@ -375,17 +375,17 @@ async def resolve_recipients(
 
 # ── Excel Upload ──
 
-_upload_cache: dict[str, dict] = {}
+_upload_cache: dict[str, dict[str, Any]] = {}
 
 
 @router.post("/upload-excel")
 async def upload_excel(
     file: UploadFile = File(...),
     _user_id: uuid.UUID = Depends(require_instructor),
-) -> dict:
+) -> dict[str, Any]:
     """Upload and parse an Excel file for gradebook sync.
 
-    Returns {"upload_id": str, "filename": str, "headers": [...], "rows": [[...]], "sheet_names": [...]}.
+    Returns a dict with keys: upload_id, filename, headers, rows, sheet_names.
     """
     import openpyxl
 
@@ -417,7 +417,7 @@ async def upload_excel(
             break
 
     headers = rows_data[header_idx] if rows_data else []
-    data_rows = rows_data[header_idx + 1:] if len(rows_data) > header_idx + 1 else []
+    data_rows = rows_data[header_idx + 1 :] if len(rows_data) > header_idx + 1 else []
 
     # Strip trailing empty rows
     while data_rows and all(c.strip() == "" for c in data_rows[-1]):
@@ -444,7 +444,7 @@ async def upload_excel(
 async def get_uploaded_excel(
     upload_id: str,
     _user_id: uuid.UUID = Depends(require_instructor),
-) -> dict:
+) -> dict[str, Any]:
     """Retrieve previously uploaded Excel data by upload_id."""
     data = _upload_cache.get(upload_id)
     if not data:

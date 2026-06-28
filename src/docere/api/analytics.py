@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -67,25 +68,17 @@ async def get_course_metrics(
         .where(StudentProfile.course_id == course_id)
         .group_by(StudentProfile.engagement_level)
     )
-    engagement = {
-        r[0] or "unknown": r[1] for r in eng_result.all()
-    }
+    engagement = {r[0] or "unknown": r[1] for r in eng_result.all()}
 
     return CourseMetricsResponse(
         course_id=str(course_id),
         student_count=student_count,
         engagement_breakdown=engagement,
-        avg_confusion=(
-            round(float(row[0]), 2) if row[0] is not None else 0.0
-        ),
-        avg_grade=(
-            round(float(row[1]), 1) if row[1] is not None else None
-        ),
+        avg_confusion=(round(float(row[0]), 2) if row[0] is not None else 0.0),
+        avg_grade=(round(float(row[1]), 1) if row[1] is not None else None),
         total_interactions=int(row[2]) if row[2] is not None else 0,
         total_messages=int(row[3]) if row[3] is not None else 0,
-        avg_interaction_score=(
-            round(float(row[4]), 2) if row[4] is not None else 0.0
-        ),
+        avg_interaction_score=(round(float(row[4]), 2) if row[4] is not None else 0.0),
     )
 
 
@@ -120,14 +113,8 @@ async def get_agent_performance(
             name=s.name,
             strategy_type=s.strategy_type,
             total_uses=s.total_uses or 0,
-            avg_score=(
-                round(s.avg_score, 3) if s.avg_score is not None else None
-            ),
-            success_rate=(
-                round(s.success_rate, 3)
-                if s.success_rate is not None
-                else None
-            ),
+            avg_score=(round(s.avg_score, 3) if s.avg_score is not None else None),
+            success_rate=(round(s.success_rate, 3) if s.success_rate is not None else None),
             is_active=s.is_active,
             generation=s.generation or 0,
         )
@@ -161,9 +148,7 @@ async def get_strategy_performance(
 ) -> list[StrategyArchiveItem]:
     """Get strategy archive with performance data."""
     result = await db.execute(
-        select(Strategy).order_by(
-            Strategy.generation.asc(), Strategy.created_at.desc()
-        )
+        select(Strategy).order_by(Strategy.generation.asc(), Strategy.created_at.desc())
     )
     return [
         StrategyArchiveItem(
@@ -173,20 +158,12 @@ async def get_strategy_performance(
             strategy_type=s.strategy_type,
             prompt_template=s.prompt_template,
             total_uses=s.total_uses or 0,
-            avg_score=(
-                round(s.avg_score, 3) if s.avg_score is not None else None
-            ),
-            success_rate=(
-                round(s.success_rate, 3)
-                if s.success_rate is not None
-                else None
-            ),
+            avg_score=(round(s.avg_score, 3) if s.avg_score is not None else None),
+            success_rate=(round(s.success_rate, 3) if s.success_rate is not None else None),
             is_active=s.is_active,
             is_baseline=s.is_baseline,
             generation=s.generation or 0,
-            parent_strategy_id=(
-                str(s.parent_strategy_id) if s.parent_strategy_id else None
-            ),
+            parent_strategy_id=(str(s.parent_strategy_id) if s.parent_strategy_id else None),
             created_at=s.created_at.isoformat() if s.created_at else "",
         )
         for s in result.scalars().all()
@@ -206,7 +183,7 @@ class StudyResultsResponse(BaseModel):
     study_id: str
     study_name: str | None = None
     is_active: bool = False
-    groups: dict
+    groups: dict[str, Any]
     group_metrics: list[GroupMetrics] = []
 
 
@@ -268,12 +245,8 @@ async def get_study_results(
             GroupMetrics(
                 group_name=group_name,
                 student_count=int(row[0]) if row[0] else 0,
-                avg_interaction_score=(
-                    round(float(row[1]), 3) if row[1] is not None else 0.0
-                ),
-                avg_confusion=(
-                    round(float(row[2]), 3) if row[2] is not None else 0.0
-                ),
+                avg_interaction_score=(round(float(row[1]), 3) if row[1] is not None else 0.0),
+                avg_confusion=(round(float(row[2]), 3) if row[2] is not None else 0.0),
                 total_interactions=int(row[3]) if row[3] is not None else 0,
                 event_count=event_counts.get(group_name, 0),
             )
@@ -291,7 +264,7 @@ async def get_study_results(
 class ConfigureStudyRequest(BaseModel):
     course_id: uuid.UUID
     study_name: str
-    groups: dict[str, dict]
+    groups: dict[str, dict[str, Any]]
     randomization_seed: int | None = None
 
 
@@ -375,7 +348,7 @@ async def configure_study(
 class ExportEvent(BaseModel):
     event_type: str
     group: str | None = None
-    event_data: dict
+    event_data: dict[str, Any]
     recorded_at: str
 
 
@@ -397,9 +370,7 @@ async def export_study_data(
     from docere.models.research import ResearchEvent, StudyConfig
 
     # Get all studies
-    studies = await db.execute(
-        select(StudyConfig).order_by(StudyConfig.created_at.desc())
-    )
+    studies = await db.execute(select(StudyConfig).order_by(StudyConfig.created_at.desc()))
 
     results: list[StudyExportResponse] = []
     for config in studies.scalars().all():

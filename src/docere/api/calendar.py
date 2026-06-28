@@ -1,6 +1,7 @@
 """Calendar integration endpoints: OAuth, office hours, availability, booking."""
 
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
@@ -9,14 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from docere.dependencies import get_current_user_id, get_db, require_instructor
 from docere.models.calendar import MeetingRequest, OfficeHours
-from docere.models.course import Enrollment
 from docere.models.memory import StudentProfile
 from docere.schemas.calendar import (
     BookMeetingRequest,
     CalendarStatusResponse,
     MeetingResponse,
     OAuthAuthorizeResponse,
-    OAuthCallbackResponse,
     OfficeHoursCreate,
     OfficeHoursResponse,
     TimeSlotResponse,
@@ -63,6 +62,7 @@ async def oauth_callback(
         return _oauth_result_page(success=True, message="Google Calendar connected!")
     except Exception as e:
         import structlog
+
         structlog.get_logger().error("OAuth callback failed", error=str(e), state=state)
         return _oauth_result_page(success=False, message="Failed to connect. Please try again.")
 
@@ -115,9 +115,7 @@ async def disconnect_calendar(
     from docere.models.calendar import InstructorCalendarToken
 
     result = await db.execute(
-        select(InstructorCalendarToken).where(
-            InstructorCalendarToken.instructor_id == user_id
-        )
+        select(InstructorCalendarToken).where(InstructorCalendarToken.instructor_id == user_id)
     )
     token = result.scalar_one_or_none()
     if token:
@@ -197,7 +195,7 @@ async def get_available_slots(
     course_id: uuid.UUID,
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Get available meeting slots for a course (student-facing)."""
     svc = AvailabilityService(db)
     return await svc.get_available_slots(course_id=str(course_id))
@@ -271,14 +269,16 @@ async def list_meetings(
     from sqlalchemy import or_
 
     result = await db.execute(
-        select(MeetingRequest).where(
+        select(MeetingRequest)
+        .where(
             MeetingRequest.course_id == course_id,
             or_(
                 MeetingRequest.student_id == user_id,
                 MeetingRequest.instructor_id == user_id,
             ),
             MeetingRequest.status != "cancelled",
-        ).order_by(MeetingRequest.scheduled_start)
+        )
+        .order_by(MeetingRequest.scheduled_start)
     )
     return list(result.scalars().all())
 

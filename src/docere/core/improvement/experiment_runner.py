@@ -1,14 +1,14 @@
 """Experiment runner: manages ablation study configuration and feature gating."""
 
 import hashlib
-import random
+from typing import Any, cast
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from docere.models.course import Enrollment
-from docere.models.research import StudyConfig, ResearchEvent
+from docere.models.research import ResearchEvent, StudyConfig
 
 logger = structlog.get_logger()
 
@@ -86,11 +86,9 @@ class ExperimentRunner:
             course_id=course_id,
             group=group,
         )
-        return group
+        return cast(str, group)
 
-    async def get_feature_flags(
-        self, study_group: str | None
-    ) -> dict[str, bool]:
+    async def get_feature_flags(self, study_group: str | None) -> dict[str, bool]:
         """Get feature flags based on study group.
 
         | Group            | Memory | Verification | Self-Improvement |
@@ -117,7 +115,7 @@ class ExperimentRunner:
         self,
         study_id: str,
         event_type: str,
-        event_data: dict,
+        event_data: dict[str, Any],
         student_id: str | None = None,
     ) -> None:
         """Log a research event for later analysis."""

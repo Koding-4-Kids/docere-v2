@@ -15,13 +15,15 @@ Context-aware selection:
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from docere.models.strategy import Strategy as StrategyModel, StrategyScore
+from docere.models.strategy import Strategy as StrategyModel
+from docere.models.strategy import StrategyScore
 
 logger = structlog.get_logger()
 
@@ -45,9 +47,9 @@ def _wilson_ci_half_width(p: float, n: int) -> float:
 class StrategyContext:
     """Student context for contextual bandit strategy selection."""
 
-    confusion_level: str   # "low", "mid", "high"
+    confusion_level: str  # "low", "mid", "high"
     experience_level: str  # "new", "regular", "experienced"
-    quality_level: str     # "poor", "average", "good"
+    quality_level: str  # "poor", "average", "good"
 
     @staticmethod
     def from_profile(
@@ -57,18 +59,33 @@ class StrategyContext:
     ) -> "StrategyContext":
         """Build context buckets from StudentProfile data."""
         confusion = "low" if avg_confusion < 0.3 else "mid" if avg_confusion < 0.6 else "high"
-        experience = "new" if total_interactions < 5 else "regular" if total_interactions < 20 else "experienced"
-        quality = "poor" if avg_interaction_score < 0.4 else "average" if avg_interaction_score < 0.7 else "good"
+        experience = (
+            "new"
+            if total_interactions < 5
+            else "regular"
+            if total_interactions < 20
+            else "experienced"
+        )
+        quality = (
+            "poor"
+            if avg_interaction_score < 0.4
+            else "average"
+            if avg_interaction_score < 0.7
+            else "good"
+        )
         return StrategyContext(confusion, experience, quality)
 
     @property
     def key(self) -> str:
         return f"{self.confusion_level}:{self.experience_level}:{self.quality_level}"
 
+
 SEED_STRATEGIES = [
     {
         "name": "Socratic Questioning",
-        "description": "Guide students through discovery by asking questions rather than providing answers.",
+        "description": (
+            "Guide students through discovery by asking questions rather than providing answers."
+        ),
         "strategy_type": "socratic",
         "prompt_template": (
             "You are a Socratic tutor. NEVER give the answer directly. Instead:\n"
@@ -98,7 +115,8 @@ SEED_STRATEGIES = [
         "strategy_type": "scaffolded",
         "prompt_template": (
             "You are a tutor who provides scaffolded support. When a student asks for help:\n"
-            "1. Level 1 (concept hint): Name the relevant concept and point them in the right direction\n"
+            "1. Level 1 (concept hint): Name the relevant concept "
+            "and point them in the right direction\n"
             "2. Level 2 (example hint): Only if they ask again, show a similar worked example\n"
             "3. Level 3 (walkthrough): Only if still stuck, walk through their specific problem\n"
             "Always start at Level 1. Only escalate when the student explicitly asks for more help."
@@ -112,7 +130,7 @@ SEED_STRATEGIES = [
         "prompt_template": (
             "You are a tutor who focuses on errors and misconceptions. When helping:\n"
             "1. First, identify the specific misconception or error in the student's thinking\n"
-            "2. Explain WHY that error is common (\"Many students think X because...\")\n"
+            '2. Explain WHY that error is common ("Many students think X because...")\n'
             "3. Show the contrast between the misconception and the correct understanding\n"
             "4. Give a test case that exposes the difference"
         ),
@@ -143,9 +161,7 @@ class StrategyArchive:
 
     async def seed_strategies(self) -> int:
         """Insert seed strategies if the archive is empty."""
-        count_result = await self.db.execute(
-            select(func.count(StrategyModel.id))
-        )
+        count_result = await self.db.execute(select(func.count(StrategyModel.id)))
         count = count_result.scalar_one()
         if count > 0:
             return 0
@@ -195,7 +211,7 @@ class StrategyArchive:
 
         if best_strategy:
             best_strategy.total_uses += 1
-            best_strategy.last_used_at = datetime.now(timezone.utc)
+            best_strategy.last_used_at = datetime.now(UTC)
             await self.db.flush()
 
         logger.info(
@@ -217,16 +233,12 @@ class StrategyArchive:
         # Try context-specific stats first
         if context_key:
             ctx_stats = (
-                (strategy.applicable_contexts or {})
-                .get("context_stats", {})
-                .get(context_key)
+                (strategy.applicable_contexts or {}).get("context_stats", {}).get(context_key)
             )
             if ctx_stats and ctx_stats.get("total_uses", 0) >= MIN_CONTEXT_OBS:
                 exploitation = ctx_stats["avg_score"]
-                exploration = math.sqrt(
-                    2 * math.log(total_uses) / ctx_stats["total_uses"]
-                )
-                return exploitation + exploration
+                exploration = math.sqrt(2 * math.log(total_uses) / ctx_stats["total_uses"])
+                return float(exploitation) + exploration
 
         # Fall back to global stats
         if strategy.total_uses == 0:
@@ -241,7 +253,7 @@ class StrategyArchive:
         conversation_id: str,
         score: float,
         interaction_score_id: str | None = None,
-        context_metadata: dict | None = None,
+        context_metadata: dict[str, Any] | None = None,
         context: StrategyContext | None = None,
     ) -> None:
         """Record an interaction outcome for a strategy.
@@ -259,9 +271,7 @@ class StrategyArchive:
         )
 
         # Update global running average
-        result = await self.db.execute(
-            select(StrategyModel).where(StrategyModel.id == strategy_id)
-        )
+        result = await self.db.execute(select(StrategyModel).where(StrategyModel.id == strategy_id))
         strategy = result.scalar_one_or_none()
         if strategy:
             n = strategy.total_uses or 1
@@ -275,9 +285,7 @@ class StrategyArchive:
                 strategy.success_rate = (old_success * (n - 1)) / n
 
             # Wilson score interval half-width (95% CI)
-            strategy.confidence_interval = _wilson_ci_half_width(
-                strategy.success_rate or 0.0, n
-            )
+            strategy.confidence_interval = _wilson_ci_half_width(strategy.success_rate or 0.0, n)
 
             # Update context-specific stats
             if context:
@@ -308,9 +316,7 @@ class StrategyArchive:
     ) -> None:
         """Blend a grade signal into the strategy score that produced this interaction."""
         result = await self.db.execute(
-            select(StrategyScore).where(
-                StrategyScore.interaction_score_id == interaction_score_id
-            )
+            select(StrategyScore).where(StrategyScore.interaction_score_id == interaction_score_id)
         )
         strategy_score = result.scalar_one_or_none()
         if not strategy_score:

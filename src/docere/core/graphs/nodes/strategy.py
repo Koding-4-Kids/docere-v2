@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
 
 from docere.core.graphs.state import TutoringState
@@ -10,7 +12,7 @@ from docere.core.improvement.strategy_archive import StrategyArchive, StrategyCo
 logger = structlog.get_logger()
 
 
-async def select_strategy(state: TutoringState) -> dict:
+async def select_strategy(state: TutoringState) -> dict[str, Any]:
     """Select a teaching strategy using the UCB1 bandit."""
     db = state["_db"]
     archive = StrategyArchive(db)

@@ -5,6 +5,7 @@ students upload specific reference materials they want searchable verbatim.
 """
 
 import uuid
+from typing import Any, cast
 
 import structlog
 
@@ -15,8 +16,17 @@ from docere.integrations.vector_db.qdrant import QdrantStore
 logger = structlog.get_logger()
 
 ALLOWED_EXTENSIONS = {
-    ".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm",
-    ".txt", ".md", ".png", ".jpg", ".jpeg",
+    ".pdf",
+    ".docx",
+    ".pptx",
+    ".xlsx",
+    ".html",
+    ".htm",
+    ".txt",
+    ".md",
+    ".png",
+    ".jpg",
+    ".jpeg",
 }
 
 
@@ -153,7 +163,7 @@ class StudentDocumentManager:
 
         parts = []
         for r in results:
-            payload = r.get("payload", {})
+            payload: dict[str, Any] = cast(dict[str, Any], r.get("payload", {}))
             title = payload.get("title", "")
             section = payload.get("section_title", "")
             page = payload.get("page_number")
@@ -171,7 +181,7 @@ class StudentDocumentManager:
 
     # ── Parsing ──
 
-    async def _parse_document(self, file_path: str) -> tuple[str, int, list[dict]]:
+    async def _parse_document(self, file_path: str) -> tuple[str, int, list[dict[str, Any]]]:
         """Parse a document using Docling. Falls back to pypdf for simple PDFs.
 
         Returns:
@@ -189,12 +199,11 @@ class StudentDocumentManager:
 
         raise ValueError(f"Could not parse document: {file_path}")
 
-    async def _parse_with_docling(self, file_path: str) -> tuple[str, int, list[dict]]:
+    async def _parse_with_docling(self, file_path: str) -> tuple[str, int, list[dict[str, Any]]]:
         """Parse with Docling for rich structure extraction."""
         import asyncio
-        from functools import partial
 
-        def _sync_parse():
+        def _sync_parse() -> tuple[str, int, list[dict[str, Any]]]:
             from docling.document_converter import DocumentConverter
 
             converter = DocumentConverter()
@@ -206,7 +215,7 @@ class StudentDocumentManager:
 
             # Extract sections from document structure
             sections = []
-            for item in doc.iterate_items():
+            for item, _ in doc.iterate_items():
                 if hasattr(item, "text") and item.text:
                     section = {
                         "title": getattr(item, "label", ""),
@@ -222,11 +231,11 @@ class StudentDocumentManager:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, _sync_parse)
 
-    async def _parse_with_pypdf(self, file_path: str) -> tuple[str, int, list[dict]]:
+    async def _parse_with_pypdf(self, file_path: str) -> tuple[str, int, list[dict[str, Any]]]:
         """Fallback: parse PDF with pypdf (already a dependency)."""
         import asyncio
 
-        def _sync_parse():
+        def _sync_parse() -> tuple[str, int, list[dict[str, Any]]]:
             from pypdf import PdfReader
 
             reader = PdfReader(file_path)
@@ -236,11 +245,13 @@ class StudentDocumentManager:
                 text = page.extract_text() or ""
                 pages.append(text)
                 if text.strip():
-                    sections.append({
-                        "title": f"Page {i + 1}",
-                        "content": text,
-                        "page": i + 1,
-                    })
+                    sections.append(
+                        {
+                            "title": f"Page {i + 1}",
+                            "content": text,
+                            "page": i + 1,
+                        }
+                    )
 
             return "\n".join(pages), len(reader.pages), sections
 
@@ -250,10 +261,10 @@ class StudentDocumentManager:
     # ── Chunking ──
 
     def _build_chunks(
-        self, full_text: str, sections: list[dict], max_chars: int = 2000
-    ) -> list[dict]:
+        self, full_text: str, sections: list[dict[str, Any]], max_chars: int = 2000
+    ) -> list[dict[str, Any]]:
         """Build chunks from sections, falling back to paragraph splitting."""
-        chunks: list[dict] = []
+        chunks: list[dict[str, Any]] = []
         chunk_index = 0
 
         if sections:
@@ -266,27 +277,31 @@ class StudentDocumentManager:
                 for sub in sub_chunks:
                     title = section.get("title", "")
                     embed_text = f"{title}\n\n{sub}" if title else sub
-                    chunks.append({
-                        "content": sub,
-                        "embed_text": embed_text,
-                        "section_title": title,
-                        "page_number": section.get("page"),
-                        "title": "",
-                        "chunk_index": chunk_index,
-                    })
+                    chunks.append(
+                        {
+                            "content": sub,
+                            "embed_text": embed_text,
+                            "section_title": title,
+                            "page_number": section.get("page"),
+                            "title": "",
+                            "chunk_index": chunk_index,
+                        }
+                    )
                     chunk_index += 1
         else:
             # No sections — fall back to paragraph splitting
             sub_chunks = self._chunk_text(full_text, max_chars)
             for sub in sub_chunks:
-                chunks.append({
-                    "content": sub,
-                    "embed_text": sub,
-                    "section_title": "",
-                    "page_number": None,
-                    "title": "",
-                    "chunk_index": chunk_index,
-                })
+                chunks.append(
+                    {
+                        "content": sub,
+                        "embed_text": sub,
+                        "section_title": "",
+                        "page_number": None,
+                        "title": "",
+                        "chunk_index": chunk_index,
+                    }
+                )
                 chunk_index += 1
 
         return chunks

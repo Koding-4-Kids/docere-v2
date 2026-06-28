@@ -2,6 +2,7 @@
 
 import hashlib
 from collections import OrderedDict
+from typing import cast
 
 import httpx
 import structlog
@@ -98,7 +99,8 @@ async def _voyage_embed(text: str) -> list[float]:
 
 async def _voyage_embed_batch(texts: list[str]) -> list[list[float]]:
     """Generate embeddings via Voyage AI batch API (with retry)."""
-    async def _call():
+
+    async def _call() -> list[list[float]]:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://api.voyageai.com/v1/embeddings",
@@ -113,8 +115,11 @@ async def _voyage_embed_batch(texts: list[str]) -> list[list[float]]:
             data = response.json()
             return [item["embedding"] for item in data["data"]]
 
-    return await _embedding_breaker.call(
-        lambda: retry_async(_call, max_retries=2, base_delay=0.5, retryable=_RETRYABLE_HTTP)
+    return cast(
+        list[list[float]],
+        await _embedding_breaker.call(
+            lambda: retry_async(_call, max_retries=2, base_delay=0.5, retryable=_RETRYABLE_HTTP)
+        ),
     )
 
 
@@ -126,7 +131,8 @@ async def _openai_embed(text: str) -> list[float]:
 
 async def _openai_embed_batch(texts: list[str]) -> list[list[float]]:
     """Generate embeddings via OpenAI batch API (with retry)."""
-    async def _call():
+
+    async def _call() -> list[list[float]]:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://api.openai.com/v1/embeddings",
@@ -141,7 +147,9 @@ async def _openai_embed_batch(texts: list[str]) -> list[list[float]]:
             data = response.json()
             return [item["embedding"] for item in data["data"]]
 
-    return await _embedding_breaker.call(
-        lambda: retry_async(_call, max_retries=2, base_delay=0.5, retryable=_RETRYABLE_HTTP)
+    return cast(
+        list[list[float]],
+        await _embedding_breaker.call(
+            lambda: retry_async(_call, max_retries=2, base_delay=0.5, retryable=_RETRYABLE_HTTP)
+        ),
     )
-
