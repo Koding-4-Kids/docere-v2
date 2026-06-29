@@ -191,9 +191,7 @@ class CanvasAdapter(LMSAdapter):
                 description=a.get("description"),
                 due_at=a.get("due_at"),
                 points_possible=a.get("points_possible"),
-                assignment_type=(
-                    a["submission_types"][0] if a.get("submission_types") else None
-                ),
+                assignment_type=(a["submission_types"][0] if a.get("submission_types") else None),
             )
             for a in data
             if isinstance(a, dict)
@@ -243,9 +241,7 @@ class CanvasAdapter(LMSAdapter):
         # (e.g. concurrent student + observer enrollments) and we only want
         # to hit the profile endpoint once per user.
         unique_user_ids = list({str(e["user_id"]) for e in enrollments_raw})
-        emails = await asyncio.gather(
-            *[self._fetch_user_email(uid) for uid in unique_user_ids]
-        )
+        emails = await asyncio.gather(*[self._fetch_user_email(uid) for uid in unique_user_ids])
         email_by_user_id = dict(zip(unique_user_ids, emails, strict=True))
 
         return [
@@ -334,46 +330,48 @@ class CanvasAdapter(LMSAdapter):
                     if not file_id or file_id in seen_file_ids:
                         continue
                     seen_file_ids.add(file_id)
-                    content, content_hash = await self._extract_file_content(
-                        course_id, file_id
+                    content, content_hash = await self._extract_file_content(course_id, file_id)
+                    materials.append(
+                        LMSCourseMaterial(
+                            external_id=file_id,
+                            title=title,
+                            material_type="file",
+                            content=content,
+                            content_hash=content_hash,
+                            url=item.get("html_url"),
+                        )
                     )
-                    materials.append(LMSCourseMaterial(
-                        external_id=file_id,
-                        title=title,
-                        material_type="file",
-                        content=content,
-                        content_hash=content_hash,
-                        url=item.get("html_url"),
-                    ))
 
                 elif item_type == "Page":
                     page_url = item.get("page_url", "")
                     if not page_url:
                         continue
-                    content, content_hash = await self._fetch_page_content(
-                        course_id, page_url
+                    content, content_hash = await self._fetch_page_content(course_id, page_url)
+                    materials.append(
+                        LMSCourseMaterial(
+                            external_id=page_url,
+                            title=title,
+                            material_type="page",
+                            content=content,
+                            content_hash=content_hash,
+                            url=item.get("html_url"),
+                        )
                     )
-                    materials.append(LMSCourseMaterial(
-                        external_id=page_url,
-                        title=title,
-                        material_type="page",
-                        content=content,
-                        content_hash=content_hash,
-                        url=item.get("html_url"),
-                    ))
 
                 else:
                     # Assignment, Discussion, ExternalUrl, ExternalTool, Quiz — metadata only
-                    materials.append(LMSCourseMaterial(
-                        external_id=str(item.get("id", "")),
-                        title=title,
-                        material_type=item_type.lower(),
-                        url=item.get("html_url"),
-                    ))
+                    materials.append(
+                        LMSCourseMaterial(
+                            external_id=str(item.get("id", "")),
+                            title=title,
+                            material_type=item_type.lower(),
+                            url=item.get("html_url"),
+                        )
+                    )
 
         return materials
 
-    async def get_effective_due_dates(self, course_id: str) -> dict:
+    async def get_effective_due_dates(self, course_id: str) -> dict[str, Any]:
         """Get per-student effective due dates for all assignments in a course.
 
         Canvas endpoint: GET /api/v1/courses/:id/effective_due_dates
@@ -416,9 +414,7 @@ class CanvasAdapter(LMSAdapter):
         try:
             content = await self._download_and_extract_pdf(download_url)
         except Exception:
-            logger.warning(
-                "Canvas PDF extraction failed", file_id=file_id, url=download_url
-            )
+            logger.warning("Canvas PDF extraction failed", file_id=file_id, url=download_url)
             return None, None
 
         if not content:
@@ -470,9 +466,7 @@ class CanvasAdapter(LMSAdapter):
                 # Reject oversize files before downloading (when possible)
                 content_length = response.headers.get("content-length")
                 if content_length and int(content_length) > MAX_PDF_SIZE:
-                    logger.warning(
-                        "Canvas PDF too large, skipping", url=url, size=content_length
-                    )
+                    logger.warning("Canvas PDF too large, skipping", url=url, size=content_length)
                     return None
 
                 # Stream the PDF with size enforcement
