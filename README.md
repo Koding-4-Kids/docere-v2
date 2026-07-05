@@ -782,6 +782,18 @@ npm run dev
 
 ---
 
+## Alembic troubleshooting
+
+- Run `alembic current`, `alembic heads`, and `alembic history` to confirm the database, migration files, and revision graph match.
+- If you see `Can't locate revision identified by 'xxx'`, the DB is pointing at a migration that is no longer in your checkout; in local dev, reset the schema and rerun `alembic upgrade head`.
+- If `alembic upgrade head` succeeds but tables still look missing, verify the app and Alembic are using the same `DATABASE_URL`.
+- If autogenerate misses changes, check `alembic/env.py` and make sure `Base.metadata` is imported before `context.configure(...)`.
+- If multiple heads appear, inspect the branch history with `alembic heads` and merge or resolve the divergent revisions before continuing.
+
+For the full setup and troubleshooting guide, see `docs/DEVELOPER_SETUP.md`.
+
+---
+
 ## Configuration Reference
 
 All configuration is via environment variables (loaded from `.env`):
